@@ -1,0 +1,20 @@
+{
+  "name": "cryptosite",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "lint": "npm --workspaces run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1"
+  }
+}

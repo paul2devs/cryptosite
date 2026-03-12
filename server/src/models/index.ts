@@ -1,0 +1,19 @@
+import "./ActiveMultiplier";
+import "./Bonus";
+import "./BonusOptimizationLog";
+import "./ChurnPrediction";
+import "./Deposit";
+import "./EarningsLog";
+import "./Level";
+import "./Notification";
+import "./PasswordResetToken";
+import "./Referral";
+import "./ReferralReward";
+import "./SocialFeedSeen";
+import "./User";
+import "./UserAIProfile";
+import "./UserActivityEvent";
+import "./UserBehaviorScore";
+import "./UserSeenEvent";
+import "./Withdrawal";
+

@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* GLOBAL STYLES */
+html, body, #root {
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: visible; /* prevent global horizontal scroll */
+}
+
+body {
+  @apply font-sans antialiased;
+  background-color: #0F0F10;
+  color: #F5F5F7;
+}
+
+/* AUTH PAGE BACKGROUND */
+.auth-background {
+  min-height: 100vh;
+  width: 100%;
+  background-color: #0F0F10;
+  background-image:
+    radial-gradient(circle at 0% 0%, rgba(255, 215, 0, 0.09), transparent 52%),
+    radial-gradient(circle at 100% 100%, rgba(22, 199, 132, 0.09), transparent 52%);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* GLASS CARD EFFECT */
+.auth-card {
+  backdrop-filter: blur(18px);
+}
+
+/* DASHBOARD HERO CHART PATTERN */
+.dashboard-hero-chart {
+  background-image:
+    linear-gradient(to right, rgba(22, 199, 132, 0.08) 1px, transparent 1px),
+    linear-gradient(to top, rgba(22, 199, 132, 0.06) 1px, transparent 1px),
+    linear-gradient(120deg, rgba(198, 161, 91, 0.12) 0%, rgba(22, 199, 132, 0.02) 40%, transparent 70%);
+  background-size: 40px 40px, 40px 40px, 280px 180px;
+}
+
+/* MOBILE SPECIFIC FIXES */
+@media (max-width: 640px) {
+  /* Force flex containers to wrap instead of overflowing */
+  .flex-wrap-mobile {
+    flex-wrap: wrap !important;
+  }
+
+  /* Enable horizontal scrolling for wide items / carousels */
+  .overflow-x-auto-mobile {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Optional: reduce padding/margins for small screens */
+  .mobile-padding-adjust {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}

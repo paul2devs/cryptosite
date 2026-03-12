@@ -1,0 +1,79 @@
+0 verbose cli /home/paulsmithdev/.config/nvm/versions/node/v20.20.0/bin/node /home/paulsmithdev/.config/nvm/versions/node/v20.20.0/bin/npm
+1 info using npm@10.8.2
+2 info using node@v20.20.0
+3 silly config load:file:/home/paulsmithdev/.config/nvm/versions/node/v20.20.0/lib/node_modules/npm/npmrc
+4 info config found workspace root at /home/paulsmithdev/Desktop/cryptosite
+5 silly config load:file:/home/paulsmithdev/Desktop/cryptosite/.npmrc
+6 silly config load:file:/home/paulsmithdev/.npmrc
+7 silly config load:file:/home/paulsmithdev/.config/nvm/versions/node/v20.20.0/etc/npmrc
+8 verbose title npm install
+9 verbose argv "install" "--no-audit" "--no-fund"
+10 verbose logfile logs-max:10 dir:/home/paulsmithdev/Desktop/cryptosite/.npm-cache/_logs/2026-03-10T17_11_10_459Z-
+11 verbose logfile /home/paulsmithdev/Desktop/cryptosite/.npm-cache/_logs/2026-03-10T17_11_10_459Z-debug-0.log
+12 silly logfile done cleaning log files
+13 silly packumentCache heap:2106327040 maxSize:526581760 maxEntrySize:263290880
+14 silly idealTree buildDeps
+15 silly fetch manifest nodemailer@^6.9.14
+16 silly packumentCache full:https://registry.npmjs.org/nodemailer cache-miss
+17 http fetch GET 200 https://registry.npmjs.org/npm 2152ms
+18 http fetch GET 200 https://registry.npmjs.org/nodemailer 874ms (cache miss)
+19 silly packumentCache full:https://registry.npmjs.org/nodemailer set size:undefined disposed:false
+20 silly placeDep ROOT nodemailer@6.10.1 OK for: cryptosite-server@1.0.0 want: ^6.9.14
+21 silly reify moves {}
+22 verbose reify failed optional dependency /home/paulsmithdev/Desktop/cryptosite/node_modules/fsevents
+23 silly reify mark deleted [ '/home/paulsmithdev/Desktop/cryptosite/node_modules/fsevents' ]
+24 verbose reify failed optional dependency /home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-win32-x64-msvc
+25 silly reify mark deleted [
+25 silly reify   '/home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-win32-x64-msvc'
+25 silly reify ]
+26 verbose reify failed optional dependency /home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-win32-ia32-msvc
+27 silly reify mark deleted [
+27 silly reify   '/home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-win32-ia32-msvc'
+27 silly reify ]
+28 verbose reify failed optional dependency /home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-win32-arm64-msvc
+29 silly reify mark deleted [
+29 silly reify   '/home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-win32-arm64-msvc'
+29 silly reify ]
+30 verbose reify failed optional dependency /home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-linux-arm64-musl
+31 silly reify mark deleted [
+31 silly reify   '/home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-linux-arm64-musl'
+31 silly reify ]
+32 verbose reify failed optional dependency /home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-linux-arm64-gnu
+33 silly reify mark deleted [
+33 silly reify   '/home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-linux-arm64-gnu'
+33 silly reify ]
+34 verbose reify failed optional dependency /home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-linux-arm-gnueabihf
+35 silly reify mark deleted [
+35 silly reify   '/home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-linux-arm-gnueabihf'
+35 silly reify ]
+36 verbose reify failed optional dependency /home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-darwin-x64
+37 silly reify mark deleted [
+37 silly reify   '/home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-darwin-x64'
+37 silly reify ]
+38 verbose reify failed optional dependency /home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-darwin-arm64
+39 silly reify mark deleted [
+39 silly reify   '/home/paulsmithdev/Desktop/cryptosite/node_modules/@swc/core-darwin-arm64'
+39 silly reify ]
+40 silly tarball no local data for nodemailer@https://registry.npmjs.org/nodemailer/-/nodemailer-6.10.1.tgz. Extracting by manifest.
+41 http fetch GET 200 https://registry.npmjs.org/nodemailer/-/nodemailer-6.10.1.tgz 375ms (cache miss)
+42 silly ADD node_modules/nodemailer
+43 silly ADD
+44 silly ADD
+45 silly ADD
+46 silly ADD
+47 silly ADD
+48 silly ADD
+49 silly ADD
+50 silly ADD
+51 silly ADD
+52 verbose cwd /home/paulsmithdev/Desktop/cryptosite/server
+53 verbose os Linux 6.12.25-amd64
+54 verbose node v20.20.0
+55 verbose npm  v10.8.2
+56 notice
+56 notice New major version of npm available! 10.8.2 -> 11.11.0
+56 notice Changelog: https://github.com/npm/cli/releases/tag/v11.11.0
+56 notice To update run: npm install -g npm@11.11.0
+56 notice  { force: true, [Symbol(proc-log.meta)]: true }
+57 verbose exit 0
+58 info ok
