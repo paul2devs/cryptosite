@@ -16,7 +16,6 @@ const COINGECKO_IDS = {
     USDT: "tether",
     BNB: "binancecoin",
     XRP: "ripple",
-    MATIC: "matic-network"
 };
 const MARKET_CACHE_KEY = "market:latest";
 const MARKET_CACHE_TTL_SECONDS = 20;
@@ -78,13 +77,6 @@ async function fetchFromCoinGecko() {
             marketCap: data[COINGECKO_IDS.XRP].usd_market_cap,
             lastUpdated: now
         },
-        MATIC: {
-            symbol: "MATIC",
-            price: data[COINGECKO_IDS.MATIC].usd,
-            change24h: data[COINGECKO_IDS.MATIC].usd_24h_change,
-            marketCap: data[COINGECKO_IDS.MATIC].usd_market_cap,
-            lastUpdated: now
-        }
     };
     return result;
 }
@@ -97,7 +89,6 @@ async function fetchFromBinance() {
         USDT: "USDTUSDT",
         BNB: "BNBUSDT",
         XRP: "XRPUSDT",
-        MATIC: "MATICUSDT"
     };
     const now = new Date().toISOString();
     const entries = await Promise.all(Object.keys(symbols).map(async (symbol) => {
@@ -126,7 +117,6 @@ async function fetchFromBinance() {
         USDT: entries.find(([s]) => s === "USDT")[1],
         BNB: entries.find(([s]) => s === "BNB")[1],
         XRP: entries.find(([s]) => s === "XRP")[1],
-        MATIC: entries.find(([s]) => s === "MATIC")[1]
     };
     return result;
 }

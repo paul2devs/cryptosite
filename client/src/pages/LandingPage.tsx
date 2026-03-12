@@ -262,7 +262,7 @@ const LEADERBOARD_DATA: Record<LeaderboardCategory, LeaderboardRow[]> = {
 const COMMUNITY_EVENTS: CommunityEvent[] = [
   { id: "e1", text: "Alex deposited 0.42 BTC", timeAgo: "2 min ago" },
   { id: "e2", text: "Sarah unlocked Level 3", timeAgo: "7 min ago" },
-  { id: "e3", text: "Mike deposited 3,200 MATIC", timeAgo: "11 min ago" },
+  { id: "e3", text: "Mike deposited 3,200 SOL", timeAgo: "11 min ago" },
   { id: "e4", text: "Referral boost activated for Daniel", timeAgo: "18 min ago" },
   { id: "e5", text: "Priya hit a new earnings milestone", timeAgo: "25 min ago" }
 ];

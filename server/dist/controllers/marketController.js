@@ -15,7 +15,7 @@ async function getMarketPrices(_req, res) {
 async function getMarketPriceForCoin(req, res) {
     const { symbol } = req.params;
     const upper = symbol.toUpperCase();
-    if (!["BTC", "ETH", "SOL", "USDT", "BNB", "XRP", "MATIC"].includes(upper)) {
+    if (!["BTC", "ETH", "SOL", "USDT", "BNB", "XRP"].includes(upper)) {
         res.status(400).json({ message: "Unsupported symbol" });
         return;
     }
