@@ -14,14 +14,19 @@ export function authenticate(
   next: NextFunction
 ): void {
   const header = req.headers.authorization;
+  const bearerToken = header && header.startsWith("Bearer ") ? header.split(" ")[1] : null;
+  const cookieToken =
+    typeof req.cookies?.accessToken === "string" && req.cookies.accessToken.length > 0
+      ? req.cookies.accessToken
+      : null;
+  const token = bearerToken || cookieToken;
 
-  if (!header || !header.startsWith("Bearer ")) {
+  if (!token) {
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
 
   try {
-    const token = header.split(" ")[1];
     const payload = verifyAccessToken(token);
     req.user = { userId: payload.userId, isAdmin: payload.isAdmin };
     next();

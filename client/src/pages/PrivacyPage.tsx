@@ -2,14 +2,14 @@ import { Seo } from "../components/Seo";
 
 export function PrivacyPage() {
   return (
-    <div className="auth-background flex items-center justify-center py-10">
+    <div className="page-responsive borderless-ui auth-background flex min-h-screen w-full items-start justify-center py-8 sm:py-10">
       <Seo
         title="Privacy policy"
         description="Learn how Crypto Levels collects, uses, stores and protects your information, including cookies and local storage used for session security."
         path="/privacy"
       />
-      <div className="w-full max-w-3xl px-4">
-        <div className="auth-card w-full rounded-3xl bg-[#333333]/90 border border-slate-800/80 shadow-elevated-card px-6 py-7 sm:px-10 sm:py-10">
+      <div className="w-full max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div className="auth-card mx-auto w-full rounded-3xl bg-[#333333]/90 shadow-elevated-card px-6 py-7 sm:px-10 sm:py-10 lg:px-12">
           <h1 className="text-2xl font-semibold text-white tracking-tight mb-4">
             Privacy Policy
           </h1>

@@ -10,6 +10,7 @@ import { api } from "../utils/api";
 import { useNotificationContext } from "../components/NotificationProvider";
 import type { ActivityEvent } from "../data/activityFeed";
 import { Seo } from "../components/Seo";
+import { BalanceToggle, useBalanceVisibility } from "../components/BalanceVisibilityProvider";
 
 interface ProgressionResponse {
   level: number;
@@ -210,8 +211,9 @@ export function DashboardPage() {
 
   const displayName = getDisplayName(user.name, user.email);
 
+  const { hidden, mask } = useBalanceVisibility();
   return (
-    <div className="space-y-8">
+    <div className="page-responsive borderless-ui space-y-8">
       <Seo
         title="Dashboard – live levels, multipliers and rewards"
         description="View your Crypto Levels dashboard with live XP, level progression, streaks, multipliers, pending earnings and real-time market-backed portfolio value."
@@ -219,8 +221,11 @@ export function DashboardPage() {
       />
       <section className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-[#F5F5F7]">
-            {getGreeting()}, {displayName}
+          <p className="text-base font-medium tracking-tight text-[#F5F5F7] sm:text-lg">
+            <span className="font-sans text-[#9CA3AF]">{getGreeting()}, </span>
+            <span className="display-font font-semibold bg-gradient-to-r from-[#C6A15B] via-[#FACC15] to-[#F59E0B] bg-clip-text text-transparent">
+              {displayName}
+            </span>
           </p>
         </div>
       </section>
@@ -251,8 +256,11 @@ export function DashboardPage() {
             </div>
             <div className="flex items-end justify-between gap-4">
               <div>
-                <div className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#F5F5F7]">
-                  {formatUsd(animatedPortfolioValue || 0)}
+                <div className="flex items-center gap-2">
+                  <div className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#F5F5F7]">
+                    {hidden ? mask("$******") : formatUsd(animatedPortfolioValue || 0)}
+                  </div>
+                  <BalanceToggle />
                 </div>
                 <div className="mt-2 text-xs text-[#9CA3AF]">
                   Approved deposits valued at live market rates.
@@ -262,13 +270,13 @@ export function DashboardPage() {
                 <span>
                   Approved deposits:{" "}
                   <span className="text-[#F5F5F7]">
-                    {formatUsd(progression?.totalDepositedUsd ?? 0)}
+                    {hidden ? mask("$******") : formatUsd(progression?.totalDepositedUsd ?? 0)}
                   </span>
                 </span>
                 <span>
                   Pending earnings:{" "}
                   <span className="text-[#16C784]">
-                    {(progression?.pendingEarningsTotal ?? 0).toFixed(4)}
+                    {hidden ? mask("******") : (progression?.pendingEarningsTotal ?? 0).toFixed(4)}
                   </span>
                 </span>
               </div>
@@ -302,7 +310,7 @@ export function DashboardPage() {
                   <p>
                     Total approved deposits{" "}
                     <span className="block text-sm font-medium text-[#F5F5F7]">
-                      {formatUsd(progression?.totalDepositedUsd ?? 0)}
+                      {hidden ? mask("$******") : formatUsd(progression?.totalDepositedUsd ?? 0)}
                     </span>
                   </p>
                 </div>
@@ -318,12 +326,10 @@ export function DashboardPage() {
                   {progression?.depositNextLevelRequiredTotal && (
                     <p className="text-[11px]">
                       Required:{" "}
-                      {formatUsd(
-                        progression.depositNextLevelRequiredTotal ?? 0
-                      )}{" "}
+                      {hidden ? mask("$******") : formatUsd(progression.depositNextLevelRequiredTotal ?? 0)}{" "}
                       · Remaining:{" "}
                       <span className="text-[#C6A15B]">
-                        {formatUsd(progression.depositRemainingToNext ?? 0)}
+                        {hidden ? mask("$******") : formatUsd(progression.depositRemainingToNext ?? 0)}
                       </span>
                     </p>
                   )}
@@ -342,7 +348,7 @@ export function DashboardPage() {
             <span>Pending Earnings</span>
           </div>
           <div className="text-2xl font-semibold text-[#16C784] tracking-tight">
-            {(progression?.pendingEarningsTotal ?? 0).toFixed(4)}
+            {hidden ? mask("******") : (progression?.pendingEarningsTotal ?? 0).toFixed(4)}
           </div>
           <div className="space-y-1 text-[11px] text-[#9CA3AF]">
             <p>
@@ -366,16 +372,16 @@ export function DashboardPage() {
               %
             </p>
             <div className="mt-2 flex items-center justify-between text-[11px]">
-              <span className="text-[#9CA3AF]">
+            <span className="text-[#9CA3AF]">
                 Withdrawable{" "}
                 <span className="block text-xs text-[#F5F5F7]">
-                  {(progression?.withdrawableBalance ?? 0).toFixed(4)}
+                  {hidden ? mask("******") : (progression?.withdrawableBalance ?? 0).toFixed(4)}
                 </span>
               </span>
               <span className="text-[#9CA3AF] text-right">
                 Locked{" "}
                 <span className="block text-xs text-[#F5F5F7]">
-                  {(progression?.lockedBalance ?? 0).toFixed(4)}
+                  {hidden ? mask("******") : (progression?.lockedBalance ?? 0).toFixed(4)}
                 </span>
               </span>
             </div>
@@ -412,7 +418,7 @@ export function DashboardPage() {
                       Rewards
                     </p>
                     <p className="text-xs text-[#16C784]">
-                      {(progression?.pendingEarningsTotal ?? 0).toFixed(4)}{" "}
+                      {hidden ? mask("******") : (progression?.pendingEarningsTotal ?? 0).toFixed(4)}{" "}
                       pending
                     </p>
                   </div>
@@ -420,13 +426,13 @@ export function DashboardPage() {
                     <span>
                       Withdrawable:{" "}
                       <span className="text-[#F5F5F7]">
-                        {(progression?.withdrawableBalance ?? 0).toFixed(4)}
+                        {hidden ? mask("******") : (progression?.withdrawableBalance ?? 0).toFixed(4)}
                       </span>
                     </span>
                     <span>
                       Locked:{" "}
                       <span className="text-[#F5F5F7]">
-                        {(progression?.lockedBalance ?? 0).toFixed(4)}
+                        {hidden ? mask("******") : (progression?.lockedBalance ?? 0).toFixed(4)}
                       </span>
                     </span>
                   </div>
@@ -475,7 +481,7 @@ export function DashboardPage() {
                     <p className="text-[11px] text-[#9CA3AF]">
                       Need{" "}
                       <span className="text-[#C6A15B]">
-                        {formatUsd(progression.depositRemainingToNext ?? 0)}
+                        {hidden ? mask("$******") : formatUsd(progression.depositRemainingToNext ?? 0)}
                       </span>{" "}
                       more approved deposits.
                     </p>

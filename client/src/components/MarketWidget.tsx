@@ -6,9 +6,8 @@ import solLogo from "../assets/crypto/sol.svg";
 import usdtLogo from "../assets/crypto/usdt.svg";
 import bnbLogo from "../assets/crypto/bnb.svg";
 import xrpLogo from "../assets/crypto/xrp.svg";
-import maticLogo from "../assets/crypto/matic.svg";
 
-type SupportedSymbol = "BTC" | "ETH" | "SOL" | "USDT" | "BNB" | "XRP" | "MATIC";
+type SupportedSymbol = "BTC" | "ETH" | "SOL" | "USDT" | "BNB" | "XRP";
 
 interface MarketDataPoint {
   symbol: SupportedSymbol;
@@ -54,11 +53,6 @@ const MARKET_META: Record<
     logo: xrpLogo,
     color: "#23292F"
   },
-  MATIC: {
-    name: "Polygon",
-    logo: maticLogo,
-    color: "#8247E5"
-  }
 };
 
 const symbols: SupportedSymbol[] = [
@@ -68,7 +62,6 @@ const symbols: SupportedSymbol[] = [
   "USDT",
   "BNB",
   "XRP",
-  "MATIC"
 ];
 
 export function MarketWidget() {
@@ -130,7 +123,7 @@ export function MarketWidget() {
             Live Market
           </span>
           <span className="text-[11px] text-[#9CA3AF]">
-            BTC · ETH · SOL · USDT · MATIC and more
+            BTC · ETH · SOL · USDT · and more
           </span>
         </div>
         <span className="text-[10px] uppercase tracking-[0.18em] text-[#9CA3AF]">

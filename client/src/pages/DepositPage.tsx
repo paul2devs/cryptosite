@@ -295,13 +295,13 @@ export function DepositPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="page-responsive borderless-ui min-w-0 space-y-8 overflow-x-hidden">
       <Seo
         title="Deposit crypto"
         description="Submit a blockchain-verified deposit to unlock XP, levels, deposit tiers and multiplier rewards inside Crypto Levels."
         path="/deposit"
       />
-      <section className="space-y-2">
+      <section className="space-y-1.5">
         <h1 className="text-2xl font-semibold tracking-tight text-[#F5F5F7]">
           Deposit
         </h1>
@@ -310,7 +310,7 @@ export function DepositPage() {
         </p>
       </section>
 
-      <section className="rounded-2xl bg-[#17181A]/40 px-4 py-3 sm:px-6 sm:py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between backdrop-blur-sm">
+      <section className="min-w-0 rounded-2xl bg-[#17181A]/40 px-4 py-3 sm:px-6 sm:py-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between backdrop-blur-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[#9CA3AF]">
             <span>Deposit Level</span>
@@ -328,7 +328,7 @@ export function DepositPage() {
             </span>
           </div>
         </div>
-        <div className="w-full max-w-md space-y-1">
+        <div className="w-full max-w-md space-y-0.5">
           <div className="h-2 rounded-full bg-[#26272B] overflow-hidden">
             <motion.div
               className="h-full rounded-full"
@@ -355,10 +355,10 @@ export function DepositPage() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-6 lg:flex-row items-start">
-        <div className="space-y-5 lg:w-[40%] w-full order-1 lg:order-1">
+      <section className="min-w-0 grid grid-cols-1 gap-6 lg:grid-cols-2 items-start">
+        <div className="order-1 w-full min-w-0 space-y-5 lg:order-1">
           <div className="rounded-2xl bg-[#17181A]/40 px-4 py-4 sm:px-5 sm:py-5 space-y-4 backdrop-blur-sm">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="space-y-1">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-[#9CA3AF]">
                   Asset
@@ -368,7 +368,7 @@ export function DepositPage() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 whitespace-nowrap">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2 overflow-x-visible pb-2">
               {(["BTC", "ETH", "SOL"] as CryptoType[]).map((asset) => {
                 const isActive = cryptoType === asset;
                 const meta = assetMeta[asset];
@@ -379,7 +379,7 @@ export function DepositPage() {
                     onClick={() => setCryptoType(asset)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs border transition-all flex-shrink-0 ${
+                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs border transition-all ${
                       isActive
                         ? "border-[#FFD700] bg-[#1E1F22] shadow-[0_0_18px_rgba(255,215,0,0.28)]"
                         : "border-[#26272B] bg-[#17181A]/80 hover:border-[#4B5563]"
@@ -409,7 +409,7 @@ export function DepositPage() {
                 onClick={() => setShowUsdtModal(true)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs border transition-all flex-shrink-0 ${
+                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs border transition-all ${
                   cryptoType === "TRC20" || cryptoType === "ERC20"
                     ? "border-[#FFD700] bg-[#1E1F22] shadow-[0_0_18px_rgba(255,215,0,0.28)]"
                     : "border-[#26272B] bg-[#17181A]/80 hover:border-[#4B5563]"
@@ -435,7 +435,7 @@ export function DepositPage() {
             </div>
             {showUsdtModal && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowUsdtModal(false)}>
-                <div className="rounded-2xl bg-[#17181A] border border-[#26272B] p-6 max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div className="rounded-2xl bg-[#17181A] p-6 max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
                   <h3 className="text-sm font-medium text-[#F5F5F7] mb-4">Select USDT Network</h3>
                   <div className="space-y-3">
                     <button
@@ -444,7 +444,7 @@ export function DepositPage() {
                         setCryptoType("TRC20");
                         setShowUsdtModal(false);
                       }}
-                      className="w-full flex items-center gap-3 rounded-xl border border-[#26272B] bg-[#0F0F10] px-4 py-3 hover:bg-[#17181A] transition-colors"
+                      className="w-full flex items-center gap-3 rounded-xl bg-[#0F0F10] px-4 py-3 hover:bg-[#17181A] transition-colors"
                     >
                       <div className="h-10 w-10 rounded-full bg-[#0F0F10] flex items-center justify-center overflow-hidden">
                         <img src={usdtLogo} alt="USDT TRC20" className="h-6 w-6" />
@@ -460,7 +460,7 @@ export function DepositPage() {
                         setCryptoType("ERC20");
                         setShowUsdtModal(false);
                       }}
-                      className="w-full flex items-center gap-3 rounded-xl border border-[#26272B] bg-[#0F0F10] px-4 py-3 hover:bg-[#17181A] transition-colors"
+                      className="w-full flex items-center gap-3 rounded-xl bg-[#0F0F10] px-4 py-3 hover:bg-[#17181A] transition-colors"
                     >
                       <div className="h-10 w-10 rounded-full bg-[#0F0F10] flex items-center justify-center overflow-hidden">
                         <img src={usdtLogo} alt="USDT ERC20" className="h-6 w-6" />
@@ -507,13 +507,13 @@ export function DepositPage() {
             {!loading && currentAddress && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <div className="rounded-xl bg-[#0F0F10] border border-[#26272B] px-3 py-2.5 text-[11px] break-all">
+                  <div className="rounded-xl bg-[#0F0F10] px-3 py-2.5 text-[11px] break-all">
                     {currentAddress.address}
                   </div>
                   <button
                     type="button"
                     onClick={handleCopyAddress}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] transition-colors"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] transition-colors"
                   >
                     <span>Copy address</span>
                   </button>
@@ -550,10 +550,7 @@ export function DepositPage() {
           </div>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5 lg:w-[60%] w-full order-3 lg:order-2"
-        >
+        <form onSubmit={handleSubmit} className="order-3 w-full min-w-0 space-y-5 lg:order-2">
           <div className="rounded-2xl bg-[#17181A]/40 px-4 py-4 sm:px-5 sm:py-5 space-y-4 backdrop-blur-sm">
             <div className="grid gap-4">
               <div className="space-y-2">
@@ -572,11 +569,11 @@ export function DepositPage() {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     required
-                    className="w-full rounded-xl bg-[#0F0F10] border border-[#26272B] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD700]/60 focus:border-transparent pr-16"
+                    className="w-full rounded-xl bg-[#0F0F10] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD700]/60 focus:border-transparent pr-16"
                     placeholder="0.00"
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                    <span className="rounded-full bg-[#17181A] px-2 py-1 text-[11px] text-[#F5F5F7] border border-[#26272B]">
+                    <span className="rounded-full bg-[#17181A] px-2 py-1 text-[11px] text-[#F5F5F7]">
                       {assetMeta[cryptoType].label}
                     </span>
                   </div>
@@ -594,7 +591,7 @@ export function DepositPage() {
                   onChange={(e) => setTxHash(e.target.value)}
                   placeholder="Paste blockchain transaction hash"
                   required
-                  className="w-full rounded-xl bg-[#0F0F10] border border-[#26272B] px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#4DB5FF]/60 focus:border-transparent"
+                  className="w-full rounded-xl bg-[#0F0F10] px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#4DB5FF]/60 focus:border-transparent"
                 />
                 <p className="text-[11px] text-[#9CA3AF]">
                   After sending your crypto, paste the TX hash to verify your deposit.
@@ -618,7 +615,7 @@ export function DepositPage() {
 
               {bonuses.length > 0 && (
                 <div className="rounded-xl bg-[#C6A15B]/8 px-3 py-3 text-[11px] space-y-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[#F5F5F7] font-medium">
                       Limited-time bonus
                     </span>
@@ -669,7 +666,7 @@ export function DepositPage() {
           </div>
         </form>
 
-        <div className="space-y-5 lg:w-[40%] w-full order-4 lg:order-3">
+        <div className="order-4 w-full min-w-0 space-y-5 lg:order-3 lg:col-span-2">
           <div className="rounded-2xl bg-[#17181A]/40 px-4 py-4 sm:px-5 sm:py-5 space-y-3 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -689,52 +686,56 @@ export function DepositPage() {
               )}
               {deposits.length > 0 && (
                 <div className="space-y-1 text-[11px]">
-                  <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] gap-2 px-2 py-1 text-[#9CA3AF]">
-                    <span>Asset</span>
-                    <span>Amount</span>
-                    <span>TX Hash</span>
-                    <span>Status</span>
-                    <span>Date</span>
-                  </div>
-                  {deposits.map((d) => {
-                    const statusClass =
-                      d.status === "Approved"
-                        ? "text-[#16C784] bg-[#16C784]/10 border-[#16C784]/40"
-                        : d.status === "Rejected"
-                        ? "text-[#EA3943] bg-[#EA3943]/10 border-[#EA3943]/40"
-                        : "text-[#FFD700] bg-[#FFD700]/10 border-[#FFD700]/40";
-                    const hash = d.tx_hash || "";
-                    const shortHash =
-                      hash && hash.length > 12
-                        ? `${hash.slice(0, 6)}...${hash.slice(-4)}`
-                        : hash || "—";
-                    return (
-                      <div
-                        key={d.deposit_id}
-                        className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] gap-2 items-center rounded-xl border border-[#26272B] bg-[#0F0F10] px-2 py-2"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-[#17181A] px-2 py-1 text-[10px] text-[#F5F5F7]">
-                            {d.crypto_type}
-                          </span>
-                        </div>
-                        <span className="text-[#F5F5F7]">
-                          {d.amount} {d.crypto_type}
-                        </span>
-                        <span className="font-mono text-[10px] text-[#9CA3AF]">
-                          {shortHash}
-                        </span>
-                        <span
-                          className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] ${statusClass}`}
-                        >
-                          {d.status}
-                        </span>
-                        <span className="text-[#9CA3AF]">
-                          {new Date(d.timestamp).toLocaleDateString()}
-                        </span>
+                  <div className="w-full overflow-x-auto">
+                    <div className="min-w-[520px]">
+                      <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] gap-2 px-2 py-1 text-[#9CA3AF]">
+                        <span>Asset</span>
+                        <span>Amount</span>
+                        <span>TX Hash</span>
+                        <span>Status</span>
+                        <span>Date</span>
                       </div>
-                    );
-                  })}
+                      {deposits.map((d) => {
+                        const statusClass =
+                          d.status === "Approved"
+                            ? "text-[#16C784] bg-[#16C784]/10 border-[#16C784]/40"
+                            : d.status === "Rejected"
+                            ? "text-[#EA3943] bg-[#EA3943]/10 border-[#EA3943]/40"
+                            : "text-[#FFD700] bg-[#FFD700]/10 border-[#FFD700]/40";
+                        const hash = d.tx_hash || "";
+                        const shortHash =
+                          hash && hash.length > 12
+                            ? `${hash.slice(0, 6)}...${hash.slice(-4)}`
+                            : hash || "—";
+                        return (
+                          <div
+                            key={d.deposit_id}
+                            className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] gap-2 items-center rounded-xl bg-[#0F0F10] px-2 py-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-full bg-[#17181A] px-2 py-1 text-[10px] text-[#F5F5F7]">
+                                {d.crypto_type}
+                              </span>
+                            </div>
+                            <span className="text-[#F5F5F7]">
+                              {d.amount} {d.crypto_type}
+                            </span>
+                            <span className="font-mono text-[10px] text-[#9CA3AF]">
+                              {shortHash}
+                            </span>
+                            <span
+                              className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] ${statusClass}`}
+                            >
+                              {d.status}
+                            </span>
+                            <span className="text-[#9CA3AF]">
+                              {new Date(d.timestamp).toLocaleDateString()}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -745,7 +746,7 @@ export function DepositPage() {
       <AnimatePresence>
         {(message || error) && (
           <motion.div
-            className="fixed bottom-24 right-4 z-40 max-w-xs rounded-2xl border px-3 py-2 text-xs shadow-lg bg-[#0F0F10]"
+            className="fixed bottom-24 left-4 right-4 z-40 max-w-xs border px-3 py-2 text-xs shadow-lg bg-[#0F0F10] sm:left-auto"
             initial={{ opacity: 0, y: 10, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.96 }}

@@ -26,6 +26,16 @@ import {
 
 const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 
+function getAuthCookieOptions() {
+  const isProduction = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+    path: "/"
+  };
+}
+
 export async function register(req: Request, res: Response): Promise<void> {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -100,6 +110,9 @@ export async function register(req: Request, res: Response): Promise<void> {
     const payload: JwtPayload = { userId: user.user_id, isAdmin: user.is_admin };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
+    const cookieOptions = getAuthCookieOptions();
+    res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+    res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
     res.status(201).json({
       user: {
@@ -150,6 +163,9 @@ export async function login(req: Request, res: Response): Promise<void> {
     const payload: JwtPayload = { userId: user.user_id, isAdmin: user.is_admin };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
+    const cookieOptions = getAuthCookieOptions();
+    res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+    res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
     res.status(200).json({
       user: {
@@ -175,7 +191,12 @@ export async function login(req: Request, res: Response): Promise<void> {
 }
 
 export async function refreshToken(req: Request, res: Response): Promise<void> {
-  const { refreshToken: token } = req.body as { refreshToken?: string };
+  const { refreshToken: bodyToken } = req.body as { refreshToken?: string };
+  const cookieToken =
+    typeof req.cookies?.refreshToken === "string" && req.cookies.refreshToken.length > 0
+      ? req.cookies.refreshToken
+      : undefined;
+  const token = bodyToken || cookieToken;
 
   if (!token) {
     res.status(400).json({ message: "Refresh token required" });
@@ -185,6 +206,8 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
   try {
     const payload = verifyRefreshToken(token);
     const accessToken = signAccessToken(payload);
+    const cookieOptions = getAuthCookieOptions();
+    res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
     res.status(200).json({ accessToken });
   } catch (error) {
     res.status(401).json({ message: "Invalid refresh token" });

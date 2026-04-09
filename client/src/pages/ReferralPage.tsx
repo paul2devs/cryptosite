@@ -119,13 +119,13 @@ export function ReferralPage() {
   const hasRewards = (data?.rewards?.length ?? 0) > 0;
 
   return (
-    <div className="space-y-10">
+    <div className="page-responsive borderless-ui space-y-10">
       <Seo
         title="Referrals – invite and earn multiplier boosts"
         description="Invite friends to Crypto Levels and unlock referral multiplier boosts when their deposits are approved."
         path="/referrals"
       />
-      <section className="relative overflow-hidden rounded-3xl border border-[#26272B] bg-[#17181A] px-6 py-7 sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-3xl bg-[#17181A] px-6 py-7 sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute inset-0 opacity-20">
           <svg
             aria-hidden="true"
@@ -169,11 +169,11 @@ export function ReferralPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-[#9CA3AF]">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#26272B] bg-[#0F0F10] px-3 py-1.5">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#0F0F10] px-3 py-1.5">
                 <Users className="h-3.5 w-3.5 text-[#C6A15B]" />
                 <span>Turn your network into a shared reward engine.</span>
               </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#26272B] bg-[#0F0F10] px-3 py-1.5">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#0F0F10] px-3 py-1.5">
                 <Award className="h-3.5 w-3.5 text-[#16C784]" />
                 <span>Boosts are real, on-chain verified multipliers.</span>
               </div>
@@ -292,7 +292,7 @@ export function ReferralPage() {
                           setCopyToast("Invite link copied");
                         }}
                         disabled={!link}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
                       >
                         <Copy className="h-3.5 w-3.5" />
                         <span>Copy</span>
@@ -312,7 +312,7 @@ export function ReferralPage() {
                             .catch(() => {});
                         }}
                         disabled={!link || !("share" in navigator)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
                       >
                         <Share2 className="h-3.5 w-3.5" />
                         <span>Share</span>
@@ -340,7 +340,7 @@ export function ReferralPage() {
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
                   disabled={!link}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
                 >
                   <Send className="h-3.5 w-3.5 text-[#28A8E9]" />
                   <span>Telegram</span>
@@ -357,7 +357,7 @@ export function ReferralPage() {
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
                   disabled={!link}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
                 >
                   <FaWhatsapp className="h-3.5 w-3.5 text-[#25D366]" />
                   <span>WhatsApp</span>
@@ -374,7 +374,7 @@ export function ReferralPage() {
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
                   disabled={!link}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
                 >
                   <FaTwitter className="h-3.5 w-3.5 text-[#F5F5F7]" />
                   <span>X</span>
@@ -393,7 +393,7 @@ export function ReferralPage() {
                     window.location.href = url;
                   }}
                   disabled={!link}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
                 >
                   <Mail className="h-3.5 w-3.5 text-[#F97316]" />
                   <span>Email</span>
@@ -414,13 +414,13 @@ export function ReferralPage() {
                     multiplier boosts.
                   </p>
                 </div>
-                <div className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full bg-[#0F0F10] border border-[#26272B]">
+                <div className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full bg-[#0F0F10]">
                   <LinkIcon className="h-4 w-4 text-[#C6A15B]" />
                 </div>
               </div>
               <div className="space-y-3 text-xs text-[#F5F5F7]">
                 <div className="flex gap-3">
-                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F0F10] border border-[#26272B]">
+                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F0F10]">
                     <UserPlus className="h-4 w-4 text-[#C6A15B]" />
                   </div>
                   <div className="space-y-1">
@@ -432,7 +432,7 @@ export function ReferralPage() {
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F0F10] border border-[#26272B]">
+                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F0F10]">
                     <CreditCard className="h-4 w-4 text-[#16C784]" />
                   </div>
                   <div className="space-y-1">
@@ -444,7 +444,7 @@ export function ReferralPage() {
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F0F10] border border-[#26272B]">
+                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F0F10]">
                     <Zap className="h-4 w-4 text-[#C6A15B]" />
                   </div>
                   <div className="space-y-1">
@@ -468,13 +468,13 @@ export function ReferralPage() {
                     Track how your invites are turning into live multiplier boosts.
                   </p>
                 </div>
-                <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-[#0F0F10] border border-[#26272B]">
+                <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-[#0F0F10]">
                   <Clock className="h-4 w-4 text-[#9CA3AF]" />
                 </div>
               </div>
 
               {!hasRewards && (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#26272B] bg-[#0F0F10] px-4 py-6 text-center">
+                <div className="flex flex-col items-center justify-center gap-2 rounded-xl bg-[#0F0F10] px-4 py-6 text-center">
                   <p className="text-xs font-medium text-[#F5F5F7]">
                     No referral rewards yet.
                   </p>
@@ -501,7 +501,7 @@ export function ReferralPage() {
               )}
 
               {hasRewards && (
-                <div className="overflow-hidden rounded-xl border border-[#26272B] bg-[#0F0F10]">
+                <div className="overflow-hidden rounded-xl bg-[#0F0F10]">
                   <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] gap-2 px-3 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#9CA3AF]">
                     <span>User</span>
                     <span>Reward</span>
@@ -518,7 +518,7 @@ export function ReferralPage() {
                           className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] gap-2 px-3 py-2.5 text-xs text-[#F5F5F7] transition-colors hover:bg-[#111827]"
                         >
                           <div className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#17181A] border border-[#26272B] text-[11px] font-medium text-[#F5F5F7]">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#17181A] text-[11px] font-medium text-[#F5F5F7]">
                               F
                             </div>
                             <div className="flex flex-col">
@@ -569,7 +569,7 @@ export function ReferralPage() {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            className="fixed bottom-24 right-4 z-40 max-w-xs rounded-2xl border border-[#16C784]/60 bg-[#071A14] px-3 py-2 text-xs text-[#A7F3D0] shadow-lg"
+            className="fixed bottom-24 right-4 z-40 max-w-xs rounded-2xl bg-[#071A14] px-3 py-2 text-xs text-[#A7F3D0] shadow-lg"
           >
             <p>{copyToast}</p>
           </motion.div>

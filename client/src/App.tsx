@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "./store";
 import { fetchMe, loadStoredTokens } from "./store/authSlice";
@@ -10,8 +10,10 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { CookiesPage } from "./pages/CookiesPage";
 import { LandingPage } from "./pages/LandingPage";
 import { Layout } from "./components/Layout";
+import { BalanceVisibilityProvider } from "./components/BalanceVisibilityProvider";
 import { lazy } from "react";
 
 const DashboardPage = lazy(() =>
@@ -71,7 +73,9 @@ function App() {
   }, [dispatch]);
 
   return (
+    <BalanceVisibilityProvider>
     <Layout>
+      <ScrollToTopOnRouteChange />
       <Suspense
         fallback={
           <div className="flex items-center justify-center py-10 text-sm text-slate-400">
@@ -87,6 +91,7 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/cookies" element={<CookiesPage />} />
           <Route
             path="/"
             element={
@@ -155,7 +160,21 @@ function App() {
         </Routes>
       </Suspense>
     </Layout>
+    </BalanceVisibilityProvider>
   );
+}
+
+function ScrollToTopOnRouteChange() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash) {
+      return;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname, location.hash]);
+
+  return null;
 }
 
 export default App;

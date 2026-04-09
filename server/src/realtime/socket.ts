@@ -18,6 +18,19 @@ interface SocialProofEvent {
 let io: Server | null = null;
 const userSockets = new Map<string, Set<string>>();
 
+const defaultAllowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://cryptosite-seven.vercel.app"
+];
+
+const configuredOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+
+const allowedOrigins = new Set<string>([...defaultAllowedOrigins, ...configuredOrigins]);
+
 export function initSocketServer(server: HttpServer): void {
   if (io) {
     return;
@@ -25,7 +38,14 @@ export function initSocketServer(server: HttpServer): void {
 
   io = new Server(server, {
     cors: {
-      origin: process.env.CORS_ORIGIN || "http://localhost:5173"
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error(`Socket CORS origin not allowed: ${origin}`));
+      },
+      credentials: true
     }
   });
 

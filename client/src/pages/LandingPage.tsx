@@ -31,7 +31,6 @@ import ethLogo from "../assets/crypto/eth.svg";
 import solLogo from "../assets/crypto/sol.svg";
 import usdtLogo from "../assets/crypto/usdt.svg";
 import { api } from "../utils/api";
-import { Footer } from "../components/Footer";
 import { Seo } from "../components/Seo";
 
 type MarketSymbol = "BTC" | "ETH" | "USDT" | "SOL";
@@ -262,7 +261,7 @@ const LEADERBOARD_DATA: Record<LeaderboardCategory, LeaderboardRow[]> = {
 const COMMUNITY_EVENTS: CommunityEvent[] = [
   { id: "e1", text: "Alex deposited 0.42 BTC", timeAgo: "2 min ago" },
   { id: "e2", text: "Sarah unlocked Level 3", timeAgo: "7 min ago" },
-  { id: "e3", text: "Mike deposited 3,200 SOL", timeAgo: "11 min ago" },
+  { id: "e3", text: "Mike deposited 3,200 MATIC", timeAgo: "11 min ago" },
   { id: "e4", text: "Referral boost activated for Daniel", timeAgo: "18 min ago" },
   { id: "e5", text: "Priya hit a new earnings milestone", timeAgo: "25 min ago" }
 ];
@@ -309,7 +308,7 @@ export function LandingPage() {
     { day: 25, value: 18942 }
   ]);
   const [floatingSignals, setFloatingSignals] = useState<
-    { id: string; text: string; x: number; y: number }[]
+    { id: string; text: string; x: string; y: string }[]
   >([]);
   const [progressAmount, setProgressAmount] = useState(1200);
   const [simulatedPortfolioValue, setSimulatedPortfolioValue] = useState(12492);
@@ -340,6 +339,14 @@ export function LandingPage() {
       ? `${window.location.origin}/register?ref=your-code`
       : "https://cryptogrowth.com/ref/your-code";
 
+  const formatUsd = (value: number): string => {
+    if (!Number.isFinite(value)) {
+      return "$—";
+    }
+    const clamped = Math.max(0, Math.min(Math.round(value), 50_000_000));
+    return `$${clamped.toLocaleString()}`;
+  };
+
   const level = useMemo(() => calculateLevel(depositAmount), [depositAmount]);
   const multiplier = useMemo(() => calculateMultiplier(level), [level]);
   const earnings = useMemo(
@@ -360,17 +367,21 @@ export function LandingPage() {
     return match ? match.multiplier : 1.1;
   }, [engineLevel]);
 
-  const engineProjectedGrowth = useMemo(
-    () => engineDeposit * engineMultiplier,
-    [engineDeposit, engineMultiplier]
-  );
+  const engineProjectedGrowth = useMemo(() => {
+    const raw = engineDeposit * engineMultiplier;
+    if (!Number.isFinite(raw) || raw < 0) {
+      return 0;
+    }
+    return Math.min(raw, 10000000);
+  }, [engineDeposit, engineMultiplier]);
 
   const engineChartSeries = useMemo(() => {
-    const base = engineDeposit || 100;
-    const finalValue = engineProjectedGrowth || engineDeposit || 100;
-    const mid1 = base * 0.6;
-    const mid2 = (base + finalValue) / 2;
-    const mid3 = finalValue * 0.85;
+    const clamp = (v: number) => Math.max(0, Math.min(v, 10_000_000));
+    const base = clamp(engineDeposit || 100);
+    const finalValue = clamp(engineProjectedGrowth || engineDeposit || 100);
+    const mid1 = clamp(base * 0.6);
+    const mid2 = clamp((base + finalValue) / 2);
+    const mid3 = clamp(finalValue * 0.85);
     return [mid1, mid2, mid3, finalValue];
   }, [engineDeposit, engineProjectedGrowth]);
 
@@ -465,9 +476,9 @@ export function LandingPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setSimulatedPortfolioValue((prev) => {
-        const delta = (Math.random() - 0.5) * 80;
+        const delta = (Math.random() - 0.3) * 60;
         const next = prev + delta;
-        const clamped = Math.min(20000, Math.max(10000, next));
+        const clamped = Math.max(10000, Math.min(next, 25000));
         return clamped;
       });
     }, 4000);
@@ -489,7 +500,8 @@ export function LandingPage() {
       const elapsed = now - startTime;
       const t = Math.min(1, elapsed / duration);
       const eased = 1 - Math.pow(1 - t, 3);
-      const value = start + (end - start) * eased;
+      const raw = start + (end - start) * eased;
+      const value = Math.max(10000, Math.min(raw, 25000));
       setDisplayedPortfolioValue(value);
       if (t < 1) {
         frameId = requestAnimationFrame(tick);
@@ -519,33 +531,6 @@ export function LandingPage() {
 
     return () => clearInterval(interval);
   }, []);
-
-  // useEffect(() => {
-  //   const signals = [
-  //     "+0.12 BTC deposited",
-  //     "Multiplier upgraded → x1.35",
-  //     "Referral boost unlocked"
-  //   ];
-  //   const interval = setInterval(() => {
-  //     const signal = signals[Math.floor(Math.random() * signals.length)];
-  //     setFloatingSignals((prev) => {
-  //       const newSignal = {
-  //         id: `${Date.now()}-${Math.random()}`,
-  //         text: signal,
-  //         x: Math.random() * 200 + 50,
-  //         y: Math.random() * 200 + 50
-  //       };
-  //       setTimeout(() => {
-  //         setFloatingSignals((current) =>
-  //           current.filter((s) => s.id !== newSignal.id)
-  //         );
-  //       }, 3000);
-  //       return [...prev, newSignal];
-  //     });
-  //   }, 4000);
-
-  //   return () => clearInterval(interval);
-  // }, []);
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -612,19 +597,28 @@ export function LandingPage() {
       const t = 1 - Math.pow(1 - tRaw, 3);
 
       setStatTotalDeposits(
-        Math.round(startTotalDeposits + (targetTotalDeposits - startTotalDeposits) * t)
+        Math.max(
+          0,
+          Math.round(startTotalDeposits + (targetTotalDeposits - startTotalDeposits) * t)
+        )
       );
       setStatActiveDepositors(
-        Math.round(
-          startActiveDepositors + (targetActiveDepositors - startActiveDepositors) * t
+        Math.max(
+          0,
+          Math.round(
+            startActiveDepositors + (targetActiveDepositors - startActiveDepositors) * t
+          )
         )
       );
       setStatHighestMultiplier(
-        Number(
-          (
-            startHighestMultiplier +
-            (targetHighestMultiplier - startHighestMultiplier) * t
-          ).toFixed(2)
+        Math.max(
+          1,
+          Number(
+            (
+              startHighestMultiplier +
+              (targetHighestMultiplier - startHighestMultiplier) * t
+            ).toFixed(2)
+          )
         )
       );
 
@@ -730,8 +724,17 @@ export function LandingPage() {
     });
   };
 
+  const safeStatTotalDeposits = Math.max(0, Number.isFinite(statTotalDeposits) ? statTotalDeposits : 0);
+  const safeStatActiveDepositors = Math.max(0, Number.isFinite(statActiveDepositors) ? statActiveDepositors : 0);
+  const safeStatHighestMultiplier = Math.max(1, Number.isFinite(statHighestMultiplier) ? statHighestMultiplier : 1);
+  const safeCommunityMembers = Math.max(0, Number.isFinite(communityMembers) ? communityMembers : 0);
+  const safeActiveToday = Math.max(
+    0,
+    Math.round(Math.min(safeCommunityMembers, Math.max(0, safeStatActiveDepositors * 0.4)))
+  );
+
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden bg-[#0F0F10] pb-10 sm:pb-12">
+    <div className="landing-page page-responsive relative min-h-screen w-full overflow-x-hidden bg-[#0F0F10] pb-10 sm:pb-12">
       <Seo
         title="Custodial crypto deposits with levels, multipliers and rewards"
         description="Crypto Levels is a custodial crypto growth platform where verified deposits unlock XP, deposit tiers, streak bonuses, and multiplier-driven rewards."
@@ -739,21 +742,65 @@ export function LandingPage() {
       />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a1c] via-[#0F0F10] to-[#151516]" />
-        <div 
-          className="absolute inset-0 opacity-30 overflow-hidden"
+        <div
+          className="absolute inset-0 opacity-30"
           style={{
-            backgroundImage: `radial-gradient(circle at ${Math.min(Math.max(springX.get(), 0), window.innerWidth)}px ${Math.min(Math.max(springY.get(), 0), window.innerHeight)}px, rgba(198, 161, 91, 0.15) 0%, transparent 50%)`
+            backgroundImage: `radial-gradient(circle at ${springX.get()}px ${springY.get()}px, rgba(198, 161, 91, 0.15) 0%, transparent 50%)`
           }}
         />
         <div className="absolute inset-0 opacity-20">
-          <svg className="w-full h-full max-w-full" xmlns="http://www.w3.org/2000/svg">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <pattern id="blockchain-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-                <circle cx={Math.min(20, 100)} cy={Math.min(20, 100)} r="1.5" fill="#C6A15B" opacity="0.3" />
-                <circle cx={Math.min(80, 100)} cy={Math.min(40, 100)} r="1.5" fill="#16C784" opacity="0.3" />
-                <circle cx={Math.min(50, 100)} cy={Math.min(80, 100)} r="1.5" fill="#C6A15B" opacity="0.3" />
-                <line x1={Math.min(20,100)} y1={Math.min(20,100)} x2={Math.min(80,100)} y2={Math.min(40,100)} stroke="#C6A15B" strokeWidth="0.5" opacity="0.2" />
-                <line x1={Math.min(80,100)} y1={Math.min(40,100)} x2={Math.min(50,100)} y2={Math.min(80,100)} stroke="#16C784" strokeWidth="0.5" opacity="0.2" />
+              <pattern
+                id="blockchain-pattern"
+                x="0"
+                y="0"
+                width="100"
+                height="100"
+                patternUnits="userSpaceOnUse"
+              >
+                <circle cx="20" cy="20" r="1.5" fill="#C6A15B" opacity="0.3">
+                  <animate
+                    attributeName="opacity"
+                    values="0.3;0.6;0.3"
+                    dur="4s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle cx="80" cy="40" r="1.5" fill="#16C784" opacity="0.3">
+                  <animate
+                    attributeName="opacity"
+                    values="0.3;0.6;0.3"
+                    dur="5s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle cx="50" cy="80" r="1.5" fill="#C6A15B" opacity="0.3">
+                  <animate
+                    attributeName="opacity"
+                    values="0.3;0.6;0.3"
+                    dur="6s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <line
+                  x1="20"
+                  y1="20"
+                  x2="80"
+                  y2="40"
+                  stroke="#C6A15B"
+                  strokeWidth="0.5"
+                  opacity="0.2"
+                />
+                <line
+                  x1="80"
+                  y1="40"
+                  x2="50"
+                  y2="80"
+                  stroke="#16C784"
+                  strokeWidth="0.5"
+                  opacity="0.2"
+                />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#blockchain-pattern)" />
@@ -761,13 +808,21 @@ export function LandingPage() {
         </div>
       </div>
 
-      <div className="relative min-h-screen w-full">
-        <section id="home" className="w-full px-4 pt-24 pb-12 sm:px-6 lg:px-8">
+      <div className="borderless-ui relative z-10 w-full min-w-0 max-w-full overflow-x-hidden">
+        <section id="home" className="w-full bg-[#050509] px-4 pt-24 pb-12 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-6xl min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="min-w-0 space-y-8">
               <div className="space-y-4">
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-[#F5F5F7] leading-tight">
-                  Grow your crypto with intelligent multipliers
+                <h1 className="display-font text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight leading-tight">
+                  <span className="text-[#F5F5F7]">Grow your </span>
+                  <span className="bg-gradient-to-r from-[#C6A15B] via-[#FACC15] to-[#FFFFFF] bg-clip-text display-font text-transparent">
+                    crypto
+                  </span>
+                  <span className="text-[#F5F5F7]"> with </span>
+                  <span className="bg-gradient-to-r from-[#16C784] to-[#38BDF8] bg-clip-text display-font text-transparent">
+                    intelligent
+                  </span>
+                  <span className="text-[#F5F5F7]"> multipliers</span>
                 </h1>
                 <p className="text-lg sm:text-xl text-[#9CA3AF] max-w-xl">
                   Deposit assets, unlock levels, and amplify your earnings
@@ -776,13 +831,13 @@ export function LandingPage() {
               </div>
 
               <div className="space-y-6 pt-4">
-                <div className="rounded-2xl bg-[#17181A]/80 p-6 shadow-[0_18px_45px_rgba(0,0,0,0.75)] backdrop-blur-sm">
+                <div className="min-w-0 rounded-2xl bg-[#17181A]/80 p-6 shadow-[0_18px_45px_rgba(0,0,0,0.75)] backdrop-blur-sm">
                   <div className="space-y-4">
                     <div>
                       <label className="text-sm font-medium text-[#F5F5F7] mb-2 block">
                         Deposit Amount
                       </label>
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-3">
                         <span className="text-xs text-[#9CA3AF]">$100</span>
                         <input
                           type="range"
@@ -799,7 +854,7 @@ export function LandingPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 pt-2">
+                    <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-3">
                       <div className="space-y-1">
                         <p className="text-xs text-[#9CA3AF]">Deposit Amount</p>
                         <p className="text-lg font-semibold text-[#F5F5F7]">
@@ -835,24 +890,24 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="buttons-row flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                   <button
                     onClick={() => navigate("/register")}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#C6A15B] px-6 py-3 text-sm font-medium text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_25px_rgba(198,161,91,0.45)] transition-all hover:scale-105"
+                    className="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#C6A15B] to-[#FACC15] px-6 py-3 text-center text-sm font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_32px_rgba(198,161,91,0.48)] sm:w-auto sm:min-w-[210px]"
                   >
                     <span>Start Depositing</span>
                     <ArrowRight className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => scrollToLandingSection("leaderboard")}
-                    className="inline-flex items-center gap-2 rounded-full border border-[#26272B] bg-[#17181A] px-6 py-3 text-sm font-medium text-[#F5F5F7] hover:bg-[#1F2023] hover:border-[#C6A15B]/40 transition-all"
+                    className="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-full border border-[#2D2F34] bg-[#17181A] px-6 py-3 text-center text-sm font-medium text-[#F5F5F7] transition-all hover:border-[#C6A15B]/45 hover:bg-[#1F2023] sm:w-auto sm:min-w-[198px]"
                   >
                     <Trophy className="h-4 w-4" />
                     <span>View Leaderboard</span>
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-3 sm:gap-6 pt-4 text-xs text-[#9CA3AF]">
+                <div className="flex flex-wrap gap-6 pt-4 text-xs text-[#9CA3AF]">
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-[#16C784]" />
                     <span>Secure wallet infrastructure</span>
@@ -869,10 +924,10 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="relative min-w-0 w-full overflow-hidden">
-              <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-[#C6A15B]/20 via-transparent to-[#16C784]/20 blur-3xl opacity-50" />
-              </div>
+            <div className="relative min-w-0 max-w-full">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+  <div className="absolute inset-0 bg-gradient-to-r from-[#C6A15B]/20 via-transparent to-[#16C784]/20 blur-3xl opacity-50" />
+</div>
               <div className="relative overflow-hidden rounded-3xl bg-[#17181A]/80 p-6 shadow-[0_18px_45px_rgba(0,0,0,0.75)] backdrop-blur-sm">
                 <div className="space-y-6">
                   <div className="space-y-2">
@@ -880,7 +935,7 @@ export function LandingPage() {
                       Portfolio Value
                     </p>
                     <p className="text-3xl font-semibold text-[#F5F5F7]">
-                      $18,942
+                      {formatUsd(displayedPortfolioValue)}
                     </p>
                   </div>
 
@@ -1038,10 +1093,7 @@ export function LandingPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
                     className="absolute max-w-[calc(100%-1.5rem)] truncate rounded-full bg-[#16C784]/20 border border-[#16C784]/40 px-3 py-1.5 text-xs text-[#16C784]"
-                    style={{
-                      left: `${Math.min(signal.x, 260)}px`,
-                      top: `${signal.y}px`
-                    }}
+                    style={{ left: signal.x, top: signal.y }}
                   >
                     {signal.text}
                   </motion.div>
@@ -1051,57 +1103,31 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* <section className="w-full bg-[#0B0B0D] px-4 py-6 border-t border-[#26272B] sm:px-6 lg:px-8">
-          <div className="w-screen overflow-hidden">
-            <motion.div
-               className="flex gap-4 sm:gap-6 whitespace-nowrap"
-              animate={{
-                x: [0, -50 * mockActivities.length * 280]
-              }}
-              transition={{
-                x: {
-                  repeat: Infinity,
-                  repeatType: "loop",
-                  duration: 60,
-                  ease: "linear"
-                }
-              }}
-            >
-              {[...mockActivities, ...mockActivities].map((activity, idx) => {
-                const symbol = activity.asset.toUpperCase();
-                const logo =
-                  symbol === "BTC"
-                    ? btcLogo
-                    : symbol === "ETH"
-                    ? ethLogo
-                    : symbol === "SOL"
-                    ? solLogo
-                    : symbol === "USDT"
-                    ? usdtLogo
-                    : undefined;
-
-                return (
-                  <div
-                    key={`${activity.id}-${idx}`}
-                    className="flex-shrink-0 flex items-center gap-2 text-xs sm:text-sm text-[#9CA3AF] min-w-[280px]"
-                  >
-                    {logo && (
-                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#111214]">
-                        <img src={logo} alt={symbol} className="h-3.5 w-3.5" loading="lazy" />
-                      </span>
-                    )}
-                    <span className="font-medium text-[#F5F5F7]">
-                      {activity.amount} {activity.asset}
-                    </span>
-                    <span>deposited</span>
-                    <span>•</span>
-                    <span>{activity.timeAgo}</span>
-                  </div>
-                );
-              })}
-            </motion.div>
-          </div>
-        </section> */}
+        {/*
+          Temporarily disabled marquee strip to prevent mobile overflow while we finalize responsive tuning.
+          <section className="w-full bg-[#0B0B0D] px-4 py-6 border-t border-[#26272B] sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-6xl overflow-x-auto-mobile">
+              <motion.div
+                className="flex gap-6 whitespace-nowrap sm:flex-wrap-mobile"
+                animate={{ x: [0, -50 * mockActivities.length] }}
+                transition={{ x: { repeat: Infinity, repeatType: "loop", duration: 30, ease: "linear" } }}
+              >
+                {[...mockActivities, ...mockActivities].map((activity, idx) => {
+                  const symbol = activity.asset.toUpperCase();
+                  return (
+                    <div key={`${activity.id}-${idx}`} className="flex items-center gap-2 text-xs sm:text-sm text-[#9CA3AF]">
+                      <img src={getAssetLogo(symbol)} alt={symbol} className="h-3.5 w-3.5 sm:h-4 sm:w-4" loading="lazy" />
+                      <span className="font-medium text-[#F5F5F7]">{activity.amount} {activity.asset}</span>
+                      <span>deposited</span>
+                      <span>•</span>
+                      <span>{activity.timeAgo}</span>
+                    </div>
+                  );
+                })}
+              </motion.div>
+            </div>
+          </section>
+        */}
 
         <section
           id="how-it-works"
@@ -1377,7 +1403,7 @@ export function LandingPage() {
     </div>
                 <div className="relative">
                   <div className="pointer-events-none absolute left-4 top-0 bottom-0 w-px bg-gradient-to-b from-[#C6A15B]/0 via-[#C6A15B]/60 to-[#16C784]/0 opacity-70" />
-                  <div className="relative flex flex-col-reverse gap-6 pl-4 sm:pl-10">
+                  <div className="relative flex flex-col-reverse gap-6 pl-10">
                     {LEVEL_LADDER.map((entry, index) => {
                       const delay = (entry.level - 1) * 0.18;
                       const isActive = engineLevel >= entry.level;
@@ -1614,20 +1640,20 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3 pt-2">
+                <div className="flex flex-col gap-3 pt-2 sm:flex-row">
                   <button
                     type="button"
                     onClick={() => navigate("/register")}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#C6A15B] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-all hover:scale-105"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#C6A15B] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-all hover:scale-105 sm:w-auto"
                   >
-                    <span>Start unlocking multipliers</span>
+                    <span>Start Unlocking Multipliers</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => scrollToLandingSection("leaderboard")}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[#26272B] bg-[#17181A] px-5 py-2.5 text-xs font-semibold text-[#F5F5F7] hover:bg-[#1F2023] hover:border-[#C6A15B]/40 transition-all"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#26272B] bg-[#17181A] px-5 py-2.5 text-xs font-semibold text-[#F5F5F7] hover:bg-[#1F2023] hover:border-[#C6A15B]/40 transition-all sm:w-auto"
                   >
-                    <span>View top depositors</span>
+                    <span>View Top Depositors</span>
                   </button>
                 </div>
               </div>
@@ -1656,7 +1682,7 @@ export function LandingPage() {
 
             <div className="grid min-w-0 gap-10 lg:grid-cols-2 items-start">
               <div className="min-w-0 space-y-6">
-                <div className="flex flex-nowrap items-center gap-2 rounded-full bg-[#111214] px-1.5 py-1 text-[11px]">
+                <div className="flex flex-wrap items-center gap-2 rounded-full bg-[#111214] px-1.5 py-1 text-[11px]">
                   {(
                     [
                       { id: "topDepositors", label: "Top Depositors" },
@@ -1670,7 +1696,7 @@ export function LandingPage() {
                         key={tab.id}
                         type="button"
                         onClick={() => setActiveLeaderboardTab(tab.id)}
-                        className={`flex-shrink-0 relative inline-flex items-center rounded-full px-3 py-1 transition-colors ${
+                        className={`relative inline-flex items-center rounded-full px-3 py-1 transition-colors ${
                           isActive
                             ? "text-[#0F0F10]"
                             : "text-[#9CA3AF] hover:text-[#F5F5F7]"
@@ -1764,7 +1790,7 @@ export function LandingPage() {
                     <p className="text-[11px] text-[#9CA3AF]">Total platform deposits</p>
                     <p className="text-lg font-semibold text-[#F5F5F7]">
                       $
-                      {statTotalDeposits.toLocaleString(undefined, {
+                      {safeStatTotalDeposits.toLocaleString(undefined, {
                         maximumFractionDigits: 0
                       })}
                     </p>
@@ -1772,13 +1798,13 @@ export function LandingPage() {
                   <div className="space-y-1">
                     <p className="text-[11px] text-[#9CA3AF]">Active depositors</p>
                     <p className="text-lg font-semibold text-[#F5F5F7]">
-                      {statActiveDepositors.toLocaleString()}
+                      {safeStatActiveDepositors.toLocaleString()}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[11px] text-[#9CA3AF]">Highest multiplier achieved</p>
                     <p className="text-lg font-semibold text-[#16C784]">
-                      x{statHighestMultiplier.toFixed(2)}
+                      x{safeStatHighestMultiplier.toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -1825,7 +1851,7 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3 pt-2">
+                <div className="buttons-row sm:flex sm:flex-wrap sm:gap-3 pt-2">
                   <button
                     type="button"
                     onClick={() => navigate("/leaderboards")}
@@ -1901,7 +1927,8 @@ export function LandingPage() {
                     </p>
                   </motion.div>
 
-                  <motion.div
+                  {/* Reduced icon clutter by removing two non-essential tiles */}
+                  {/* <motion.div
                     whileHover={{
                       y: -2,
                       boxShadow: "0 18px 40px rgba(0,0,0,0.65)"
@@ -1965,9 +1992,9 @@ export function LandingPage() {
                       Our multiplier engine is fully transparent, allowing users to see how deposit
                       levels translate into reward amplification.
                     </p>
-                  </motion.div>
-
-                  <motion.div
+                  </motion.div> */}
+ 
+                  {/* <motion.div
                     whileHover={{
                       y: -2,
                       boxShadow: "0 18px 40px rgba(0,0,0,0.65)"
@@ -1998,7 +2025,7 @@ export function LandingPage() {
                       Built with reliability in mind, the platform ensures fair distribution of
                       rewards while maintaining secure operational controls.
                     </p>
-                  </motion.div>
+                  </motion.div> */}
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 text-[11px] text-[#9CA3AF]">
@@ -2028,21 +2055,21 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3 pt-2">
+                <div className="flex flex-col gap-3 pt-2 sm:flex-row">
                   <button
                     type="button"
                     onClick={() => navigate("/register")}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#C6A15B] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-all hover:scale-105"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#C6A15B] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-all hover:scale-105 sm:w-auto"
                   >
-                    <span>Start depositing securely</span>
+                    <span>Start Depositing Securely</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={() => navigate("/deposit")}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[#26272B] bg-[#17181A] px-5 py-2.5 text-xs font-semibold text-[#F5F5F7] hover:bg-[#1F2023] hover:border-[#C6A15B]/40 transition-all"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#26272B] bg-[#17181A] px-5 py-2.5 text-xs font-semibold text-[#F5F5F7] hover:bg-[#1F2023] hover:border-[#C6A15B]/40 transition-all sm:w-auto"
                   >
-                    <span>Learn how deposits work</span>
+                    <span>Learn How Deposit Works</span>
                   </button>
                 </div>
               </div>
@@ -2315,7 +2342,7 @@ export function LandingPage() {
                     <motion.circle
                       cx="130"
                       cy="90"
-                      r="26"
+                      r={26}
                       fill="url(#nodeGlow)"
                       opacity={0.6}
                       animate={
@@ -2324,7 +2351,10 @@ export function LandingPage() {
                               r: [22, 28, 22],
                               opacity: [0.3, 0.6, 0.3]
                             }
-                          : undefined
+                          : {
+                              r: 26,
+                              opacity: 0.35
+                            }
                       }
                       transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                     />
@@ -2361,30 +2391,21 @@ export function LandingPage() {
                           delay: 0.2 + node.delay
                         }}
                       >
-                        <circle
-                          cx={node.cx}
-                          cy={node.cy}
-                          r="10"
-                          fill="#0F0F10"
-                          stroke="#26272B"
-                          strokeWidth="1.2"
-                        />
-                        <circle
-                          cx={node.cx}
-                          cy={node.cy}
-                          r="14"
-                          fill="url(#nodeGlow)"
-                          opacity="0.4"
-                        />
-                        <foreignObject
-                          x={node.cx - 8}
-                          y={node.cy - 8}
-                          width="16"
-                          height="16"
-                        >
-                          <div
-                            className="h-4 w-4 rounded-full border border-[#111827] overflow-hidden"
-                            style={{ backgroundColor: TESTIMONIALS[node.avatarIndex % TESTIMONIALS.length].avatarColor }}
+                        <circle cx={node.cx} cy={node.cy} r="14" fill="url(#nodeGlow)" opacity="0.4" />
+                        <foreignObject x={node.cx - 10} y={node.cy - 10} width="20" height="20">
+                          <img
+                            alt="user avatar"
+                            className="h-5 w-5 rounded-full border border-[#111827] bg-[#17181A]"
+                            src={`data:image/svg+xml;utf8,${encodeURIComponent(
+                              `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' rx='20' ry='20' fill='${
+                                TESTIMONIALS[node.avatarIndex % TESTIMONIALS.length].avatarColor
+                              }'/><text x='50%' y='56%' text-anchor='middle' dominant-baseline='middle' font-size='14' font-family='Inter, Arial, sans-serif' fill='#F5F5F7'>${
+                                TESTIMONIALS[node.avatarIndex % TESTIMONIALS.length].username
+                                  .split(' ')
+                                  .map((p) => p[0])
+                                  .join('')
+                              }</text></svg>`
+                            )}`}
                           />
                         </foreignObject>
                       </motion.g>
@@ -2566,7 +2587,7 @@ export function LandingPage() {
                           Community members
                         </p>
                         <p className="text-xl font-semibold text-[#F5F5F7]">
-                          {communityMembers.toLocaleString()}
+                          {safeCommunityMembers.toLocaleString()}
                         </p>
                         <p className="text-[11px] text-[#6B7280]">
                           Users growing the network with live referrals.
@@ -2579,7 +2600,7 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="buttons-row sm:flex sm:flex-wrap sm:gap-3">
                   <button
                     type="button"
                     onClick={() => navigate("/referrals")}
@@ -2621,8 +2642,8 @@ export function LandingPage() {
             <div className="grid min-w-0 gap-10 lg:grid-cols-2 items-start">
               <div className="min-w-0 space-y-6">
                 <div className="rounded-3xl bg-[#17181A]/60 px-4 py-4 sm:px-5 sm:py-5 backdrop-blur-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="space-y-0.5">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0 space-y-0.5">
                       <p className="text-[11px] uppercase tracking-[0.18em] text-[#9CA3AF]">
                         Live market ticker
                       </p>
@@ -2636,7 +2657,7 @@ export function LandingPage() {
                   </div>
                   <div className="relative h-14 overflow-hidden rounded-2xl bg-[#0F0F10] border border-[#26272B]">
                     <motion.div
-                      className="absolute inset-0 flex items-center"
+                      className="absolute inset-y-0 left-0 inline-flex w-max items-center"
                       animate={{
                         x: ["0%", "-50%"]
                       }}
@@ -2648,7 +2669,6 @@ export function LandingPage() {
                     >
                       {[...MARKET_TICKER_SYMBOLS, ...MARKET_TICKER_SYMBOLS].map((symbol, idx) => {
                         const item = marketData[symbol];
-                        const meta = MARKET_META[symbol];
                         const change = item?.change24h ?? 0;
                         const isUp = change >= 0;
                         const priceLabel = item?.price
@@ -2665,14 +2685,6 @@ export function LandingPage() {
                             className="flex items-center gap-2 px-4 text-[11px] text-[#F5F5F7] border-r border-[#26272B]/60 hover:bg-[#17181A] hover:shadow-[0_0_18px_rgba(0,0,0,0.75)] transition-colors"
                           >
                             <div className="flex items-center gap-2">
-                              <div className="h-7 w-7 rounded-full bg-[#111214] flex items-center justify-center overflow-hidden">
-                                <img
-                                  src={meta.logo}
-                                  alt={meta.name}
-                                  className="h-4 w-4"
-                                  loading="lazy"
-                                />
-                              </div>
                               <span className="font-medium">{symbol}</span>
                             </div>
                             <span className="text-xs text-[#E5E7EB]">{priceLabel}</span>
@@ -2698,7 +2710,7 @@ export function LandingPage() {
                           Market sentiment
                         </p>
                         <p className="text-xs font-medium text-[#F5F5F7]">
-                          Crypto market trend (simulated)
+                          Crypto market trend
                         </p>
                       </div>
                     </div>
@@ -2765,20 +2777,20 @@ export function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-3 pt-4">
+                  <div className="flex flex-col gap-3 pt-4 sm:flex-row">
                     <button
                       type="button"
                       onClick={() => navigate("/register")}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#C6A15B] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-all hover:scale-105"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#C6A15B] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-all hover:scale-105 sm:w-auto"
                     >
-                      <span>Start growing your portfolio</span>
+                      <span>Start Growing Your Portfolio</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => navigate("/login")}
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-[#26272B] bg-[#17181A] px-5 py-2.5 text-xs font-semibold text-[#F5F5F7] hover:bg-[#1F2023] hover:border-[#C6A15B]/40 transition-all"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#26272B] bg-[#17181A] px-5 py-2.5 text-xs font-semibold text-[#F5F5F7] hover:bg-[#1F2023] hover:border-[#C6A15B]/40 transition-all sm:w-auto"
                     >
-                      <span>Open your dashboard</span>
+                      <span>Open Your Dashboard</span>
                     </button>
                   </div>
                 </div>
@@ -2974,20 +2986,20 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={() => navigate("/register")}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#C6A15B] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-all hover:scale-105"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#C6A15B] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-all hover:scale-105 sm:w-auto"
                   >
-                    <span>Join the growing community</span>
+                    <span>Join the Growing Community</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => scrollToLandingSection("leaderboard")}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[#26272B] bg-[#17181A] px-5 py-2.5 text-xs font-semibold text-[#F5F5F7] hover:bg-[#1F2023] hover:border-[#C6A15B]/40 transition-all"
+                    onClick={() => navigate("/login")}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#26272B] bg-[#17181A] px-5 py-2.5 text-xs font-semibold text-[#F5F5F7] hover:bg-[#1F2023] hover:border-[#C6A15B]/40 transition-all sm:w-auto"
                   >
-                    <span>View leaderboard</span>
+                    <span>View Dashboard</span>
                   </button>
                 </div>
               </div>
@@ -3005,7 +3017,7 @@ export function LandingPage() {
                           <Users className="h-3.5 w-3.5 text-[#C6A15B]" />
                         </div>
                         <p className="text-lg font-semibold text-[#F5F5F7]">
-                          {communityMembers.toLocaleString()}
+                          {safeCommunityMembers.toLocaleString()}
                         </p>
                       </div>
                       <div className="space-y-1 rounded-2xl bg-[#0F0F10]/90 px-3 py-3 transition-colors">
@@ -3015,7 +3027,7 @@ export function LandingPage() {
                         </div>
                         <p className="text-lg font-semibold text-[#F5F5F7]">
                           $
-                          {statTotalDeposits.toLocaleString(undefined, {
+                          {safeStatTotalDeposits.toLocaleString(undefined, {
                             maximumFractionDigits: 0
                           })}
                         </p>
@@ -3033,7 +3045,7 @@ export function LandingPage() {
                           <Sparkles className="h-3.5 w-3.5 text-[#C6A15B]" />
                         </div>
                         <p className="text-lg font-semibold text-[#F5F5F7]">
-                          {Math.max(1, Math.round(statActiveDepositors * 0.4)).toLocaleString()}
+                          {safeActiveToday.toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -3153,29 +3165,23 @@ export function LandingPage() {
                       The platform is designed to make every step of your crypto journey explicit —
                       from deposit to withdrawal.
                     </p>
-                    <div className="space-y-3 text-[11px] text-[#9CA3AF]">
-                      <div className="flex items-start gap-2">
-                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-[#16C784]" />
-                        <p>
-                          On-chain verification, admin review, and clear level thresholds work
-                          together to keep behavior predictable.
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Lock className="mt-0.5 h-3.5 w-3.5 text-[#C6A15B]" />
-                        <p>
-                          Custodial wallets and internal controls focus on security, while the
-                          multiplier engine remains fully transparent.
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Network className="mt-0.5 h-3.5 w-3.5 text-[#38BDF8]" />
-                        <p>
-                          Blockchain data, progression rules, and reward logic are aligned so your
-                          XP and levels always match reality.
-                        </p>
-                      </div>
-                    </div>
+                    <ul className="space-y-2.5 text-[11px] text-[#9CA3AF]">
+                      <li className="relative pl-3">
+                        <span className="absolute left-0 top-2 h-1 w-1 rounded-full bg-[#C6A15B]" />
+                        On-chain verification, admin review, and clear level thresholds work together
+                        to keep behavior predictable.
+                      </li>
+                      <li className="relative pl-3">
+                        <span className="absolute left-0 top-2 h-1 w-1 rounded-full bg-[#9CA3AF]" />
+                        Custodial wallets and internal controls focus on security, while the multiplier
+                        engine remains fully transparent.
+                      </li>
+                      <li className="relative pl-3">
+                        <span className="absolute left-0 top-2 h-1 w-1 rounded-full bg-[#16C784]" />
+                        Blockchain data, progression rules, and reward logic are aligned so your XP and
+                        levels always match reality.
+                      </li>
+                    </ul>
                   </div>
                 </div>
 
@@ -3191,7 +3197,7 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-[#0F0F10]/80 px-5 py-5 sm:px-7 sm:py-6 backdrop-blur-sm">
+            <div className="flex flex-wrap items-stretch justify-between gap-4 rounded-3xl bg-[#0F0F10]/80 px-5 py-5 sm:items-center sm:px-7 sm:py-6 backdrop-blur-sm">
               <div className="space-y-1 max-w-xl">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-[#9CA3AF]">
                   Ready when you are
@@ -3204,15 +3210,15 @@ export function LandingPage() {
                 <button
                   type="button"
                   onClick={() => navigate("/register")}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#C6A15B] to-[#FACC15] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_24px_rgba(198,161,91,0.6)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_0_32px_rgba(198,161,91,0.8)]"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#C6A15B] to-[#FACC15] px-5 py-2.5 text-center text-xs font-semibold text-[#0F0F10] shadow-[0_0_24px_rgba(198,161,91,0.6)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_0_32px_rgba(198,161,91,0.8)] sm:w-auto"
                 >
-                  <span>Get Started — Secure Your Crypto Growth</span>
+                  <span>Get Started</span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate("/login")}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#17181A] px-5 py-2.5 text-xs font-semibold text-[#F5F5F7] shadow-[0_0_18px_rgba(0,0,0,0.7)] transition-colors hover:bg-[#1F2023]"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#17181A] px-5 py-2.5 text-center text-xs font-semibold text-[#F5F5F7] shadow-[0_0_18px_rgba(0,0,0,0.7)] transition-colors hover:bg-[#1F2023] sm:w-auto"
                 >
                   <span>View Full Dashboard</span>
                 </button>
@@ -3221,7 +3227,6 @@ export function LandingPage() {
           </div>
         </section>
       </div>
-      <Footer />
     </div>
   );
 }

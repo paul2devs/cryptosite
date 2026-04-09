@@ -1,14 +1,21 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Hourglass, Lock, Wallet, CheckCircle2, Circle } from "lucide-react";
+import { Hourglass, Lock, Wallet, CheckCircle2, Circle, ChevronDown, Check } from "lucide-react";
 import { api } from "../utils/api";
 import { Seo } from "../components/Seo";
+import btcLogo from "../assets/crypto/btc.svg";
+import ethLogo from "../assets/crypto/eth.svg";
+import usdtLogo from "../assets/crypto/usdt.svg";
+import solLogo from "../assets/crypto/sol.svg";
 
 interface Withdrawal {
   withdrawal_id: string;
   amount: number;
   status: string;
   timestamp: string;
+  asset?: string;
+  address?: string;
+  network?: string | null;
 }
 
 interface WithdrawalSummary {
@@ -20,8 +27,22 @@ interface WithdrawalSummary {
   cooldown_seconds_remaining: number;
 }
 
+type WithdrawalAsset = "BTC" | "ETH" | "USDT" | "SOL";
+type UsdtNetwork = "ERC20" | "TRC20";
+
+const WITHDRAW_ASSETS: { id: WithdrawalAsset; name: string; icon: string }[] = [
+  { id: "BTC", name: "Bitcoin", icon: btcLogo },
+  { id: "ETH", name: "Ethereum", icon: ethLogo },
+  { id: "USDT", name: "Tether", icon: usdtLogo },
+  { id: "SOL", name: "Solana", icon: solLogo }
+];
+
 export function WithdrawPage() {
   const [amount, setAmount] = useState("");
+  const [asset, setAsset] = useState<WithdrawalAsset>("BTC");
+  const [network, setNetwork] = useState<UsdtNetwork | null>(null);
+  const [assetMenuOpen, setAssetMenuOpen] = useState(false);
+  const [address, setAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +55,7 @@ export function WithdrawPage() {
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [canWithdraw, setCanWithdraw] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(true);
+  const assetMenuRef = useRef<HTMLDivElement | null>(null);
 
   const loadWithdrawals = async () => {
     try {
@@ -84,21 +106,51 @@ export function WithdrawPage() {
     return () => clearTimeout(timeout);
   }, [message, error]);
 
+  useEffect(() => {
+    const onDocumentClick = (event: MouseEvent) => {
+      if (!assetMenuRef.current) {
+        return;
+      }
+      if (!assetMenuRef.current.contains(event.target as Node)) {
+        setAssetMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocumentClick);
+    return () => document.removeEventListener("mousedown", onDocumentClick);
+  }, []);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!amount) {
+    const trimmed = address.trim();
+    if (!amount || !trimmed) {
+      return;
+    }
+    if (Number(amount) <= 0 || Number(amount) > withdrawableBalance) {
       return;
     }
     setSubmitting(true);
     setMessage(null);
     setError(null);
     try {
-      await api.post("/withdrawals", {
-        amount: Number(amount)
-      });
+      const payload: any = { amount: Number(amount) };
+      const resolvedAsset =
+        asset === "USDT" ? (network === "TRC20" ? "USDT_TRC20" : "USDT_ERC20") : asset;
+      payload.asset = resolvedAsset;
+      payload.address = trimmed;
+      payload.network = network || (asset === "USDT" ? "ERC20" : null);
+      const res = await api.post<Withdrawal>("/withdrawals", payload);
       setMessage("Withdrawal request submitted");
       setAmount("");
+      setAddress("");
       await Promise.all([loadWithdrawals(), refreshSummary()]);
+      const created = res.data;
+      const merged: Withdrawal = {
+        ...created,
+        asset: resolvedAsset as Withdrawal["asset"],
+        address: trimmed,
+        network: payload.network
+      };
+      setWithdrawals((prev) => [merged, ...prev.filter((w) => w.withdrawal_id !== merged.withdrawal_id)]);
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to submit withdrawal");
     } finally {
@@ -122,7 +174,12 @@ export function WithdrawPage() {
   const numericAmount = Number(amount) || 0;
   const amountExceedsBalance = numericAmount > withdrawableBalance;
   const isFormValid =
-    canWithdraw && numericAmount > 0 && !amountExceedsBalance && !submitting;
+    canWithdraw &&
+    numericAmount > 0 &&
+    !amountExceedsBalance &&
+    !submitting &&
+    address.trim().length > 0 &&
+    (asset !== "USDT" || network !== null);
 
   const tooltipMessage =
     !levelRequirementMet || !cooldownCleared
@@ -151,8 +208,10 @@ export function WithdrawPage() {
     return `${id.slice(0, 4)}...${id.slice(-4)}`;
   };
 
+  const selectedAsset = WITHDRAW_ASSETS.find((entry) => entry.id === asset) ?? WITHDRAW_ASSETS[0];
+
   return (
-    <div className="space-y-10">
+    <div className="page-responsive borderless-ui space-y-10">
       <Seo
         title="Withdraw rewards"
         description="Request secure withdrawals from your Crypto Levels withdrawable balance. Withdrawals are level-gated and reviewed for security."
@@ -304,7 +363,7 @@ export function WithdrawPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[#17181A] border border-[#26272B] px-4 py-4 sm:px-5 sm:py-5 space-y-3">
+          <div className="rounded-2xl bg-[#17181A] px-4 py-4 sm:px-5 sm:py-5 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-[#F5F5F7]">
@@ -390,7 +449,94 @@ export function WithdrawPage() {
                   </p>
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-[#9CA3AF]" htmlFor="asset-trigger">
+                    Asset
+                  </label>
+                  <div className="relative" ref={assetMenuRef}>
+                    <button
+                      id="asset-trigger"
+                      type="button"
+                      onClick={() => setAssetMenuOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-xl bg-[#0F0F10] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A15B]/60"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <img src={selectedAsset.icon} alt={selectedAsset.name} className="h-5 w-5" loading="lazy" />
+                        <span>{selectedAsset.name} ({selectedAsset.id})</span>
+                      </span>
+                      <ChevronDown className={`h-4 w-4 text-[#9CA3AF] transition-transform ${assetMenuOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    <AnimatePresence>
+                      {assetMenuOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-[#26272B] bg-[#0F0F10] shadow-[0_18px_35px_rgba(0,0,0,0.6)]"
+                        >
+                          {WITHDRAW_ASSETS.map((entry) => (
+                            <button
+                              key={entry.id}
+                              type="button"
+                              onClick={() => {
+                                setAsset(entry.id);
+                                if (entry.id !== "USDT") {
+                                  setNetwork(null);
+                                } else if (network === null) {
+                                  setNetwork("ERC20");
+                                }
+                                setAssetMenuOpen(false);
+                              }}
+                              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm text-[#F5F5F7] transition-colors hover:bg-[#17181A]"
+                            >
+                              <span className="flex items-center gap-2.5">
+                                <img src={entry.icon} alt={entry.name} className="h-5 w-5" loading="lazy" />
+                                <span>{entry.name} ({entry.id})</span>
+                              </span>
+                              {asset === entry.id && <Check className="h-4 w-4 text-[#C6A15B]" />}
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+                {asset === "USDT" && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[#9CA3AF]" htmlFor="network">
+                      Network
+                    </label>
+                    <select
+                      id="network"
+                      value={network || ""}
+                      onChange={(e) =>
+                        setNetwork((e.target.value as UsdtNetwork) || "ERC20")
+                      }
+                      className="w-full rounded-xl bg-[#0F0F10] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A15B]/60 focus:border-transparent"
+                    >
+                      <option value="ERC20">Ethereum (ERC20)</option>
+                      <option value="TRC20">Tron (TRC20)</option>
+                    </select>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <label className="text-xs text-[#9CA3AF]" htmlFor="dest-address">
+                    Withdrawal Wallet Address
+                  </label>
+                  <input
+                    id="dest-address"
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    required
+                    className="w-full rounded-xl bg-[#0F0F10] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A15B]/60 focus:border-transparent"
+                    placeholder="Enter your wallet address"
+                  />
+                  <p className="text-[11px] text-[#9CA3AF]">
+                    Ensure the wallet address matches the selected asset network. Incorrect addresses may result in permanent loss of funds.
+                  </p>
+                </div>
                 <label
                   className="flex items-center justify-between text-xs text-[#9CA3AF]"
                   htmlFor="withdraw-amount"
@@ -409,7 +555,7 @@ export function WithdrawPage() {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     required
-                    className="w-full rounded-xl bg-[#0F0F10] border border-[#26272B] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A15B]/60 focus:border-transparent"
+                    className="w-full rounded-xl bg-[#0F0F10] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A15B]/60 focus:border-transparent"
                     placeholder="Enter withdrawal amount"
                   />
                 </div>
@@ -425,12 +571,12 @@ export function WithdrawPage() {
             </div>
 
             {message && (
-              <div className="rounded-xl border border-emerald-500/60 bg-[#071A14] px-3 py-2 text-xs text-[#A7F3D0]">
+              <div className="rounded-xl bg-[#071A14] px-3 py-2 text-xs text-[#A7F3D0]">
                 {message}
               </div>
             )}
             {error && (
-              <div className="rounded-xl border border-[#EA3943]/60 bg-[#1F1214] px-3 py-2 text-xs text-[#FCA5A5]">
+              <div className="rounded-xl bg-[#1F1214] px-3 py-2 text-xs text-[#FCA5A5]">
                 {error}
               </div>
             )}
@@ -445,7 +591,7 @@ export function WithdrawPage() {
             </button>
           </form>
 
-          <div className="rounded-2xl bg-[#17181A] border border-[#26272B] px-4 py-4 sm:px-5 sm:py-5 space-y-3">
+          <div className="rounded-2xl bg-[#17181A] px-4 py-4 sm:px-5 sm:py-5 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-medium text-[#F5F5F7]">
@@ -458,57 +604,59 @@ export function WithdrawPage() {
             </div>
             <div className="mt-2 max-h-64 overflow-y-auto pr-1 text-xs">
               {withdrawals.length === 0 && !loadingSummary && (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#26272B] bg-[#0F0F10] px-4 py-6 text-center">
+                <div className="flex flex-col items-center justify-center gap-2 rounded-xl bg-[#0F0F10] px-4 py-6 text-center">
                   <p className="text-xs font-medium text-[#F5F5F7]">
                     Your withdrawal history will appear here once you request your first payout.
                   </p>
                 </div>
               )}
               {withdrawals.length > 0 && (
-                <div className="space-y-1">
-                  <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.1fr)] gap-2 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[#9CA3AF]">
-                    <span>Date</span>
-                    <span>Amount</span>
-                    <span>Status</span>
-                    <span>Transaction</span>
-                  </div>
-                  <div className="divide-y divide-[#26272B]">
-                    {withdrawals.map((w) => (
-                      <div
-                        key={w.withdrawal_id}
-                        className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.1fr)] gap-2 px-2 py-2.5 text-xs text-[#F5F5F7] transition-colors hover:bg-[#111827]"
-                      >
-                        <div className="flex flex-col text-[11px] text-[#9CA3AF]">
-                          <span>
-                            {new Date(w.timestamp).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric"
-                            })}
-                          </span>
-                          <span>{new Date(w.timestamp).toLocaleTimeString()}</span>
+                <div className="space-y-1 overflow-x-auto">
+                  <div className="min-w-[620px]">
+                    <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)] gap-2 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[#9CA3AF]">
+                      <span>Date</span>
+                      <span>Amount</span>
+                      <span>Status</span>
+                      <span>Transaction</span>
+                    </div>
+                    <div className="divide-y divide-[#26272B]/50">
+                      {withdrawals.map((w) => (
+                        <div
+                          key={w.withdrawal_id}
+                          className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)] gap-2 px-2 py-2.5 text-xs text-[#F5F5F7] transition-colors hover:bg-[#111827]"
+                        >
+                          <div className="flex flex-col text-[11px] text-[#9CA3AF]">
+                            <span>
+                              {new Date(w.timestamp).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric"
+                              })}
+                            </span>
+                            <span>{new Date(w.timestamp).toLocaleTimeString()}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span>
+                              {w.amount.toFixed(4)}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <span
+                              className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] ${getStatusClass(
+                                w.status
+                              )}`}
+                            >
+                              {w.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="font-mono text-[11px] text-[#9CA3AF]">
+                              {formatShortId(w.withdrawal_id)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center">
-                          <span>
-                            {w.amount.toFixed(4)}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <span
-                            className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] ${getStatusClass(
-                              w.status
-                            )}`}
-                          >
-                            {w.status}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <span className="font-mono text-[11px] text-[#9CA3AF]">
-                            {formatShortId(w.withdrawal_id)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

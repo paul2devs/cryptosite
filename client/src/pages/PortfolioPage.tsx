@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { api } from "../utils/api";
 import { Seo } from "../components/Seo";
+import { BalanceToggle, useBalanceVisibility } from "../components/BalanceVisibilityProvider";
 import btcLogo from "../assets/crypto/btc.svg";
 import ethLogo from "../assets/crypto/eth.svg";
 import solLogo from "../assets/crypto/sol.svg";
@@ -314,8 +315,9 @@ export function PortfolioPage() {
 
   const totalCurrentValue = liveTotalCurrentValue;
 
+  const { hidden, mask } = useBalanceVisibility();
   return (
-    <div className="space-y-12">
+    <div className="page-responsive borderless-ui space-y-12">
       <Seo
         title="Portfolio – live valuation and projections"
         description="Track your custodial portfolio value, pending earnings, growth series and multiplier projections powered by live market data."
@@ -332,7 +334,7 @@ export function PortfolioPage() {
       </section>
 
       {error && (
-        <p className="text-xs text-[#EA3943] bg-[#17181A] border border-[#EA3943]/40 rounded-lg px-3 py-2">
+        <p className="text-xs text-[#EA3943] bg-[#17181A] rounded-lg px-3 py-2">
           {error}
         </p>
       )}
@@ -372,14 +374,19 @@ export function PortfolioPage() {
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#9CA3AF]">
                 Portfolio value
               </p>
-              <p className="text-4xl sm:text-[42px] font-semibold tracking-tight text-[#F5F5F7]">
-                {loading
-                  ? "$0.00"
-                  : `$${animatedTotalValue.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}`}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-4xl sm:text-[42px] font-semibold tracking-tight text-[#F5F5F7]">
+                  {loading
+                    ? "$0.00"
+                    : hidden
+                    ? mask("$******")
+                    : `$${animatedTotalValue.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}`}
+                </p>
+                <BalanceToggle />
+              </div>
             </div>
 
             <div className="flex flex-col gap-4 sm:flex-row">
@@ -388,9 +395,7 @@ export function PortfolioPage() {
                   Pending earnings
                 </p>
                 <p className="text-lg font-medium text-[#16C784]">
-                  {loading
-                    ? "0.0000"
-                    : animatedPendingEarnings.toFixed(4)}
+                  {loading ? "0.0000" : hidden ? mask("******") : animatedPendingEarnings.toFixed(4)}
                 </p>
               </div>
               <div className="flex-1 space-y-1">
@@ -400,6 +405,8 @@ export function PortfolioPage() {
                 <p className="text-lg font-medium text-[#F5F5F7]">
                   {loading
                     ? "$0.00"
+                    : hidden
+                    ? mask("$******")
                     : `$${animatedProjectedValue.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -427,10 +434,12 @@ export function PortfolioPage() {
               </p>
               <p className="text-sm font-medium text-[#F5F5F7]">
                 {portfolio
-                  ? `$${portfolio.totalPlatformBalance.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}`
+                  ? hidden
+                    ? mask("$******")
+                    : `$${portfolio.totalPlatformBalance.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}`
                   : "--"}
               </p>
               <p className="text-xs text-[#9CA3AF]">
@@ -452,7 +461,7 @@ export function PortfolioPage() {
             </div>
 
             <div className="grid grid-cols-3 gap-3 text-xs">
-              <div className="space-y-1 rounded-xl bg-[#17181A] border border-[#26272B] px-3 py-2.5">
+              <div className="space-y-1 rounded-xl bg-[#17181A] px-3 py-2.5">
                 <p className="text-[10px] uppercase tracking-[0.16em] text-[#9CA3AF]">
                   Base multiplier
                 </p>
@@ -460,7 +469,7 @@ export function PortfolioPage() {
                   x{baseMultiplier.toFixed(2)}
                 </p>
               </div>
-              <div className="space-y-1 rounded-xl bg-[#17181A] border border-[#26272B] px-3 py-2.5">
+              <div className="space-y-1 rounded-xl bg-[#17181A] px-3 py-2.5">
                 <p className="text-[10px] uppercase tracking-[0.16em] text-[#9CA3AF]">
                   Your boost
                 </p>
@@ -468,7 +477,7 @@ export function PortfolioPage() {
                   +{boostMultiplier.toFixed(2)}
                 </p>
               </div>
-              <div className="space-y-1 rounded-xl bg-[#17181A] border border-[#C6A15B]/70 px-3 py-2.5">
+              <div className="space-y-1 rounded-xl bg-[#17181A] px-3 py-2.5">
                 <p className="text-[10px] uppercase tracking-[0.16em] text-[#C6A15B]">
                   Total multiplier
                 </p>
@@ -568,6 +577,7 @@ export function PortfolioPage() {
                 <Legend
                   verticalAlign="bottom"
                   height={32}
+                  iconSize={10}
                   wrapperStyle={{
                     fontSize: 11,
                     color: "#9CA3AF"
@@ -596,7 +606,7 @@ export function PortfolioPage() {
               return (
                 <div
                   key={asset.symbol}
-                  className="flex items-center justify-between rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2.5 transition-colors hover:border-[#C6A15B]/70"
+                  className="flex items-center justify-between rounded-xl bg-[#17181A] px-3 py-2.5 transition-colors hover:border-[#C6A15B]/70"
                 >
                   <div className="flex items-center gap-2.5">
                     <img
@@ -616,10 +626,10 @@ export function PortfolioPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-medium text-[#F5F5F7]">
-                      {asset.totalDeposited.toFixed(4)} {asset.symbol}
+                      {hidden ? mask("******") : `${asset.totalDeposited.toFixed(4)} ${asset.symbol}`}
                     </p>
                     <p className="text-[11px] text-[#9CA3AF]">
-                      ${asset.currentValue.toFixed(2)}
+                      {hidden ? mask("$******") : `$${asset.currentValue.toFixed(2)}`}
                     </p>
                   </div>
                 </div>
@@ -683,6 +693,7 @@ export function PortfolioPage() {
                 <Legend
                   wrapperStyle={{ fontSize: 11, color: "#9CA3AF" }}
                   iconType="circle"
+                  iconSize={10}
                 />
                 <Area
                   type="monotone"
@@ -733,8 +744,8 @@ export function PortfolioPage() {
             </p>
           </div>
         </div>
-        <div className="overflow-hidden rounded-2xl border border-[#26272B] bg-[#17181A]">
-          <div className="min-w-full divide-y divide-[#26272B]">
+        <div className="overflow-hidden rounded-2xl bg-[#17181A]">
+          <div className="min-w-full divide-y divide-[#26272B]/50">
             <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1.6fr)_minmax(0,1.6fr)] md:grid-cols-[minmax(0,2.4fr)_minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.3fr)] gap-3 px-4 py-3 text-[10px] md:text-[11px] font-medium uppercase tracking-[0.16em] text-[#9CA3AF]">
               <span>Asset</span>
               <span>Deposited</span>
@@ -774,12 +785,12 @@ export function PortfolioPage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {asset.totalDeposited.toFixed(4)} {asset.symbol}
+                      {hidden ? mask("******") : `${asset.totalDeposited.toFixed(4)} ${asset.symbol}`}
                     </span>
                   </div>
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      ${asset.currentValue.toFixed(2)}
+                      {hidden ? mask("$******") : `$${asset.currentValue.toFixed(2)}`}
                     </span>
                   </div>
                   <div className="hidden flex-col md:flex">

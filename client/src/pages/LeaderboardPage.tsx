@@ -163,7 +163,7 @@ export function LeaderboardPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="page-responsive borderless-ui min-w-0 space-y-8 overflow-x-hidden">
       <Seo
         title="Leaderboards – social proof and top performers"
         description="Explore top depositors, weekly earners, highest streaks and fastest growing accounts across Crypto Levels."
@@ -179,8 +179,9 @@ export function LeaderboardPage() {
         </p>
       </section>
 
-      <section className="rounded-3xl bg-[#17181A]/60 px-4 py-5 sm:px-6 sm:py-6 space-y-6 backdrop-blur-sm">
-        <div className="flex flex-wrap gap-2 border-b border-[#26272B] pb-3">
+      <section className="min-w-0 rounded-3xl bg-[#17181A]/60 px-4 py-5 sm:px-6 sm:py-6 space-y-6 backdrop-blur-sm">
+        <div className="pb-1 md:overflow-visible">
+          <div className="grid grid-cols-2 gap-2 pb-2 sm:flex sm:flex-wrap sm:gap-2">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -190,7 +191,7 @@ export function LeaderboardPage() {
                 onClick={() => setActiveTab(tab.id)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                className={`relative w-full px-3 py-2 rounded-full text-xs font-medium transition-colors sm:w-auto ${
                   isActive
                     ? "text-[#C6A15B]"
                     : "text-[#9CA3AF] hover:text-[#F5F5F7] hover:bg-[#17181A]"
@@ -203,6 +204,7 @@ export function LeaderboardPage() {
               </motion.button>
             );
           })}
+          </div>
         </div>
 
         <p className="text-xs text-[#9CA3AF]">
@@ -210,7 +212,7 @@ export function LeaderboardPage() {
         </p>
 
         {error && (
-          <div className="rounded-xl border border-[#EA3943]/40 bg-[#EA3943]/10 px-4 py-3">
+          <div className="rounded-xl bg-[#EA3943]/10 px-4 py-3">
             <p className="text-xs text-[#EA3943]">{error}</p>
           </div>
         )}
@@ -234,7 +236,7 @@ export function LeaderboardPage() {
             <button
               type="button"
               onClick={() => navigate("/deposit")}
-              className="inline-flex items-center justify-center rounded-xl bg-[#C6A15B] px-6 py-3 text-sm font-medium text-[#0F0F10] shadow-[0_0_24px_rgba(198,161,91,0.4)] hover:shadow-[0_0_32px_rgba(198,161,91,0.6)] transition-shadow mt-4"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-[#C6A15B] px-6 py-3 text-center text-sm font-medium text-[#0F0F10] shadow-[0_0_24px_rgba(198,161,91,0.4)] hover:shadow-[0_0_32px_rgba(198,161,91,0.6)] transition-shadow sm:w-auto mt-4"
             >
               Start Depositing
             </button>
@@ -244,8 +246,8 @@ export function LeaderboardPage() {
         {!loading && entries.length > 0 && (
           <>
             {topThree.length > 0 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-6 overflow-hidden">
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                   {topThree.map((entry, index) => {
                     const rank = index + 1;
                     const isFirst = rank === 1;
@@ -263,23 +265,23 @@ export function LeaderboardPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className={`relative rounded-2xl border p-5 ${medalClass} ${
+                        className={`relative mx-auto min-w-0 w-full max-w-[19rem] rounded-2xl border p-4 sm:max-w-none ${medalClass} ${
                           isFirst ? "md:order-2" : rank === 2 ? "md:order-1" : "md:order-3"
                         }`}
                       >
-                        <div className="flex flex-col items-center space-y-3">
-                          <div className="text-4xl">{medal}</div>
-                          <AvatarCircle name={entry.alias} size={16} />
-                          <div className="text-center space-y-1">
-                            <p className="text-sm font-medium text-[#F5F5F7]">
+                        <div className="flex flex-col items-center space-y-2.5">
+                          <div className="text-3xl">{medal}</div>
+                          <AvatarCircle name={entry.alias} size={14} />
+                          <div className="w-full max-w-[14rem] text-center space-y-1">
+                            <p className="truncate text-sm font-medium text-[#F5F5F7]">
                               {entry.alias}
                             </p>
-                            <p className="text-lg font-semibold text-[#C6A15B]">
+                            <p className="text-base font-semibold text-[#C6A15B]">
                               {formatValueDisplay(entry.value)}
                             </p>
                           </div>
                           {isFirst && (
-                            <div className="absolute -top-2 -right-2 h-4 w-4 rounded-full bg-[#C6A15B] animate-pulse" />
+                            <div className="absolute right-1 top-1 h-3.5 w-3.5 rounded-full bg-[#C6A15B] animate-pulse" />
                           )}
                         </div>
                       </motion.div>
@@ -291,20 +293,20 @@ export function LeaderboardPage() {
 
             {remainingEntries.length > 0 && (
               <div className="border-t border-[#26272B] pt-6">
-                <div className="overflow-hidden rounded-xl border border-[#26272B] bg-[#0F0F10]">
-                  <table className="w-full">
-                    <thead className="bg-[#17181A] border-b border-[#26272B]">
+                <div className="w-full overflow-x-auto rounded-xl bg-[#0F0F10]">
+                  <table className="w-full min-w-[560px] table-fixed">
+                    <thead className="bg-[#17181A]">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
+                        <th className="w-16 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
                           Rank
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
                           User
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
+                        <th className="w-32 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
                           Score
                         </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
+                        <th className="w-28 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
                           Badge
                         </th>
                       </tr>
@@ -325,10 +327,10 @@ export function LeaderboardPage() {
                               <td className="px-4 py-3 text-sm text-[#9CA3AF]">
                                 {rank}
                               </td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-3">
+                              <td className="px-4 py-3 align-middle">
+                                <div className="flex min-w-0 items-center gap-3">
                                   <AvatarCircle name={entry.alias} size={10} />
-                                  <span className="text-sm font-medium text-[#F5F5F7]">
+                                  <span className="min-w-0 truncate text-sm font-medium text-[#F5F5F7]">
                                     {entry.alias}
                                   </span>
                                 </div>

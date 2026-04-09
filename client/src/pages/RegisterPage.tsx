@@ -15,7 +15,6 @@ export function RegisterPage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [walletAddress, setWalletAddress] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const initialRef = useMemo(() => searchParams.get("ref") || "", [searchParams]);
@@ -55,7 +54,6 @@ export function RegisterPage() {
         name,
         email,
         password,
-        walletAddress,
         referralCode: referralCode.trim() ? referralCode.trim() : undefined
       })
     );
@@ -67,19 +65,29 @@ export function RegisterPage() {
   const effectiveError = localError || error || null;
 
   return (
-    <div className="auth-background flex min-h-screen w-full items-center justify-center">
+    <div className="page-responsive borderless-ui auth-background flex min-h-screen w-full">
       <Seo
         title="Create account"
         description="Open a Crypto Levels account to start depositing BTC, ETH, SOL and stablecoins into a custodial wallet that unlocks level-based multipliers and rewards."
         path="/register"
         robots="index,follow"
       />
-        <div className="w-full max-w-md px-4 py-10">
-        <div className="auth-card w-full rounded-3xl bg-[#17181A]/80 px-5 py-6 sm:px-7 sm:py-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold text-white tracking-tight">
-              Create Your Account
+      <div className="flex min-h-screen w-full items-start px-4 py-10 sm:px-6 lg:px-12">
+        <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <section className="hidden max-w-md space-y-5 pt-4 lg:block">
+            <p className="text-xs uppercase tracking-[0.2em] text-[#9CA3AF]">Crypto Levels</p>
+            <h1 className="text-4xl font-semibold tracking-tight text-[#F5F5F7]">
+              Create a secure account for custodial crypto growth
             </h1>
+            <p className="text-sm leading-6 text-[#A1A1AA]">
+              Open your account to unlock deposit progression, multiplier rewards, and controlled withdrawals.
+            </p>
+          </section>
+          <section className="w-full max-w-2xl space-y-6">
+          <div className="mb-6">
+            <h2 className="text-3xl font-semibold text-white tracking-tight">
+              Create Your Account
+            </h2>
             <p className="mt-2 text-sm text-slate-200/80">
               Start your journey to disciplined crypto investing with level-based rewards.
             </p>
@@ -95,7 +103,7 @@ export function RegisterPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full rounded-2xl border border-slate-700/80 bg-[#262626] px-3.5 py-2.5 text-sm text-slate-50 shadow-inner outline-none ring-0 transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/70"
+                className="w-full rounded-xl border border-[#2D2F35] bg-gradient-to-br from-[#0F1115] to-[#0B0C0F] px-3.5 py-3 text-sm text-slate-50 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
                 autoComplete="name"
               />
             </div>
@@ -109,10 +117,10 @@ export function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className={`w-full rounded-2xl border px-3.5 py-2.5 text-sm text-slate-50 shadow-inner outline-none ring-0 transition focus:ring-2 ${
+                className={`w-full border px-3.5 py-2.5 text-sm text-slate-50 outline-none transition focus:ring-1 ${
                   isEmailValid
-                    ? "border-slate-700/80 bg-[#262626] focus:border-yellow-400 focus:ring-yellow-400/70"
-                    : "border-red-500/70 bg-[#2b1b1b] focus:border-red-400 focus:ring-red-400/70"
+                    ? "rounded-xl border-slate-700/80 bg-[#262626] px-3.5 py-3 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
+                    : "rounded-xl border-red-500/70 bg-[#2b1b1b] px-3.5 py-3 focus:border-red-400 focus:ring-2 focus:ring-red-400/30"
                 }`}
                 autoComplete="email"
               />
@@ -123,20 +131,7 @@ export function RegisterPage() {
                 </p>
               )}
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-200/80" htmlFor="wallet">
-                Primary wallet address
-              </label>
-              <input
-                id="wallet"
-                type="text"
-                value={walletAddress}
-                onChange={(e) => setWalletAddress(e.target.value)}
-                required
-                className="w-full rounded-2xl border border-slate-700/80 bg-[#262626] px-3.5 py-2.5 text-sm text-slate-50 shadow-inner outline-none ring-0 transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/70 font-mono tracking-tight"
-                autoComplete="off"
-              />
-            </div>
+            
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label
@@ -146,7 +141,7 @@ export function RegisterPage() {
                   Password
                 </label>
                 <div className="inline-flex items-center gap-1.5 text-[0.7rem] text-emerald-300/90">
-                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-emerald-300/60 bg-emerald-400/10">
+                  <span className="inline-flex h-4 w-4 items-center justify-center border border-emerald-300/60 bg-emerald-400/10">
                     <svg
                       viewBox="0 0 24 24"
                       aria-hidden="true"
@@ -169,7 +164,7 @@ export function RegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="w-full rounded-2xl border border-slate-700/80 bg-[#262626] px-3.5 py-2.5 pr-11 text-sm text-slate-50 shadow-inner outline-none ring-0 transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/70"
+                  className="w-full rounded-xl border border-[#2D2F35] bg-gradient-to-br from-[#0F1115] to-[#0B0C0F] px-3.5 py-3 pr-11 text-sm text-slate-50 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
                   autoComplete="new-password"
                 />
                 <button
@@ -185,7 +180,7 @@ export function RegisterPage() {
                   )}
                 </button>
               </div>
-              <div className="mt-2 space-y-1.5 rounded-2xl bg-[#0F172A]/40 px-3 py-3">
+              <div className="mt-2 space-y-1.5 bg-[#0F172A]/40 px-3 py-3">
                 <p className="text-[0.7rem] font-medium text-slate-200/90">
                   Password must contain:
                 </p>
@@ -212,7 +207,7 @@ export function RegisterPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="w-full rounded-2xl border border-slate-700/80 bg-[#262626] px-3.5 py-2.5 pr-11 text-sm text-slate-50 shadow-inner outline-none ring-0 transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/70"
+                  className="w-full rounded-xl border border-[#2D2F35] bg-gradient-to-br from-[#0F1115] to-[#0B0C0F] px-3.5 py-3 pr-11 text-sm text-slate-50 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
                   autoComplete="new-password"
                 />
                 <button
@@ -241,7 +236,7 @@ export function RegisterPage() {
                 type="text"
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value)}
-                className="w-full rounded-2xl border border-slate-700/80 bg-[#262626] px-3.5 py-2.5 text-sm text-slate-50 shadow-inner outline-none ring-0 transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/70"
+                className="w-full rounded-xl border border-[#2D2F35] bg-gradient-to-br from-[#0F1115] to-[#0B0C0F] px-3.5 py-3 text-sm text-slate-50 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
                 autoComplete="off"
               />
               <p className="text-[0.7rem] text-slate-400/90">
@@ -250,14 +245,14 @@ export function RegisterPage() {
               </p>
             </div>
             {effectiveError && (
-              <p className="text-xs text-red-300 bg-red-900/40 border border-red-900/80 rounded-2xl px-3 py-2">
+              <p className="text-xs text-red-300 bg-red-900/40 px-3 py-2">
                 {effectiveError}
               </p>
             )}
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 flex h-12 w-full items-center justify-center rounded-full bg-yellow-400 text-slate-950 text-sm font-semibold tracking-wide shadow-lg shadow-yellow-500/20 transition-transform transition-shadow duration-150 hover:-translate-y-0.5 hover:shadow-yellow-500/40 active:translate-y-0 active:shadow-none disabled:cursor-not-allowed disabled:opacity-70"
+              className="mt-2 flex h-12 w-full items-center justify-center rounded-xl bg-yellow-400 text-slate-950 text-sm font-semibold tracking-wide transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {loading ? "Creating account..." : "Create account"}
             </button>
@@ -290,6 +285,7 @@ export function RegisterPage() {
               .
             </p>
           </div>
+          </section>
         </div>
       </div>
     </div>
@@ -307,7 +303,7 @@ function PasswordRequirement({ met, label }: PasswordRequirementProps) {
       {met ? (
         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
       ) : (
-        <div className="h-3.5 w-3.5 rounded-full border border-slate-500" />
+        <div className="h-3.5 w-3.5 border border-slate-500" />
       )}
       <span className={met ? "text-emerald-200" : "text-slate-300/80"}>{label}</span>
     </li>

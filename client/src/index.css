@@ -3,16 +3,46 @@
 @tailwind utilities;
 
 /* GLOBAL STYLES */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html, body, #root {
   min-height: 100vh;
   width: 100%;
-  overflow-x: visible; /* prevent global horizontal scroll */
+  overflow-x: hidden;
 }
 
 body {
   @apply font-sans antialiased;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
   background-color: #0F0F10;
   color: #F5F5F7;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Space Grotesk", Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+p,
+span,
+label,
+input,
+textarea,
+select,
+button,
+a,
+li,
+small {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
 }
 
 /* AUTH PAGE BACKGROUND */
@@ -58,5 +88,52 @@ body {
   .mobile-padding-adjust {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
+  }
+
+  .landing-page button,
+  .landing-page a {
+    max-width: 100%;
+  }
+
+  .landing-page button span,
+  .landing-page a span {
+    white-space: normal;
+    word-break: break-word;
+  }
+}
+
+/* Borderless modern cards for key experience pages */
+.borderless-ui .border,
+.borderless-ui [class*=" border-"],
+.borderless-ui [class^="border-"] {
+  border-width: 0 !important;
+  border-color: transparent !important;
+}
+
+.page-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.display-font {
+  font-family: "Space Grotesk", Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Mobile-first buttons: stack by default; switch to 2-up on wider mobiles */
+.buttons-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+@media (min-width: 380px) and (max-width: 640px) {
+  .buttons-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.5rem !important;
+  }
+  .buttons-row > * {
+    width: 100% !important;
   }
 }

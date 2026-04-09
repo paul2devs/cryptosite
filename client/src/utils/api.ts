@@ -2,22 +2,53 @@ import axios, { AxiosError } from "axios";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
+interface StoredTokens {
+  accessToken: string | null;
+  refreshToken: string | null;
+}
+
 export const api = axios.create({
   baseURL,
-  withCredentials: false
+  withCredentials: true
 });
 
-function getAccessTokenFromStorage(): string | null {
+function getStoredTokens(): StoredTokens {
   try {
     const raw = localStorage.getItem("authTokens");
     if (!raw) {
-      return null;
+      return { accessToken: null, refreshToken: null };
     }
-    const parsed = JSON.parse(raw) as { accessToken?: unknown };
-    const token = parsed?.accessToken;
-    return typeof token === "string" && token.length > 0 ? token : null;
+    const parsed = JSON.parse(raw) as { accessToken?: unknown; refreshToken?: unknown };
+    const accessToken =
+      typeof parsed?.accessToken === "string" && parsed.accessToken.length > 0
+        ? parsed.accessToken
+        : null;
+    const refreshToken =
+      typeof parsed?.refreshToken === "string" && parsed.refreshToken.length > 0
+        ? parsed.refreshToken
+        : null;
+    return { accessToken, refreshToken };
   } catch {
-    return null;
+    return { accessToken: null, refreshToken: null };
+  }
+}
+
+function persistAccessToken(accessToken: string): void {
+  const { refreshToken } = getStoredTokens();
+  localStorage.setItem(
+    "authTokens",
+    JSON.stringify({
+      accessToken,
+      refreshToken
+    })
+  );
+}
+
+function clearStoredTokens(): void {
+  try {
+    localStorage.removeItem("authTokens");
+  } catch {
+    return;
   }
 }
 
@@ -40,7 +71,7 @@ const processQueue = (error: AxiosError | null, token: string | null = null) => 
 
 api.interceptors.request.use(
   async (config) => {
-    const token = getAccessTokenFromStorage();
+    const { accessToken: token } = getStoredTokens();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -55,8 +86,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as typeof error.config & { _retry?: boolean };
+    const status = error.response?.status;
+    const requestUrl = originalRequest?.url || "";
+    const isAuthRefreshCall = requestUrl.includes("/auth/refresh");
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (status === 401 && !originalRequest._retry && !isAuthRefreshCall) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -75,14 +109,20 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const token = getAccessTokenFromStorage();
-      if (!token) {
+      const { refreshToken } = getStoredTokens();
+      if (!refreshToken) {
         isRefreshing = false;
         processQueue(error, null);
+        clearStoredTokens();
         return Promise.reject(error);
       }
 
       try {
+        const refreshResponse = await api.post<{ accessToken: string }>("/auth/refresh", {
+          refreshToken
+        });
+        const token = refreshResponse.data.accessToken;
+        persistAccessToken(token);
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${token}`;
         }
@@ -92,6 +132,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         isRefreshing = false;
         processQueue(refreshError as AxiosError, null);
+        clearStoredTokens();
         return Promise.reject(refreshError);
       }
     }
