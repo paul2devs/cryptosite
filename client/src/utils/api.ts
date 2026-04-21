@@ -34,12 +34,23 @@ function getStoredTokens(): StoredTokens {
 }
 
 function persistAccessToken(accessToken: string): void {
+  let issuedAt: number | undefined;
+  try {
+    const raw = localStorage.getItem("authTokens");
+    if (raw) {
+      const parsed = JSON.parse(raw) as { issuedAt?: number };
+      issuedAt = parsed.issuedAt;
+    }
+  } catch {
+    issuedAt = undefined;
+  }
   const { refreshToken } = getStoredTokens();
   localStorage.setItem(
     "authTokens",
     JSON.stringify({
       accessToken,
-      refreshToken
+      refreshToken,
+      issuedAt: issuedAt ?? Date.now()
     })
   );
 }

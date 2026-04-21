@@ -127,7 +127,8 @@ const authSlice = createSlice({
             "authTokens",
             JSON.stringify({
               accessToken: action.payload.accessToken,
-              refreshToken: action.payload.refreshToken
+              refreshToken: action.payload.refreshToken,
+              issuedAt: Date.now()
             })
           );
         }
@@ -151,7 +152,8 @@ const authSlice = createSlice({
             "authTokens",
             JSON.stringify({
               accessToken: action.payload.accessToken,
-              refreshToken: action.payload.refreshToken
+              refreshToken: action.payload.refreshToken,
+              issuedAt: Date.now()
             })
           );
         }

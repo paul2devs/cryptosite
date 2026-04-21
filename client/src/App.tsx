@@ -15,6 +15,7 @@ import { LandingPage } from "./pages/LandingPage";
 import { Layout } from "./components/Layout";
 import { BalanceVisibilityProvider } from "./components/BalanceVisibilityProvider";
 import { lazy } from "react";
+import { primeLiveMarketCache } from "./hooks/useLiveMarket";
 
 const DashboardPage = lazy(() =>
   import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
@@ -41,6 +42,9 @@ const AdminAnalyticsPage = lazy(() =>
   import("./pages/AdminAnalyticsPage").then((m) => ({
     default: m.AdminAnalyticsPage
   }))
+);
+const SettingsPage = lazy(() =>
+  import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage }))
 );
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -71,6 +75,17 @@ function App() {
       dispatch(fetchMe());
     }
   }, [dispatch]);
+
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem("ui_language");
+    if (savedLanguage) {
+      document.documentElement.lang = savedLanguage;
+    }
+  }, []);
+
+  useEffect(() => {
+    primeLiveMarketCache();
+  }, []);
 
   return (
     <BalanceVisibilityProvider>
@@ -129,6 +144,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <LeaderboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

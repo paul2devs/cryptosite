@@ -11,15 +11,24 @@ exports.forgotPassword = forgotPassword;
 exports.resetPassword = resetPassword;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const express_validator_1 = require("express-validator");
-const sequelize_1 = require("sequelize");
-const Referral_1 = require("../models/Referral");
 const User_1 = require("../models/User");
+const jwt_1 = require("../utils/jwt");
+const Referral_1 = require("../models/Referral");
+const referralCode_1 = require("../utils/referralCode");
+const sequelize_1 = require("sequelize");
 const activityService_1 = require("../services/activityService");
 const emailService_1 = require("../services/email/emailService");
 const passwordResetService_1 = require("../services/passwordResetService");
-const referralCode_1 = require("../utils/referralCode");
-const jwt_1 = require("../utils/jwt");
 const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
+function getAuthCookieOptions() {
+    const isProduction = process.env.NODE_ENV === "production";
+    return {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: (isProduction ? "none" : "lax"),
+        path: "/"
+    };
+}
 async function register(req, res) {
     const errors = (0, express_validator_1.validationResult)(req);
     if (!errors.isEmpty()) {
@@ -82,6 +91,9 @@ async function register(req, res) {
         const payload = { userId: user.user_id, isAdmin: user.is_admin };
         const accessToken = (0, jwt_1.signAccessToken)(payload);
         const refreshToken = (0, jwt_1.signRefreshToken)(payload);
+        const cookieOptions = getAuthCookieOptions();
+        res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+        res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
         res.status(201).json({
             user: {
                 user_id: user.user_id,
@@ -101,7 +113,7 @@ async function register(req, res) {
         await (0, activityService_1.trackUserActivity)(user.user_id, "login", { source: "register" });
         (0, emailService_1.sendWelcomeEmail)({ to: user.email, name: user.name });
     }
-    catch {
+    catch (error) {
         res.status(500).json({ message: "Registration failed" });
     }
 }
@@ -126,6 +138,9 @@ async function login(req, res) {
         const payload = { userId: user.user_id, isAdmin: user.is_admin };
         const accessToken = (0, jwt_1.signAccessToken)(payload);
         const refreshToken = (0, jwt_1.signRefreshToken)(payload);
+        const cookieOptions = getAuthCookieOptions();
+        res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+        res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
         res.status(200).json({
             user: {
                 user_id: user.user_id,
@@ -144,12 +159,16 @@ async function login(req, res) {
         });
         await (0, activityService_1.trackUserActivity)(user.user_id, "login", { source: "login" });
     }
-    catch {
+    catch (error) {
         res.status(500).json({ message: "Login failed" });
     }
 }
 async function refreshToken(req, res) {
-    const { refreshToken: token } = req.body;
+    const { refreshToken: bodyToken } = req.body;
+    const cookieToken = typeof req.cookies?.refreshToken === "string" && req.cookies.refreshToken.length > 0
+        ? req.cookies.refreshToken
+        : undefined;
+    const token = bodyToken || cookieToken;
     if (!token) {
         res.status(400).json({ message: "Refresh token required" });
         return;
@@ -157,9 +176,11 @@ async function refreshToken(req, res) {
     try {
         const payload = (0, jwt_1.verifyRefreshToken)(token);
         const accessToken = (0, jwt_1.signAccessToken)(payload);
+        const cookieOptions = getAuthCookieOptions();
+        res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
         res.status(200).json({ accessToken });
     }
-    catch {
+    catch (error) {
         res.status(401).json({ message: "Invalid refresh token" });
     }
 }
@@ -189,7 +210,7 @@ async function me(req, res) {
             }
         });
     }
-    catch {
+    catch (error) {
         res.status(500).json({ message: "Failed to fetch profile" });
     }
 }

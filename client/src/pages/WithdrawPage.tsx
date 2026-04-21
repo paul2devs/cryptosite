@@ -26,6 +26,12 @@ interface WithdrawalSummary {
   min_level: number;
   cooldown_seconds_remaining: number;
 }
+interface SavedWallet {
+  wallet_id: string;
+  asset: string;
+  address: string;
+  network: string | null;
+}
 
 type WithdrawalAsset = "BTC" | "ETH" | "USDT" | "SOL";
 type UsdtNetwork = "ERC20" | "TRC20";
@@ -55,6 +61,7 @@ export function WithdrawPage() {
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [canWithdraw, setCanWithdraw] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(true);
+  const [savedWallets, setSavedWallets] = useState<SavedWallet[]>([]);
   const assetMenuRef = useRef<HTMLDivElement | null>(null);
 
   const loadWithdrawals = async () => {
@@ -91,9 +98,29 @@ export function WithdrawPage() {
   useEffect(() => {
     const init = async () => {
       await Promise.all([loadWithdrawals(), refreshSummary()]);
+      try {
+        const settingsRes = await api.get<{ settings: { withdrawal_wallets: SavedWallet[] } }>(
+          "/user/settings"
+        );
+        setSavedWallets(settingsRes.data.settings.withdrawal_wallets || []);
+      } catch {
+        const raw = localStorage.getItem("withdraw_wallets");
+        if (raw) {
+          const parsed = JSON.parse(raw) as SavedWallet[];
+          setSavedWallets(Array.isArray(parsed) ? parsed : []);
+        }
+      }
     };
     init();
   }, []);
+
+  useEffect(() => {
+    const targetAsset = asset === "USDT" ? (network === "TRC20" ? "USDT_TRC20" : "USDT_ERC20") : asset;
+    const matchedWallet = savedWallets.find((wallet) => wallet.asset === targetAsset);
+    if (matchedWallet && address.trim().length === 0) {
+      setAddress(matchedWallet.address);
+    }
+  }, [asset, network, savedWallets, address]);
 
   useEffect(() => {
     if (!message && !error) {

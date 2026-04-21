@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Bell, CircleUser, LogOut, Menu, X } from "lucide-react";
+import { Bell, CircleUser, LogOut, Menu, Settings, User, X } from "lucide-react";
 import type { RootState } from "../store";
 import { AppDispatch } from "../store";
 import { logout } from "../store/authSlice";
@@ -362,6 +362,28 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                         {user.email ?? user.name ?? "Signed in"}
                       </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvatarOpen(false);
+                        navigate("/");
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#17181A]"
+                    >
+                      <User className="h-3.5 w-3.5" />
+                      <span>Profile</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvatarOpen(false);
+                        navigate("/settings");
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#17181A]"
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                      <span>Settings</span>
+                    </button>
                     <button
                       type="button"
                       onClick={handleLogout}

@@ -1,23 +1,14 @@
-import { useEffect, useState } from "react";
-import { api } from "../utils/api";
+import { useMemo } from "react";
+import { motion } from "framer-motion";
 import btcLogo from "../assets/crypto/btc.svg";
 import ethLogo from "../assets/crypto/eth.svg";
 import solLogo from "../assets/crypto/sol.svg";
 import usdtLogo from "../assets/crypto/usdt.svg";
 import bnbLogo from "../assets/crypto/bnb.svg";
 import xrpLogo from "../assets/crypto/xrp.svg";
+import { LiveMarketSymbol, useLiveMarket } from "../hooks/useLiveMarket";
 
-type SupportedSymbol = "BTC" | "ETH" | "SOL" | "USDT" | "BNB" | "XRP";
-
-interface MarketDataPoint {
-  symbol: SupportedSymbol;
-  price: number;
-  change24h: number;
-  marketCap: number;
-  lastUpdated: string;
-}
-
-type MarketResponse = Record<string, MarketDataPoint>;
+type SupportedSymbol = LiveMarketSymbol;
 
 const MARKET_META: Record<
   SupportedSymbol,
@@ -65,55 +56,8 @@ const symbols: SupportedSymbol[] = [
 ];
 
 export function MarketWidget() {
-  const [data, setData] = useState<MarketResponse>({});
-
-  const load = async () => {
-    try {
-      const res = await api.get<MarketResponse>("/market/prices");
-      setData(res.data);
-    } catch {
-      setData({});
-    }
-  };
-
-  useEffect(() => {
-    let interval: number | null = null;
-    let cancelled = false;
-
-    const start = () => {
-      if (interval !== null) return;
-      void load();
-      interval = window.setInterval(() => {
-        if (!cancelled && document.visibilityState === "visible") {
-          void load();
-        }
-      }, 15000);
-    };
-
-    const stop = () => {
-      if (interval !== null) {
-        window.clearInterval(interval);
-        interval = null;
-      }
-    };
-
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        start();
-      } else {
-        stop();
-      }
-    };
-
-    onVisibility();
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", onVisibility);
-      stop();
-    };
-  }, []);
+  const { data, loading } = useLiveMarket(symbols);
+  const hasAnyData = useMemo(() => symbols.some((symbol) => !!data[symbol]), [data]);
 
   return (
     <div className="rounded-3xl bg-[#17181A]/60 px-4 py-4 sm:px-5 sm:py-5 space-y-3 backdrop-blur-sm">
@@ -127,7 +71,7 @@ export function MarketWidget() {
           </span>
         </div>
         <span className="text-[10px] uppercase tracking-[0.18em] text-[#9CA3AF]">
-          15s auto refresh
+          12s auto refresh
         </span>
       </div>
       <div className="space-y-1 text-[10px] text-[#9CA3AF]">
@@ -162,25 +106,43 @@ export function MarketWidget() {
                 </div>
               </div>
               <div className="flex flex-col items-end gap-0.5">
-                <span className="text-sm font-medium">
-                  {item?.price
-                    ? `$${item.price.toLocaleString(undefined, {
-                        maximumFractionDigits: 2
-                      })}`
-                    : "--"}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={
-                      isUp ? "text-[#16C784] text-[11px]" : "text-[#EA3943] text-[11px]"
-                    }
+                {loading && !hasAnyData ? (
+                  <div className="h-5 w-20 animate-pulse rounded bg-[#26272B]" />
+                ) : (
+                  <motion.span
+                    key={`${symbol}-price-${item?.price ?? 0}`}
+                    initial={{ opacity: 0.5, y: 2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="text-sm font-medium"
                   >
-                    {item
-                      ? `${isUp ? "+" : ""}${change.toFixed(2)}%`
+                    {item?.price
+                      ? `$${item.price.toLocaleString(undefined, {
+                          maximumFractionDigits: 2
+                        })}`
                       : "--"}
-                  </span>
+                  </motion.span>
+                )}
+                <div className="flex items-center gap-2">
+                  {loading && !hasAnyData ? (
+                    <div className="h-4 w-12 animate-pulse rounded bg-[#26272B]" />
+                  ) : (
+                    <motion.span
+                      key={`${symbol}-change-${item?.change24h ?? 0}`}
+                      initial={{ opacity: 0.4, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className={
+                        isUp ? "text-[#16C784] text-[11px]" : "text-[#EA3943] text-[11px]"
+                      }
+                    >
+                      {item ? `${isUp ? "+" : ""}${change.toFixed(2)}%` : "--"}
+                    </motion.span>
+                  )}
                   <span className="text-[10px] text-[#9CA3AF]">
-                    {item?.marketCap
+                    {loading && !hasAnyData
+                      ? "MC --"
+                      : item?.marketCap
                       ? `MC $${(item.marketCap / 1_000_000_000).toFixed(1)}B`
                       : ""}
                   </span>

@@ -32,6 +32,7 @@ import solLogo from "../assets/crypto/sol.svg";
 import usdtLogo from "../assets/crypto/usdt.svg";
 import { api } from "../utils/api";
 import { Seo } from "../components/Seo";
+import { useLiveMarket } from "../hooks/useLiveMarket";
 
 type MarketSymbol = "BTC" | "ETH" | "USDT" | "SOL";
 
@@ -323,7 +324,7 @@ export function LandingPage() {
   const [statActiveDepositors, setStatActiveDepositors] = useState(0);
   const [statHighestMultiplier, setStatHighestMultiplier] = useState(1.0);
   const [communityMembers, setCommunityMembers] = useState(12842);
-  const [marketData, setMarketData] = useState<LandingMarketResponse>({});
+  const { data: marketData, loading: marketLoading } = useLiveMarket(MARKET_TICKER_SYMBOLS);
   const [marketTrendSeries, setMarketTrendSeries] = useState<number[]>([
     1,
     1,
@@ -428,50 +429,20 @@ export function LandingPage() {
   }, []);
 
   useEffect(() => {
-    const loadMarket = async () => {
-      try {
-        const response = await api.get<Record<string, { price: number; change24h: number }>>(
-          "/market/prices"
-        );
-        const snapshot: LandingMarketResponse = {};
-        MARKET_TICKER_SYMBOLS.forEach((symbol) => {
-          const upper = symbol.toUpperCase();
-          const entry = response.data[upper];
-          if (entry) {
-            snapshot[symbol] = {
-              symbol,
-              price: entry.price,
-              change24h: entry.change24h
-            };
-          }
-        });
-        setMarketData(snapshot);
-
-        const referenceSymbol: MarketSymbol = "BTC";
-        const referenceHistory: number[] = [];
-        const basePrice = snapshot[referenceSymbol]?.price ?? 1;
-        Object.values(snapshot).forEach((point) => {
-          if (point.symbol === referenceSymbol) {
-            const changeFactor = 1 + point.change24h / 100;
-            referenceHistory.push(basePrice * changeFactor * 0.98);
-            referenceHistory.push(basePrice * changeFactor);
-            referenceHistory.push(basePrice * changeFactor * 1.02);
-          }
-        });
-        const series =
-          referenceHistory.length > 0
-            ? referenceHistory.map((value) => value / basePrice)
-            : [0.96, 1.0, 1.03, 1.07, 1.1];
-        setMarketTrendSeries(series);
-      } catch {
-        setMarketTrendSeries([0.96, 1.0, 1.03, 1.07, 1.1]);
-      }
-    };
-
-    loadMarket();
-    const interval = setInterval(loadMarket, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    const basePrice = marketData.BTC?.price ?? 0;
+    if (!basePrice) {
+      return;
+    }
+    const changeFactor = 1 + (marketData.BTC?.change24h ?? 0) / 100;
+    const nextSeries = [
+      basePrice * changeFactor * 0.975,
+      basePrice * changeFactor * 0.99,
+      basePrice * changeFactor,
+      basePrice * changeFactor * 1.015,
+      basePrice * changeFactor * 1.03
+    ].map((value) => value / basePrice);
+    setMarketTrendSeries(nextSeries);
+  }, [marketData.BTC?.price, marketData.BTC?.change24h]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -643,21 +614,6 @@ export function LandingPage() {
       });
     }, 5000);
 
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const loadMarket = async () => {
-      try {
-        const res = await api.get<LandingMarketResponse>("/market/prices");
-        setMarketData(res.data);
-      } catch {
-        setMarketData({});
-      }
-    };
-
-    loadMarket();
-    const interval = setInterval(loadMarket, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -2652,7 +2608,7 @@ export function LandingPage() {
                       </p>
                     </div>
                     <span className="text-[10px] uppercase tracking-[0.18em] text-[#6B7280]">
-                      15s auto refresh
+                      12s auto refresh
                     </span>
                   </div>
                   <div className="relative h-14 overflow-hidden rounded-2xl bg-[#0F0F10] border border-[#26272B]">
@@ -2687,7 +2643,9 @@ export function LandingPage() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{symbol}</span>
                             </div>
-                            <span className="text-xs text-[#E5E7EB]">{priceLabel}</span>
+                            <span className="text-xs text-[#E5E7EB]">
+                              {marketLoading && !item ? "Loading..." : priceLabel}
+                            </span>
                             <span
                               className={
                                 isUp

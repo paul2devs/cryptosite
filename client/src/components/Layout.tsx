@@ -7,6 +7,7 @@ import { NotificationProvider, NotificationToasts } from "./NotificationProvider
 import { LiveActivityPopups } from "./LiveActivityPopups";
 import { CookieBanner } from "./CookieBanner";
 import { Footer } from "./Footer";
+import { SupportChatWidget } from "./SupportChatWidget";
 import type { RootState } from "../store";
 import btcIcon from "../assets/crypto/compressed/icons8-home.svg";
 import ethIcon from "../assets/crypto/compressed/portfolio.svg";
@@ -45,6 +46,7 @@ export function Layout({ children }: LayoutProps) {
     location.pathname === "/register" ||
     location.pathname === "/forgot-password" ||
     location.pathname.startsWith("/reset-password");
+  const showSupportChat = location.pathname === "/landing" || !!user;
 
   return (
     <NotificationProvider>
@@ -64,6 +66,7 @@ export function Layout({ children }: LayoutProps) {
             <NotificationToasts />
             <LiveActivityPopups />
             <CookieBanner />
+            <SupportChatWidget enabled={showSupportChat} />
             <main
               className={`flex-1 pt-16 transition-all duration-300 ${
                 isPublicMarketingOrAuthPage

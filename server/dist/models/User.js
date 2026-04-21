@@ -74,6 +74,22 @@ User.init({
         allowNull: false,
         defaultValue: false
     },
+    account_settings: {
+        type: sequelize_1.DataTypes.JSONB,
+        allowNull: false,
+        defaultValue: {
+            notifications: {
+                deposit_updates: true,
+                withdrawal_updates: true,
+                rewards_bonuses: true,
+                announcements: true
+            },
+            preferences: {
+                language: "en"
+            },
+            withdrawal_wallets: []
+        }
+    },
     withdrawable_balance: {
         type: sequelize_1.DataTypes.DOUBLE,
         allowNull: false,

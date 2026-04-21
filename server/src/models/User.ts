@@ -20,6 +20,7 @@ export interface UserAttributes {
   locked_balance: number;
   last_withdrawal_at?: Date | null;
   bonus_blocked: boolean;
+  account_settings: unknown;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -41,6 +42,7 @@ export type UserCreationAttributes = Optional<
   | "locked_balance"
   | "last_withdrawal_at"
   | "bonus_blocked"
+  | "account_settings"
   | "created_at"
   | "updated_at"
 >;
@@ -67,6 +69,7 @@ export class User
   public locked_balance!: number;
   public last_withdrawal_at!: Date | null;
   public bonus_blocked!: boolean;
+  public account_settings!: unknown;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -139,6 +142,22 @@ User.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false
+    },
+    account_settings: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {
+        notifications: {
+          deposit_updates: true,
+          withdrawal_updates: true,
+          rewards_bonuses: true,
+          announcements: true
+        },
+        preferences: {
+          language: "en"
+        },
+        withdrawal_wallets: []
+      }
     },
     withdrawable_balance: {
       type: DataTypes.DOUBLE,

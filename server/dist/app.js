@@ -28,10 +28,31 @@ const gamificationService_1 = require("./services/gamificationService");
 const adminBootstrapService_1 = require("./services/adminBootstrapService");
 require("./models");
 const app = (0, express_1.default)();
-app.use((0, cors_1.default)({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-    credentials: true
-}));
+const defaultAllowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://cryptosite-seven.vercel.app"
+];
+const configuredOrigins = (process.env.CORS_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+const allowedOrigins = new Set([...defaultAllowedOrigins, ...configuredOrigins]);
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin)) {
+            callback(null, true);
+            return;
+        }
+        callback(new Error(`CORS origin not allowed: ${origin}`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+    exposedHeaders: ["Content-Type"]
+};
+app.use((0, cors_1.default)(corsOptions));
+app.options("*", (0, cors_1.default)(corsOptions));
 app.use(express_1.default.json());
 app.use((0, cookie_parser_1.default)());
 app.get("/api/health", (_req, res) => {

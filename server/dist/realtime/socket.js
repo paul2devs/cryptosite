@@ -7,13 +7,30 @@ const socket_io_1 = require("socket.io");
 const jwt_1 = require("../utils/jwt");
 let io = null;
 const userSockets = new Map();
+const defaultAllowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://cryptosite-seven.vercel.app"
+];
+const configuredOrigins = (process.env.CORS_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+const allowedOrigins = new Set([...defaultAllowedOrigins, ...configuredOrigins]);
 function initSocketServer(server) {
     if (io) {
         return;
     }
     io = new socket_io_1.Server(server, {
         cors: {
-            origin: process.env.CORS_ORIGIN || "http://localhost:5173"
+            origin: (origin, callback) => {
+                if (!origin || allowedOrigins.has(origin)) {
+                    callback(null, true);
+                    return;
+                }
+                callback(new Error(`Socket CORS origin not allowed: ${origin}`));
+            },
+            credentials: true
         }
     });
     io.use((socket, next) => {
