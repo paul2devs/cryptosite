@@ -122,7 +122,7 @@ export function ReferralPage() {
     <div className="page-responsive borderless-ui space-y-10">
       <Seo
         title="Referrals – invite and earn multiplier boosts"
-        description="Invite friends to Crypto Levels and unlock referral multiplier boosts when their deposits are approved."
+        description="Invite friends to NexaCrypto and unlock referral multiplier boosts when their deposits are approved."
         path="/referrals"
       />
       <section className="relative overflow-hidden rounded-3xl bg-[#17181A] px-6 py-7 sm:px-8 sm:py-9">
@@ -385,8 +385,8 @@ export function ReferralPage() {
                     if (!link) {
                       return;
                     }
-                    const subject = "Join me on this crypto levels platform";
-                    const body = `I am using this custodial crypto levels platform to grow my deposits with multipliers.\n\nUse my invite link to unlock a shared boost: ${link}`;
+                    const subject = "Join me on this NexaCrypto platform";
+                    const body = `I am using this custodial NexaCrypto platform to grow my deposits with multipliers.\n\nUse my invite link to unlock a shared boost: ${link}`;
                     const url = `mailto:?subject=${encodeURIComponent(
                       subject
                     )}&body=${encodeURIComponent(body)}`;

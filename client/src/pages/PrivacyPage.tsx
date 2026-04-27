@@ -5,7 +5,7 @@ export function PrivacyPage() {
     <div className="page-responsive borderless-ui auth-background flex min-h-screen w-full items-start justify-center py-8 sm:py-10">
       <Seo
         title="Privacy policy"
-        description="Learn how Crypto Levels collects, uses, stores and protects your information, including cookies and local storage used for session security."
+        description="Learn how NexaCrypto collects, uses, stores and protects your information, including cookies and local storage used for session security."
         path="/privacy"
       />
       <div className="w-full max-w-4xl px-4 sm:px-6 lg:px-8">
@@ -15,7 +15,7 @@ export function PrivacyPage() {
           </h1>
           <p className="text-sm text-slate-200/80 mb-6">
             This Privacy Policy explains how we collect, use, store, and protect your
-            information when you use the Crypto Levels platform.
+            information when you use the NexaCrypto platform.
           </p>
           <div className="space-y-5 text-sm text-slate-200/70">
             <section>

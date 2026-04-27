@@ -18,15 +18,15 @@ export function Seo({
   const baseUrl =
     (typeof window !== "undefined" && window.location.origin) ||
     (import.meta.env.VITE_APP_BASE_URL as string | undefined) ||
-    "https://cryptolevels.app";
+    "https://nexacrypto.app";
 
   const url = path ? `${baseUrl}${path}` : baseUrl;
-  const titleTemplate = `${title} | Crypto Levels – Custodial Crypto Growth Platform`;
+  const titleTemplate = `${title} | NexaCrypto – Custodial Crypto Growth Platform`;
 
   const keywordContent =
     keywords && keywords.length > 0
       ? keywords.join(", ")
-      : "crypto rewards, crypto multipliers, bitcoin deposits, ethereum yields, custodial crypto platform, crypto levels, staking alternative, secure crypto growth";
+      : "crypto rewards, crypto multipliers, bitcoin deposits, ethereum yields, custodial crypto platform, nexacrypto, staking alternative, secure crypto growth";
 
   const imageUrl = `${baseUrl}/social-preview.svg`;
 
@@ -36,7 +36,7 @@ export function Seo({
       <meta name="description" content={description} />
       <meta name="keywords" content={keywordContent} />
       <meta name="robots" content={robots} />
-      <meta name="author" content="Crypto Levels Platform" />
+      <meta name="author" content="NexaCrypto Platform" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="canonical" href={url} />
 
@@ -45,7 +45,7 @@ export function Seo({
       <meta property="og:description" content={description} />
       <meta property="og:url" content={url} />
       <meta property="og:image" content={imageUrl} />
-      <meta property="og:site_name" content="Crypto Levels" />
+      <meta property="og:site_name" content="NexaCrypto" />
 
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={titleTemplate} />

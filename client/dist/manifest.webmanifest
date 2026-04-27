@@ -1,6 +1,6 @@
 {
-  "name": "Crypto Levels",
-  "short_name": "Levels",
+  "name": "NexaCrypto",
+  "short_name": "Nexa",
   "description": "Custodial crypto deposits with levels, multipliers, streaks and rewards.",
   "start_url": "/",
   "display": "standalone",

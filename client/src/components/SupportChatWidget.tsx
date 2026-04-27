@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageCircle, Send, X } from "lucide-react";
+import { Send, X } from "lucide-react";
 import { useNotificationContext } from "./NotificationProvider";
+import supportIcon from "../assets/crypto/customersupport.svg";
 
 type Sender = "bot" | "user" | "system";
 
@@ -28,7 +29,7 @@ interface TopicResponse {
 const WELCOME_MESSAGE =
   "Hello 👋\nI’m your assistant. I can help with deposits, withdrawals, and account-related questions.";
 const TELEGRAM_URL =
-  import.meta.env.VITE_SUPPORT_TELEGRAM_URL || "https://t.me/cryptosite_support";
+  import.meta.env.VITE_SUPPORT_TELEGRAM_URL || "https://t.me/nexacrypto_support";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_MESSAGES = 8;
 const MESSAGE_COOLDOWN_MS = 1_200;
@@ -422,14 +423,19 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
         )}
       </AnimatePresence>
 
-      <button
-        type="button"
-        onClick={openChat}
-        className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#3B2F1A] bg-gradient-to-br from-[#C6A15B] to-[#FACC15] text-[#0F0F10] shadow-[0_16px_40px_rgba(198,161,91,0.45)] transition-transform duration-150 hover:-translate-y-0.5"
-        aria-label="Open support chat"
-      >
-        <MessageCircle className="h-6 w-6" />
-      </button>
+      <div className="relative">
+        <span className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-[#3A2E18] bg-[#0F0F10] px-2 py-0.5 text-[10px] font-medium text-[#F5F5F7] shadow-[0_8px_20px_rgba(0,0,0,0.45)]">
+          Support
+        </span>
+        <button
+          type="button"
+          onClick={openChat}
+          className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#4A3A1F] bg-[#17181A] text-[#0F0F10] shadow-[0_16px_36px_rgba(0,0,0,0.55)] transition-all duration-150 hover:-translate-y-0.5 hover:border-[#C6A15B] hover:bg-[#1F2023] active:translate-y-0 active:scale-[0.98]"
+          aria-label="Open support chat"
+        >
+          <img src={supportIcon} alt="" aria-hidden="true" className="h-6 w-6 object-contain drop-shadow-[0_0_2px_rgba(0,0,0,0.6)]" />
+        </button>
+      </div>
     </div>
   );
 }

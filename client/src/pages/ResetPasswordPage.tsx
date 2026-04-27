@@ -45,7 +45,7 @@ export function ResetPasswordPage() {
     <div className="page-responsive borderless-ui auth-background flex min-h-screen w-full">
       <Seo
         title="Set new password"
-        description="Securely set a new password for your Crypto Levels account using your one-time reset link."
+        description="Securely set a new password for your NexaCrypto account using your one-time reset link."
         path="/reset-password"
         robots="noindex,nofollow"
       />
@@ -62,11 +62,7 @@ export function ResetPasswordPage() {
           </section>
           <section className="w-full max-w-2xl space-y-6">
             <div className="mb-6 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center border border-yellow-400/70 bg-yellow-400/10">
-                <span className="text-xs font-semibold tracking-wide text-yellow-300">
-                  CL
-                </span>
-              </div>
+              <img src="/logo.png" alt="NexaCrypto" className="h-8 w-8 rounded-full object-cover" />
             </div>
             <div className="w-full bg-[#17181A]/85 px-5 py-6 sm:px-7 sm:py-8 md:px-8 md:py-10">
               <div className="mb-6">

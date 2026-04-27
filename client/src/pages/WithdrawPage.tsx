@@ -241,7 +241,7 @@ export function WithdrawPage() {
     <div className="page-responsive borderless-ui space-y-10">
       <Seo
         title="Withdraw rewards"
-        description="Request secure withdrawals from your Crypto Levels withdrawable balance. Withdrawals are level-gated and reviewed for security."
+        description="Request secure withdrawals from your NexaCrypto withdrawable balance. Withdrawals are level-gated and reviewed for security."
         path="/withdraw"
       />
       <section className="space-y-2">

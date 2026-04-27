@@ -8,11 +8,9 @@ export function Footer() {
         <div className="grid gap-10 border-b border-[#1E2026] pb-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-5">
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#17181A] text-xs font-bold text-[#C6A15B] ring-2 ring-[#C6A15B]">
-                CL
-              </span>
+              <img src="/logo.svg" alt="NexaCrypto" className="h-8 w-8 rounded-full object-cover" />
               <span className="display-font text-sm font-semibold tracking-tight text-[#F5F5F7]">
-                Crypto Levels
+                NexaCrypto
               </span>
             </div>
             <p className="max-w-sm text-xs leading-5 text-[#B3B9C5]">
@@ -29,7 +27,7 @@ export function Footer() {
               <Link to="/landing#how-it-works" className="hover:text-[#F5F5F7] transition-colors">About</Link>
               <Link to="/landing#security" className="hover:text-[#F5F5F7] transition-colors">Security</Link>
               <Link to="/landing#faq" className="hover:text-[#F5F5F7] transition-colors">FAQ</Link>
-              <a href="mailto:support@cryptolevels.app" className="hover:text-[#F5F5F7] transition-colors">Contact</a>
+              <a href="mailto:support@nexacrypto.app" className="hover:text-[#F5F5F7] transition-colors">Contact</a>
             </nav>
           </div>
 
@@ -62,8 +60,8 @@ export function Footer() {
           </div>
         </div>
         <div className="flex flex-col-reverse items-start justify-between gap-3 pt-6 text-[10px] text-[#9AA3B2] sm:flex-row sm:items-center">
-          <p>© {new Date().getFullYear()} Crypto Levels. All rights reserved.</p>
-          <p>Centralized custodial platform. Not investment advice. Participate responsibly.</p>
+          <p>© {new Date().getFullYear()} NexaCrypto. All rights reserved.</p>
+          <p>Centralized custodial platform. Investment advice. Participate responsibly.</p>
         </div>
       </div>
     </footer>

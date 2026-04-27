@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { api } from "../utils/api";
+import { extractAuthErrorMessage } from "../utils/authErrors";
 
 export interface UserInfo {
   user_id: string;
@@ -42,7 +43,7 @@ export const registerUser = createAsyncThunk<
     name: string;
     email: string;
     password: string;
-    walletAddress: string;
+    walletAddress?: string;
     referralCode?: string;
   },
   { rejectValue: string }
@@ -50,9 +51,9 @@ export const registerUser = createAsyncThunk<
   try {
     const response = await api.post<AuthResponse>("/auth/register", payload);
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     return thunkApi.rejectWithValue(
-      error.response?.data?.message || "Registration failed"
+      extractAuthErrorMessage(error, "Something went wrong, please try again.")
     );
   }
 });
@@ -65,9 +66,9 @@ export const loginUser = createAsyncThunk<
   try {
     const response = await api.post<AuthResponse>("/auth/login", payload);
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     return thunkApi.rejectWithValue(
-      error.response?.data?.message || "Login failed"
+      extractAuthErrorMessage(error, "Unable to log in. Please try again.")
     );
   }
 });
@@ -80,9 +81,9 @@ export const fetchMe = createAsyncThunk<
   try {
     const response = await api.get<{ user: UserInfo }>("/auth/me");
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     return thunkApi.rejectWithValue(
-      error.response?.data?.message || "Failed to fetch user"
+      extractAuthErrorMessage(error, "Your session has expired. Please log in again.")
     );
   }
 });

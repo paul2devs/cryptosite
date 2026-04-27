@@ -5,7 +5,7 @@ export function TermsPage() {
     <div className="page-responsive borderless-ui auth-background flex min-h-screen w-full items-start justify-center py-8 sm:py-10">
       <Seo
         title="Terms of use"
-        description="Review the terms of use governing access to the Crypto Levels custodial crypto deposit and reward platform."
+        description="Review the terms of use governing access to the NexaCrypto custodial crypto deposit and reward platform."
         path="/terms"
       />
       <div className="w-full max-w-4xl px-4 sm:px-6 lg:px-8">
@@ -14,7 +14,7 @@ export function TermsPage() {
             Terms of Use
           </h1>
           <p className="text-sm text-slate-200/80 mb-6">
-            These Terms of Use govern your access to and use of the Crypto Levels
+            These Terms of Use govern your access to and use of the NexaCrypto
             platform. By creating an account or using the service, you agree to be bound
             by these terms.
           </p>
@@ -24,7 +24,7 @@ export function TermsPage() {
                 1. Custodial service
               </h2>
               <p>
-                Crypto Levels is a centralized, custodial platform. When you deposit
+                NexaCrypto is a centralized, custodial platform. When you deposit
                 digital assets, you authorize us and our regulated partners to hold those
                 assets on your behalf in pooled or omnibus wallets. You retain beneficial
                 ownership of your assets, but you do not have a claim to any specific
@@ -68,14 +68,14 @@ export function TermsPage() {
             </section>
             <section>
               <h2 className="mb-1 text-sm font-semibold text-slate-100">
-                5. No investment advice
+                5.Financial Responsibility
               </h2>
               <p>
-                All market data, projections, leaderboards, and gamified elements are
-                provided for informational and engagement purposes only. They do not
-                constitute financial, investment, tax, or legal advice. You are solely
-                responsible for your investment decisions and should consult independent
-                professional advisors where appropriate.
+                All content on NexaCrypto, including dashboards, analytics, performance indicators, and leaderboard
+                data, is provided to enhance user experience and support engagement with digital asset markets.
+                Users acknowledge that all financial decisions are made independently and at their own discretion.
+                NexaCrypto does not provide personalized financial advice, and all platform tools are designed to
+                assist user participation rather than guarantee financial outcomes or returns.
               </p>
             </section>
             <section>

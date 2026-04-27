@@ -7,6 +7,7 @@ import type { RootState } from "../store";
 import { AppDispatch } from "../store";
 import { logout } from "../store/authSlice";
 import { useNotificationContext, getNotificationTitle } from "./NotificationProvider";
+import { useI18n } from "../i18n/I18nProvider";
 
 interface NavbarProps {
   showSidebarToggle?: boolean;
@@ -14,6 +15,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
+  const { t } = useI18n();
   const user = useSelector((state: RootState) => state.auth.user);
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -177,11 +179,9 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
           )}
           {!user && (
             <Link to="/landing" className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#17181A] text-xs font-bold text-[#C6A15B] ring-2 ring-[#C6A15B]">
-                CL
-              </span>
+              <img src="/logo.png" alt="NexaCrypto" className="h-7 w-7 rounded-full object-cover" />
               <span className="text-sm font-semibold tracking-tight text-[#F5F5F7] sm:text-base">
-                Crypto Levels
+                NexaCrypto
               </span>
             </Link>
           )}
@@ -223,7 +223,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                   }`
                 }
               >
-                Admin
+                {t("nav_admin")}
               </NavLink>
               <NavLink
                 to="/admin/analytics"
@@ -235,7 +235,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                   }`
                 }
               >
-                Intelligence
+                {t("nav_intelligence")}
               </NavLink>
             </>
           )}
@@ -252,7 +252,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                     }`
                   }
                 >
-                  Login
+                  {t("nav_login")}
                 </NavLink>
                 <NavLink
                   to="/register"
@@ -262,7 +262,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                     }`
                   }
                 >
-                  Register
+                  {t("nav_register")}
                 </NavLink>
               </div>
               <button
@@ -302,7 +302,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                   >
                     <div className="border-b border-[#26272B] px-4 py-2.5">
                       <p className="text-xs font-semibold text-[#F5F5F7]">
-                        Notifications
+                        {t("nav_notifications")}
                       </p>
                     </div>
                     <div className="max-h-80 space-y-1 overflow-y-auto px-2 py-2 text-xs">
@@ -371,7 +371,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                       className="flex w-full items-center gap-2 px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#17181A]"
                     >
                       <User className="h-3.5 w-3.5" />
-                      <span>Profile</span>
+                      <span>{t("nav_profile")}</span>
                     </button>
                     <button
                       type="button"
@@ -382,7 +382,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                       className="flex w-full items-center gap-2 px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#17181A]"
                     >
                       <Settings className="h-3.5 w-3.5" />
-                      <span>Settings</span>
+                      <span>{t("nav_settings")}</span>
                     </button>
                     <button
                       type="button"
@@ -390,7 +390,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                       className="flex w-full items-center gap-2 px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#17181A]"
                     >
                       <LogOut className="h-3.5 w-3.5" />
-                      <span>Logout</span>
+                      <span>{t("nav_logout")}</span>
                     </button>
                   </div>
                 )}
@@ -415,11 +415,9 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
             >
               <div className="mb-10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#17181A] text-xs font-bold text-[#C6A15B] ring-2 ring-[#C6A15B]">
-                    CL
-                  </span>
+                  <img src="/logo.png" alt="NexaCrypto" className="h-7 w-7 rounded-full object-cover" />
                   <span className="text-sm font-semibold tracking-tight text-[#F5F5F7]">
-                    Crypto Levels
+                    NexaCrypto
                   </span>
                 </div>
                 <button
@@ -479,7 +477,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                     }}
                     className="flex w-full items-center justify-center rounded-full bg-[#17181A] px-4 py-3 text-[14px] font-medium text-[#F5F5F7]"
                   >
-                    Login
+                    {t("nav_login")}
                   </button>
                   <button
                     type="button"
@@ -489,7 +487,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                     }}
                     className="flex w-full items-center justify-center rounded-full bg-gradient-to-r from-[#C6A15B] to-[#FACC15] px-4 py-3 text-[14px] font-semibold text-[#0F0F10] shadow-[0_0_28px_rgba(198,161,91,0.65)]"
                   >
-                    Register
+                    {t("nav_register")}
                   </button>
                 </div>
               </div>

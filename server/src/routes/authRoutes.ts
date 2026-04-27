@@ -18,7 +18,7 @@ router.post(
     body("name").isString().isLength({ min: 2, max: 100 }),
     body("email").isEmail().normalizeEmail(),
     body("password").isLength({ min: 8 }),
-    body("walletAddress").isString().isLength({ min: 4, max: 200 }),
+    body("walletAddress").optional().isString().isLength({ min: 4, max: 200 }),
     body("referralCode").optional().isString().isLength({ min: 4, max: 32 })
   ],
   register

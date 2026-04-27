@@ -18,7 +18,7 @@ export function LoginPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const result = await dispatch(loginUser({ email, password }));
+    const result = await dispatch(loginUser({ email: email.trim().toLowerCase(), password }));
     if (loginUser.fulfilled.match(result)) {
       navigate("/");
     }
@@ -28,14 +28,17 @@ export function LoginPage() {
     <div className="page-responsive borderless-ui auth-background flex min-h-screen w-full">
       <Seo
         title="Secure login"
-        description="Log in to Crypto Levels to manage your custodial crypto deposits, track XP, levels and multipliers, and request secure withdrawals."
+        description="Log in to NexaCrypto to manage your custodial crypto deposits, track XP, levels and multipliers, and request secure withdrawals."
         path="/login"
         robots="noindex,nofollow"
       />
       <div className="flex min-h-screen w-full items-center px-4 py-10 sm:px-6 lg:px-12">
         <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
           <section className="hidden max-w-md space-y-5 lg:block">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#9CA3AF]">Crypto Levels</p>
+            <div className="flex items-center gap-2">
+              <img src="/logo.svg" alt="NexaCrypto" className="h-6 w-6 rounded-full object-cover" />
+              <p className="text-xs uppercase tracking-[0.2em] text-[#9CA3AF]">NexaCrypto</p>
+            </div>
             <h1 className="text-4xl font-semibold tracking-tight text-[#F5F5F7]">
               Secure account access built for serious portfolios
             </h1>

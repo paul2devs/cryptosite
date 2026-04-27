@@ -216,7 +216,7 @@ export function DashboardPage() {
     <div className="page-responsive borderless-ui space-y-8">
       <Seo
         title="Dashboard – live levels, multipliers and rewards"
-        description="View your Crypto Levels dashboard with live XP, level progression, streaks, multipliers, pending earnings and real-time market-backed portfolio value."
+        description="View your NexaCrypto dashboard with live XP, level progression, streaks, multipliers, pending earnings and real-time market-backed portfolio value."
         path="/"
       />
       <section className="flex items-center justify-between gap-4">

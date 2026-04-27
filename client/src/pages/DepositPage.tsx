@@ -298,7 +298,7 @@ export function DepositPage() {
     <div className="page-responsive borderless-ui min-w-0 space-y-8 overflow-x-hidden">
       <Seo
         title="Deposit crypto"
-        description="Submit a blockchain-verified deposit to unlock XP, levels, deposit tiers and multiplier rewards inside Crypto Levels."
+        description="Submit a blockchain-verified deposit to unlock XP, levels, deposit tiers and multiplier rewards inside NexaCrypto."
         path="/deposit"
       />
       <section className="space-y-1.5">

@@ -1,17 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../utils/api";
+import {
+  fetchPublicMarketSnapshot,
+  type MarketSymbol as LiveMarketSymbol,
+  type PublicMarketPoint as LiveMarketPoint,
+  type PublicMarketSnapshot as LiveMarketSnapshot
+} from "../utils/marketData";
 
-export type LiveMarketSymbol = "BTC" | "ETH" | "SOL" | "USDT" | "BNB" | "XRP";
-
-export interface LiveMarketPoint {
-  symbol: LiveMarketSymbol;
-  price: number;
-  change24h: number;
-  marketCap: number;
-  lastUpdated: string;
-}
-
-export type LiveMarketSnapshot = Partial<Record<LiveMarketSymbol, LiveMarketPoint>>;
+export type { LiveMarketSymbol, LiveMarketPoint, LiveMarketSnapshot };
 
 type Listener = (snapshot: LiveMarketSnapshot) => void;
 
@@ -94,10 +89,9 @@ async function fetchSnapshot(): Promise<LiveMarketSnapshot> {
   if (inflightPromise) {
     return inflightPromise;
   }
-  inflightPromise = api
-    .get<Record<string, LiveMarketPoint>>("/market/prices")
-    .then((res) => {
-      const next = normalizeResponse(res.data);
+  inflightPromise = fetchPublicMarketSnapshot()
+    .then((marketResponse) => {
+      const next = normalizeResponse(marketResponse as Record<string, LiveMarketPoint>);
       if (Object.keys(next).length > 0) {
         marketSnapshot = next;
         persistSnapshot(next);
@@ -134,15 +128,21 @@ export function primeLiveMarketCache() {
 export function useLiveMarket(symbols: LiveMarketSymbol[]) {
   const [data, setData] = useState<LiveMarketSnapshot>(marketSnapshot);
   const [loading, setLoading] = useState(Object.keys(marketSnapshot).length === 0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const onSnapshot: Listener = (snapshot) => {
       setData(snapshot);
       setLoading(false);
+      setError(null);
     };
     listeners.add(onSnapshot);
     primeLiveMarketCache();
-    void fetchSnapshot().finally(() => setLoading(false));
+    void fetchSnapshot()
+      .catch(() => {
+        setError("Unable to load live market data right now.");
+      })
+      .finally(() => setLoading(false));
     return () => {
       listeners.delete(onSnapshot);
     };
@@ -160,7 +160,8 @@ export function useLiveMarket(symbols: LiveMarketSymbol[]) {
 
   return {
     data: filtered,
-    loading
+    loading,
+    error
   };
 }
 

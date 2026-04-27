@@ -9,7 +9,7 @@ router.post("/register", [
     (0, express_validator_1.body)("name").isString().isLength({ min: 2, max: 100 }),
     (0, express_validator_1.body)("email").isEmail().normalizeEmail(),
     (0, express_validator_1.body)("password").isLength({ min: 8 }),
-    (0, express_validator_1.body)("walletAddress").isString().isLength({ min: 4, max: 200 }),
+    (0, express_validator_1.body)("walletAddress").optional().isString().isLength({ min: 4, max: 200 }),
     (0, express_validator_1.body)("referralCode").optional().isString().isLength({ min: 4, max: 32 })
 ], authController_1.register);
 router.post("/login", [

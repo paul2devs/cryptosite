@@ -34,6 +34,13 @@ export function RegisterPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const trimmedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (trimmedName.length < 2) {
+      setLocalError("Please enter your full name.");
+      return;
+    }
     if (!isEmailValid) {
       setLocalError("Please enter a valid email address.");
       return;
@@ -51,8 +58,8 @@ export function RegisterPage() {
     setLocalError(null);
     const result = await dispatch(
       registerUser({
-        name,
-        email,
+        name: trimmedName,
+        email: normalizedEmail,
         password,
         referralCode: referralCode.trim() ? referralCode.trim() : undefined
       })
@@ -68,14 +75,17 @@ export function RegisterPage() {
     <div className="page-responsive borderless-ui auth-background flex min-h-screen w-full">
       <Seo
         title="Create account"
-        description="Open a Crypto Levels account to start depositing BTC, ETH, SOL and stablecoins into a custodial wallet that unlocks level-based multipliers and rewards."
+        description="Open a NexaCrypto account to start depositing BTC, ETH, SOL and stablecoins into a custodial wallet that unlocks level-based multipliers and rewards."
         path="/register"
         robots="index,follow"
       />
       <div className="flex min-h-screen w-full items-start px-4 py-10 sm:px-6 lg:px-12">
         <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <section className="hidden max-w-md space-y-5 pt-4 lg:block">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#9CA3AF]">Crypto Levels</p>
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="NexaCrypto" className="h-6 w-6 rounded-full object-cover" />
+              <p className="text-xs uppercase tracking-[0.2em] text-[#9CA3AF]">NexaCrypto</p>
+            </div>
             <h1 className="text-4xl font-semibold tracking-tight text-[#F5F5F7]">
               Create a secure account for custodial crypto growth
             </h1>

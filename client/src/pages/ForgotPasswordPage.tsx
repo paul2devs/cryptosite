@@ -30,7 +30,7 @@ export function ForgotPasswordPage() {
     <div className="page-responsive borderless-ui auth-background flex min-h-screen w-full">
       <Seo
         title="Request password reset"
-        description="Request a secure password reset link for your Crypto Levels custodial account to restore access to your deposits and rewards."
+        description="Request a secure password reset link for your NexaCrypto custodial account to restore access to your deposits and rewards."
         path="/forgot-password"
         robots="noindex,nofollow"
       />

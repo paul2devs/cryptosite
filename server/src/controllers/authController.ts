@@ -47,7 +47,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     name: string;
     email: string;
     password: string;
-    walletAddress: string;
+    walletAddress?: string;
     referralCode?: string;
   };
 
@@ -77,11 +77,14 @@ export async function register(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    const normalizedWalletAddress =
+      typeof walletAddress === "string" ? walletAddress.trim() : "";
+
     const user = await User.create({
       name,
       email,
       password: hashed,
-      crypto_wallets: [{ address: walletAddress }],
+      crypto_wallets: normalizedWalletAddress ? [{ address: normalizedWalletAddress }] : [],
       referral_code: code,
       referred_by: null
     });

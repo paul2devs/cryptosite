@@ -16,6 +16,7 @@ import {
 import { api } from "../utils/api";
 import { Seo } from "../components/Seo";
 import { BalanceToggle, useBalanceVisibility } from "../components/BalanceVisibilityProvider";
+import { useLiveMarket } from "../hooks/useLiveMarket";
 import btcLogo from "../assets/crypto/btc.svg";
 import ethLogo from "../assets/crypto/eth.svg";
 import solLogo from "../assets/crypto/sol.svg";
@@ -75,16 +76,6 @@ interface ProgressionResponse {
   depositRemainingToNext: number | null;
 }
 
-interface MarketDataPoint {
-  symbol: SupportedSymbol;
-  price: number;
-  change24h: number;
-  marketCap: number;
-  lastUpdated: string;
-}
-
-type MarketResponse = Record<string, MarketDataPoint>;
-
 const pieColors: Record<SupportedSymbol, string> = {
   BTC: "#F7931A",
   ETH: "#627EEA",
@@ -142,8 +133,8 @@ export function PortfolioPage() {
   const [progression, setProgression] = useState<ProgressionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [market, setMarket] = useState<MarketResponse>({});
   const navigate = useNavigate();
+  const { data: market, error: marketError } = useLiveMarket(["BTC", "ETH", "SOL", "USDT"]);
 
   useEffect(() => {
     let isMounted = true;
@@ -174,32 +165,6 @@ export function PortfolioPage() {
 
     return () => {
       isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadMarket = async () => {
-      try {
-        const res = await api.get<MarketResponse>("/market/prices");
-        if (!isMounted) {
-          return;
-        }
-        setMarket(res.data);
-      } catch {
-        if (isMounted) {
-          setMarket({});
-        }
-      }
-    };
-
-    loadMarket();
-    const interval = setInterval(loadMarket, 15000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
     };
   }, []);
 
@@ -336,6 +301,11 @@ export function PortfolioPage() {
       {error && (
         <p className="text-xs text-[#EA3943] bg-[#17181A] rounded-lg px-3 py-2">
           {error}
+        </p>
+      )}
+      {marketError && (
+        <p className="text-xs text-[#EA3943] bg-[#17181A] rounded-lg px-3 py-2">
+          {marketError}
         </p>
       )}
 

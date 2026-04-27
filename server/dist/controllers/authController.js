@@ -60,11 +60,12 @@ async function register(req, res) {
             res.status(500).json({ message: "Failed to allocate referral code" });
             return;
         }
+        const normalizedWalletAddress = typeof walletAddress === "string" ? walletAddress.trim() : "";
         const user = await User_1.User.create({
             name,
             email,
             password: hashed,
-            crypto_wallets: [{ address: walletAddress }],
+            crypto_wallets: normalizedWalletAddress ? [{ address: normalizedWalletAddress }] : [],
             referral_code: code,
             referred_by: null
         });

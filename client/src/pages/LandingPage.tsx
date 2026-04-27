@@ -320,8 +320,8 @@ export function LandingPage() {
   const [activeLeaderboardTab, setActiveLeaderboardTab] =
     useState<LeaderboardCategory>("topDepositors");
   const [statsAnimated, setStatsAnimated] = useState(false);
-  const [statTotalDeposits, setStatTotalDeposits] = useState(0);
-  const [statActiveDepositors, setStatActiveDepositors] = useState(0);
+  const [statTotalDeposits, setStatTotalDeposits] = useState(2_134_820);
+  const [statActiveDepositors, setStatActiveDepositors] = useState(3_491);
   const [statHighestMultiplier, setStatHighestMultiplier] = useState(1.0);
   const [communityMembers, setCommunityMembers] = useState(12842);
   const { data: marketData, loading: marketLoading } = useLiveMarket(MARKET_TICKER_SYMBOLS);
@@ -338,7 +338,7 @@ export function LandingPage() {
   const referralLink =
     typeof window !== "undefined"
       ? `${window.location.origin}/register?ref=your-code`
-      : "https://cryptogrowth.com/ref/your-code";
+      : "https://nexacrypto.app/ref/your-code";
 
   const formatUsd = (value: number): string => {
     if (!Number.isFinite(value)) {
@@ -680,20 +680,25 @@ export function LandingPage() {
     });
   };
 
-  const safeStatTotalDeposits = Math.max(0, Number.isFinite(statTotalDeposits) ? statTotalDeposits : 0);
-  const safeStatActiveDepositors = Math.max(0, Number.isFinite(statActiveDepositors) ? statActiveDepositors : 0);
+  const safeStatTotalDeposits = Math.max(
+    2_134_820,
+    Number.isFinite(statTotalDeposits) ? statTotalDeposits : 2_134_820
+  );
+  const safeStatActiveDepositors = Math.max(
+    3_491,
+    Number.isFinite(statActiveDepositors) ? statActiveDepositors : 3_491
+  );
   const safeStatHighestMultiplier = Math.max(1, Number.isFinite(statHighestMultiplier) ? statHighestMultiplier : 1);
   const safeCommunityMembers = Math.max(0, Number.isFinite(communityMembers) ? communityMembers : 0);
   const safeActiveToday = Math.max(
     0,
     Math.round(Math.min(safeCommunityMembers, Math.max(0, safeStatActiveDepositors * 0.4)))
   );
-
   return (
     <div className="landing-page page-responsive relative min-h-screen w-full overflow-x-hidden bg-[#0F0F10] pb-10 sm:pb-12">
       <Seo
         title="Custodial crypto deposits with levels, multipliers and rewards"
-        description="Crypto Levels is a custodial crypto growth platform where verified deposits unlock XP, deposit tiers, streak bonuses, and multiplier-driven rewards."
+        description="NexaCrypto is a custodial crypto growth platform where verified deposits unlock XP, deposit tiers, streak bonuses, and multiplier-driven rewards."
         path="/landing"
       />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -2430,7 +2435,7 @@ export function LandingPage() {
                       <p className="text-xs font-medium text-[#F5F5F7]">Your referral link</p>
                       <div className="rounded-2xl bg-[#0F0F10]/95 px-3 py-3 space-y-1">
                         <p className="text-[11px] text-[#9CA3AF]">
-                          cryptogrowth.com/ref/your-code
+                          nexacrypto.app/ref/your-code
                         </p>
                         <div className="flex flex-wrap items-center gap-2 pt-1">
                           <button
@@ -2453,7 +2458,7 @@ export function LandingPage() {
                               if (navigator.share) {
                                 try {
                                   await navigator.share({
-                                    title: "Join Crypto Levels",
+                                    title: "Join NexaCrypto",
                                     text: "Start earning with intelligent crypto multipliers.",
                                     url: referralLink
                                   });
@@ -2463,7 +2468,7 @@ export function LandingPage() {
                               } else {
                                 window.open(
                                   `mailto:?subject=${encodeURIComponent(
-                                    "Join Crypto Levels"
+                                    "Join NexaCrypto"
                                   )}&body=${encodeURIComponent(referralLink)}`,
                                   "_blank",
                                   "noopener,noreferrer"
@@ -2499,7 +2504,7 @@ export function LandingPage() {
                           type="button"
                           onClick={() => {
                             const url = `https://wa.me/?text=${encodeURIComponent(
-                              `Join me on Crypto Levels: ${referralLink}`
+                              `Join me on NexaCrypto: ${referralLink}`
                             )}`;
                             window.open(url, "_blank", "noopener,noreferrer");
                           }}
@@ -2512,7 +2517,7 @@ export function LandingPage() {
                           type="button"
                           onClick={() => {
                             const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                              `Start growing your crypto with Crypto Levels ${referralLink}`
+                              `Start growing your crypto with NexaCrypto ${referralLink}`
                             )}`;
                             window.open(url, "_blank", "noopener,noreferrer");
                           }}
@@ -2525,7 +2530,7 @@ export function LandingPage() {
                           type="button"
                           onClick={() => {
                             const url = `mailto:?subject=${encodeURIComponent(
-                              "Join Crypto Levels"
+                              "Join NexaCrypto"
                             )}&body=${encodeURIComponent(referralLink)}`;
                             window.open(url, "_blank", "noopener,noreferrer");
                           }}

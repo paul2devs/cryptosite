@@ -1,4 +1,4 @@
-const CACHE_NAME = "cryptolevels-static-v2";
+const CACHE_NAME = "nexacrypto-static-v4";
 const ASSET_PATTERNS = [/\\/assets\\//, /\\.css$/, /\\.js$/, /\\.svg$/, /\\.png$/, /\\.jpg$/, /\\.woff2?$/];
 
 self.addEventListener("install", (event) => {
@@ -31,25 +31,38 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
   const isAsset = ASSET_PATTERNS.some((p) => p.test(url.pathname));
+  const isScriptOrStyle =
+    request.destination === "script" ||
+    request.destination === "style" ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css");
   if (request.method !== "GET" || (!isAsset && url.origin !== location.origin)) {
     return;
   }
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
+      if (isScriptOrStyle) {
+        try {
+          const fresh = await fetch(request, { cache: "no-store" });
+          if (fresh && fresh.status === 200) {
+            cache.put(request, fresh.clone());
+          }
+          return fresh;
+        } catch {
+          const fallback = await cache.match(request);
+          return fallback || Response.error();
+        }
+      }
       const cached = await cache.match(request);
       if (cached) {
         return cached;
       }
-      try {
-        const response = await fetch(request);
-        if (response && response.status === 200) {
-          cache.put(request, response.clone());
-        }
-        return response;
-      } catch {
-        return cached || Response.error();
+      const response = await fetch(request);
+      if (response && response.status === 200) {
+        cache.put(request, response.clone());
       }
+      return response;
     })()
   );
 });

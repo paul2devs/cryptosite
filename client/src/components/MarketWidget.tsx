@@ -56,7 +56,7 @@ const symbols: SupportedSymbol[] = [
 ];
 
 export function MarketWidget() {
-  const { data, loading } = useLiveMarket(symbols);
+  const { data, loading, error } = useLiveMarket(symbols);
   const hasAnyData = useMemo(() => symbols.some((symbol) => !!data[symbol]), [data]);
 
   return (
@@ -76,6 +76,7 @@ export function MarketWidget() {
       </div>
       <div className="space-y-1 text-[10px] text-[#9CA3AF]">
         <span>Prices update continuously to mirror live market conditions.</span>
+        {error && !hasAnyData ? <span className="text-[#EA3943]">{error}</span> : null}
       </div>
       <div className="mt-2 space-y-1">
         {symbols.map((symbol) => {

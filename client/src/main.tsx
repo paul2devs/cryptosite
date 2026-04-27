@@ -51,3 +51,31 @@ if ("serviceWorker" in navigator) {
       .catch(() => {});
   });
 }
+
+if (typeof window !== "undefined") {
+  const hardReloadOnChunkError = () => {
+    const key = "__chunk_reload_once__";
+    if (sessionStorage.getItem(key) === "1") {
+      return;
+    }
+    sessionStorage.setItem(key, "1");
+    window.location.reload();
+  };
+
+  window.addEventListener("error", (event) => {
+    const message =
+      (event as ErrorEvent).message ||
+      ((event as ErrorEvent).error && String((event as ErrorEvent).error)) ||
+      "";
+    if (message.includes("Failed to fetch dynamically imported module")) {
+      hardReloadOnChunkError();
+    }
+  });
+
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = String(event.reason || "");
+    if (reason.includes("Failed to fetch dynamically imported module")) {
+      hardReloadOnChunkError();
+    }
+  });
+}

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
 import { logout } from "../store/authSlice";
 import type { AppDispatch } from "../store";
+import { LANGUAGE_OPTIONS, UI_LANGUAGE_STORAGE_KEY, useI18n } from "../i18n/I18nProvider";
 import btcLogo from "../assets/crypto/btc.svg";
 import ethLogo from "../assets/crypto/eth.svg";
 import usdtLogo from "../assets/crypto/usdt.svg";
@@ -39,6 +40,11 @@ interface SettingsResponse {
   };
 }
 
+interface ProgressionLevelResponse {
+  level?: number;
+  depositLevel?: number;
+}
+
 const ASSETS: Array<{ value: WalletAsset; label: string; icon: string }> = [
   { value: "BTC", label: "Bitcoin (BTC)", icon: btcLogo },
   { value: "ETH", label: "Ethereum (ETH)", icon: ethLogo },
@@ -47,15 +53,8 @@ const ASSETS: Array<{ value: WalletAsset; label: string; icon: string }> = [
   { value: "SOL", label: "Solana (SOL)", icon: solLogo }
 ];
 
-const LANGUAGES: Array<{ value: LanguageCode; label: string }> = [
-  { value: "en", label: "English" },
-  { value: "es", label: "Espanol" },
-  { value: "fr", label: "Francais" },
-  { value: "de", label: "Deutsch" },
-  { value: "pt", label: "Portugues" }
-];
-
 export function SettingsPage() {
+  const { setLanguage: setUiLanguage, t } = useI18n();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -69,6 +68,7 @@ export function SettingsPage() {
       announcements: true
     });
   const [language, setLanguage] = useState<LanguageCode>("en");
+  const [resolvedLevel, setResolvedLevel] = useState<number | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -82,17 +82,31 @@ export function SettingsPage() {
 
   const loadSettings = async () => {
     try {
-      const response = await api.get<SettingsResponse>("/user/settings");
+      const [settingsResponse, progressionResponse] = await Promise.all([
+        api.get<SettingsResponse>("/user/settings"),
+        api.get<ProgressionLevelResponse>("/user/current_xp_level").catch(() => null)
+      ]);
+      const response = settingsResponse;
       setAccount(response.data.account);
       setWallets(response.data.settings.withdrawal_wallets);
       setNotifications(response.data.settings.notifications);
       setLanguage(response.data.settings.preferences.language);
-      localStorage.setItem("ui_language", response.data.settings.preferences.language);
-      document.documentElement.lang = response.data.settings.preferences.language;
+      setUiLanguage(response.data.settings.preferences.language);
+      localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, response.data.settings.preferences.language);
       localStorage.setItem(
         "withdraw_wallets",
         JSON.stringify(response.data.settings.withdrawal_wallets)
       );
+
+      const progressionData = progressionResponse?.data;
+      const preferredLevelRaw =
+        progressionData && Number.isFinite(progressionData.depositLevel)
+          ? progressionData.depositLevel
+          : progressionData && Number.isFinite(progressionData.level)
+          ? progressionData.level
+          : response.data.account.level;
+      const preferredLevel = Math.max(0, Number(preferredLevelRaw));
+      setResolvedLevel(preferredLevel);
     } catch (requestError: any) {
       setError(requestError.response?.data?.message || "Failed to load settings");
     } finally {
@@ -131,8 +145,9 @@ export function SettingsPage() {
     if (!account) {
       return "Active";
     }
-    return `Level ${account.level} - ${account.status}`;
-  }, [account]);
+    const displayLevel = resolvedLevel ?? account.level;
+    return `Level ${displayLevel} - ${account.status}`;
+  }, [account, resolvedLevel]);
 
   const persistWallets = (nextWallets: SettingsResponse["settings"]["withdrawal_wallets"]) => {
     setWallets(nextWallets);
@@ -229,10 +244,8 @@ export function SettingsPage() {
     setLanguage(value);
     try {
       await api.patch("/user/settings/preferences/language", { language: value });
-      localStorage.setItem("ui_language", value);
-      document.documentElement.lang = value;
-      window.dispatchEvent(new CustomEvent("ui-language-changed", { detail: value }));
-      setSuccess("Language preference updated.");
+      setUiLanguage(value);
+      setSuccess(t("settings_language_updated"));
     } catch {
       setError("Failed to update language.");
     }
@@ -264,7 +277,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-8 pb-12">
       <section className="space-y-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-[#F5F5F7]">Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-[#F5F5F7]">{t("settings_title")}</h1>
         <div className="flex items-center gap-3 rounded-2xl bg-[#17181A]/40 px-4 py-4">
           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#17181A] ring-2 ring-[#C6A15B]">
             <CircleUser className="h-5 w-5 text-[#F5F5F7]" />
@@ -277,7 +290,7 @@ export function SettingsPage() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-[#F5F5F7]">Account</h2>
+        <h2 className="text-sm font-semibold text-[#F5F5F7]">{t("settings_account")}</h2>
         <div className="space-y-2 text-sm">
           <p className="text-[#9CA3AF]">Email</p>
           <p className="rounded-xl bg-[#17181A]/50 px-3 py-2 text-[#F5F5F7]">{account?.email}</p>
@@ -301,7 +314,7 @@ export function SettingsPage() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-[#F5F5F7]">Security</h2>
+        <h2 className="text-sm font-semibold text-[#F5F5F7]">{t("settings_security")}</h2>
         <form onSubmit={submitPasswordChange} className="space-y-3">
           <input
             type="password"
@@ -335,25 +348,35 @@ export function SettingsPage() {
             disabled={!canChangePassword}
             className="rounded-xl bg-[#C6A15B] px-4 py-2 text-sm font-medium text-[#0F0F10] disabled:opacity-60"
           >
-            Change Password
+            {t("settings_change_password")}
           </button>
         </form>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-[#F5F5F7]">Wallet</h2>
+        <h2 className="text-sm font-semibold text-[#F5F5F7]">{t("settings_wallet")}</h2>
         <form onSubmit={submitWallet} className="space-y-3">
-          <select
-            value={walletAsset}
-            onChange={(event) => setWalletAsset(event.target.value as WalletAsset)}
-            className="w-full rounded-xl bg-[#17181A]/70 px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#C6A15B]/60"
-          >
-            {ASSETS.map((asset) => (
-              <option key={asset.value} value={asset.value}>
-                {asset.label}
-              </option>
-            ))}
-          </select>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {ASSETS.map((asset) => {
+              const selected = walletAsset === asset.value;
+              return (
+                <button
+                  key={asset.value}
+                  type="button"
+                  onClick={() => setWalletAsset(asset.value)}
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
+                    selected
+                      ? "border-[#C6A15B] bg-[#1D1A12] text-[#F5F5F7]"
+                      : "border-[#26272B] bg-[#17181A]/70 text-[#D1D5DB] hover:border-[#3A3C43]"
+                  }`}
+                  aria-pressed={selected}
+                >
+                  <img src={asset.icon} alt={asset.label} className="h-4 w-4 object-contain" />
+                  <span className="truncate">{asset.label}</span>
+                </button>
+              );
+            })}
+          </div>
           <input
             type="text"
             value={walletAddress}
@@ -366,7 +389,7 @@ export function SettingsPage() {
             disabled={!canSaveWallet}
             className="rounded-xl bg-[#C6A15B] px-4 py-2 text-sm font-medium text-[#0F0F10] disabled:opacity-60"
           >
-            Save Address
+            {t("settings_save_address")}
           </button>
         </form>
         <div className="space-y-2">
@@ -399,7 +422,7 @@ export function SettingsPage() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-[#F5F5F7]">Notifications</h2>
+        <h2 className="text-sm font-semibold text-[#F5F5F7]">{t("settings_notifications")}</h2>
         <div className="space-y-2">
           {[
             { key: "deposit_updates", label: "Deposit updates" },
@@ -428,34 +451,34 @@ export function SettingsPage() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-[#F5F5F7]">Preferences</h2>
+        <h2 className="text-sm font-semibold text-[#F5F5F7]">{t("settings_preferences")}</h2>
         <select
           value={language}
           onChange={(event) => updateLanguageValue(event.target.value as LanguageCode)}
           className="w-full rounded-xl bg-[#17181A]/70 px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#C6A15B]/60"
         >
-          {LANGUAGES.map((entry) => (
+          {LANGUAGE_OPTIONS.map((entry) => (
             <option key={entry.value} value={entry.value}>
-              {entry.label}
+              {entry.flag} {entry.label}
             </option>
           ))}
         </select>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-[#F5F5F7]">Support</h2>
+        <h2 className="text-sm font-semibold text-[#F5F5F7]">{t("settings_support")}</h2>
         <a
           href="https://t.me"
           target="_blank"
           rel="noreferrer"
           className="inline-flex rounded-xl bg-[#17181A]/70 px-4 py-2 text-sm text-[#F5F5F7]"
         >
-          Contact Support
+          {t("settings_contact_support")}
         </a>
       </section>
 
       <section className="space-y-2 pt-2">
-        <h2 className="text-sm font-semibold text-[#FCA5A5]">Danger Zone</h2>
+        <h2 className="text-sm font-semibold text-[#FCA5A5]">{t("settings_danger_zone")}</h2>
         <p className="text-xs text-[#9CA3AF]">
           This action will permanently delete your account and cannot be undone.
         </p>
@@ -464,7 +487,7 @@ export function SettingsPage() {
           onClick={() => setDeleteModalOpen(true)}
           className="rounded-xl bg-[#2A1316] px-4 py-2 text-sm font-medium text-[#FCA5A5]"
         >
-          Delete Account
+          {t("settings_delete_account")}
         </button>
       </section>
 

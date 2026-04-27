@@ -9,6 +9,7 @@ import { CookieBanner } from "./CookieBanner";
 import { Footer } from "./Footer";
 import { SupportChatWidget } from "./SupportChatWidget";
 import type { RootState } from "../store";
+import { useI18n } from "../i18n/I18nProvider";
 import btcIcon from "../assets/crypto/compressed/icons8-home.svg";
 import ethIcon from "../assets/crypto/compressed/portfolio.svg";
 import usdtIcon from "../assets/crypto/compressed/deposit.svg";
@@ -22,20 +23,21 @@ interface LayoutProps {
 
 type NavItem = {
   to: string;
-  label: string;
+  labelKey: string;
   icon: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { to: "/", label: "Home", icon: btcIcon },
-  { to: "/portfolio", label: "Portfolio", icon: ethIcon },
-  { to: "/deposit", label: "Deposit", icon: usdtIcon },
-  { to: "/withdraw", label: "Withdraw", icon: solIcon },
-  { to: "/leaderboards", label: "Leaderboard", icon: bnbIcon },
-  { to: "/referrals", label: "Referrals", icon: xrpIcon }
+  { to: "/", labelKey: "nav_home", icon: btcIcon },
+  { to: "/portfolio", labelKey: "nav_portfolio", icon: ethIcon },
+  { to: "/deposit", labelKey: "nav_deposit", icon: usdtIcon },
+  { to: "/withdraw", labelKey: "nav_withdraw", icon: solIcon },
+  { to: "/leaderboards", labelKey: "nav_leaderboard", icon: bnbIcon },
+  { to: "/referrals", labelKey: "nav_referrals", icon: xrpIcon }
 ];
 
 export function Layout({ children }: LayoutProps) {
+  const { t } = useI18n();
   const user = useSelector((state: RootState) => state.auth.user);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const location = useLocation();
@@ -56,6 +58,7 @@ export function Layout({ children }: LayoutProps) {
             <DesktopSidebar
               collapsed={isSidebarCollapsed}
               onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
+              t={t}
             />
           )}
           <div className="flex min-h-screen flex-1 flex-col transition-all duration-300">
@@ -91,10 +94,12 @@ export function Layout({ children }: LayoutProps) {
 
 function DesktopSidebar({
   collapsed,
-  onToggle
+  onToggle,
+  t
 }: {
   collapsed: boolean;
   onToggle: () => void;
+  t: (key: string) => string;
 }) {
   return (
     <aside
@@ -104,12 +109,10 @@ function DesktopSidebar({
     >
       <div className="flex items-center justify-between px-4 py-4">
         <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#17181A] text-xs font-bold text-[#C6A15B] ring-2 ring-[#C6A15B]">
-            CL
-          </span>
+          <img src="/logo.svg" alt="NexaCrypto" className="h-8 w-8 rounded-full object-cover" />
           {!collapsed && (
             <span className="text-sm font-semibold tracking-tight text-[#F5F5F7]">
-              Crypto Levels
+              NexaCrypto
             </span>
           )}
         </div>
@@ -137,7 +140,7 @@ function DesktopSidebar({
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#111214]">
               <img src={item.icon} alt="" className="h-4 w-4" loading="lazy" aria-hidden="true" />
             </span>
-            {!collapsed && <span className="truncate">{item.label}</span>}
+            {!collapsed && <span className="truncate">{t(item.labelKey)}</span>}
           </NavLink>
         ))}
       </nav>
@@ -146,6 +149,7 @@ function DesktopSidebar({
 }
 
 function MobileBottomNav() {
+  const { t } = useI18n();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[#26272B] bg-[#17181A]/95 backdrop-blur-sm lg:hidden">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-3 py-2.5">
@@ -165,7 +169,7 @@ function MobileBottomNav() {
             >
               <img src={item.icon} alt="" className="h-5 w-5" loading="lazy" />
             </div>
-            <span className="truncate">{item.label}</span>
+            <span className="truncate">{t(item.labelKey)}</span>
           </NavLink>
         ))}
       </div>

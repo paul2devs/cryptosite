@@ -16,6 +16,7 @@ import { Layout } from "./components/Layout";
 import { BalanceVisibilityProvider } from "./components/BalanceVisibilityProvider";
 import { lazy } from "react";
 import { primeLiveMarketCache } from "./hooks/useLiveMarket";
+import { I18nProvider, UI_LANGUAGE_STORAGE_KEY } from "./i18n/I18nProvider";
 
 const DashboardPage = lazy(() =>
   import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
@@ -77,7 +78,7 @@ function App() {
   }, [dispatch]);
 
   useEffect(() => {
-    const savedLanguage = localStorage.getItem("ui_language");
+    const savedLanguage = localStorage.getItem(UI_LANGUAGE_STORAGE_KEY);
     if (savedLanguage) {
       document.documentElement.lang = savedLanguage;
     }
@@ -88,17 +89,18 @@ function App() {
   }, []);
 
   return (
-    <BalanceVisibilityProvider>
-    <Layout>
-      <ScrollToTopOnRouteChange />
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center py-10 text-sm text-slate-400">
-            Loading experience...
-          </div>
-        }
-      >
-        <Routes>
+    <I18nProvider>
+      <BalanceVisibilityProvider>
+        <Layout>
+          <ScrollToTopOnRouteChange />
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center py-10 text-sm text-slate-400">
+                Loading experience...
+              </div>
+            }
+          >
+            <Routes>
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -180,10 +182,11 @@ function App() {
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </Layout>
-    </BalanceVisibilityProvider>
+            </Routes>
+          </Suspense>
+        </Layout>
+      </BalanceVisibilityProvider>
+    </I18nProvider>
   );
 }
 
