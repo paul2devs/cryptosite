@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../utils/api";
 import { Seo } from "../components/Seo";
+import { EmptyState, ErrorRow, Panel, Stat, StatStrip } from "../components/dashboard/primitives";
 import {
   Area,
   AreaChart,
@@ -65,7 +66,7 @@ export function AdminAnalyticsPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="page-responsive space-y-6">
       <Seo
         title="Admin – intelligence"
         description="Admin analytics and intelligence dashboard."
@@ -73,134 +74,128 @@ export function AdminAnalyticsPage() {
         robots="noindex,nofollow"
       />
       <section className="space-y-2">
-        <h1 className="text-xl font-semibold">Admin intelligence</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="display-font text-xl font-semibold text-[#F5F5F7]">Admin intelligence</h1>
+        <p className="text-sm text-[#9CA3AF]">
           Growth, retention risk, bonus tuning, and behavioral cycles.
         </p>
       </section>
 
-      {error && (
-        <p className="text-xs text-red-400 bg-red-950/40 border border-red-900 rounded-lg px-3 py-2">
-          {error}
-        </p>
-      )}
+      {error ? <ErrorRow message={error} /> : null}
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-1">
-          <p className="text-xs text-slate-400">Dynamic bonus factor</p>
-          <p className="text-2xl font-semibold text-emerald-300">
-            x{overview?.dynamicBonusFactor?.toFixed(2) ?? "1.00"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-1">
-          <p className="text-xs text-slate-400">Churn risk (high)</p>
-          <p className="text-2xl font-semibold text-red-400">
-            {overview?.churnBuckets?.high ?? 0}
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-1">
-          <p className="text-xs text-slate-400">Churn risk (medium)</p>
-          <p className="text-2xl font-semibold text-amber-300">
-            {overview?.churnBuckets?.medium ?? 0}
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-1">
-          <p className="text-xs text-slate-400">Churn risk (low)</p>
-          <p className="text-2xl font-semibold text-sky-300">
-            {overview?.churnBuckets?.low ?? 0}
-          </p>
-        </div>
-      </section>
+      <Panel>
+        <StatStrip>
+          <Stat
+            label="Dynamic bonus factor"
+            value={`x${overview?.dynamicBonusFactor?.toFixed(2) ?? "1.00"}`}
+            tone="positive"
+          />
+          <Stat
+            label="Churn risk (high)"
+            value={String(overview?.churnBuckets?.high ?? 0)}
+            tone="negative"
+          />
+          <Stat
+            label="Churn risk (medium)"
+            value={String(overview?.churnBuckets?.medium ?? 0)}
+            tone="gold"
+          />
+          <Stat
+            label="Churn risk (low)"
+            value={String(overview?.churnBuckets?.low ?? 0)}
+            tone="neutral"
+          />
+        </StatStrip>
+      </Panel>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-          <h2 className="text-sm font-medium">Deposits volume</h2>
+        <Panel className="min-w-0 space-y-3">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Deposits volume</h2>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={overview?.deposits || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#26272B" />
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="volume" stroke="#34d399" fill="#34d39933" />
+                <Area type="monotone" dataKey="volume" stroke="#16C784" fill="#16C78433" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </Panel>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-          <h2 className="text-sm font-medium">Withdrawals volume</h2>
+        <Panel className="min-w-0 space-y-3">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Withdrawals volume</h2>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={overview?.withdrawals || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#26272B" />
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="volume" stroke="#f59e0b" fill="#f59e0b33" />
+                <Area type="monotone" dataKey="volume" stroke="#C6A15B" fill="#C6A15B33" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </Panel>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-          <h2 className="text-sm font-medium">New users</h2>
+        <Panel className="min-w-0 space-y-3">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">New users</h2>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={overview?.newUsers || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#26272B" />
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="count" stroke="#60a5fa" fill="#60a5fa33" />
+                <Area type="monotone" dataKey="count" stroke="#16C784" fill="#16C78433" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-          <h2 className="text-sm font-medium">Active users</h2>
+        </Panel>
+        <Panel className="min-w-0 space-y-3">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Active users</h2>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={overview?.activeUsers || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#26272B" />
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="count" stroke="#a78bfa" fill="#a78bfa33" />
+                <Area type="monotone" dataKey="count" stroke="#C6A15B" fill="#C6A15B33" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </Panel>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-          <h2 className="text-sm font-medium">User activity heatmap</h2>
+        <Panel className="min-w-0 space-y-3">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">User activity heatmap</h2>
           <div className="overflow-x-auto">
             <div className="inline-block">
               <div className="grid" style={{ gridTemplateColumns: `60px repeat(24, 18px)` }}>
                 <div />
                 {Array.from({ length: 24 }).map((_, h) => (
-                  <div key={h} className="text-[10px] text-slate-500 text-center">
+                  <div key={h} className="text-center text-[10px] text-[#6B7280]">
                     {h}
                   </div>
                 ))}
                 {Array.from({ length: 7 }).map((_, d) => (
                   <div key={d} className="contents">
-                    <div className="text-[10px] text-slate-400 pr-2 flex items-center">
+                    <div className="flex items-center pr-2 text-[10px] text-[#9CA3AF]">
                       {DOW[d]}
                     </div>
                     {Array.from({ length: 24 }).map((_, h) => {
                       const v = heat.get(`${d}:${h}`) || 0;
                       const intensity = v / maxHeat;
-                      const bg = `rgba(52, 211, 153, ${0.08 + intensity * 0.55})`;
+                      const bg = `rgba(22, 199, 132, ${0.08 + intensity * 0.55})`;
                       return (
                         <div
                           key={`${d}:${h}`}
                           title={`${DOW[d]} ${h}:00 — ${v}`}
-                          className="h-4 w-4 rounded-sm border border-slate-900"
+                          className="h-4 w-4 rounded-sm border border-[#0F0F10]"
                           style={{ background: bg }}
                         />
                       );
@@ -210,32 +205,30 @@ export function AdminAnalyticsPage() {
               </div>
             </div>
           </div>
-          <p className="text-[0.7rem] text-slate-500">
+          <p className="text-[11px] text-[#6B7280]">
             Aggregated logins/deposits/withdrawals/notification clicks for the last 30 days.
           </p>
-        </div>
+        </Panel>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3 text-xs">
-          <h2 className="text-sm font-medium">Top referrers</h2>
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+        <Panel className="min-w-0 space-y-3">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Top referrers</h2>
+          <div className="max-h-72 overflow-y-auto pr-1">
             {(overview?.referralTop?.length ?? 0) === 0 && (
-              <p className="text-slate-500">No referral data yet.</p>
+              <EmptyState title="No referral data yet" />
             )}
-            {overview?.referralTop?.map((r, idx) => (
-              <div
-                key={r.referrer_id}
-                className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950 px-3 py-2"
-              >
-                <div className="text-slate-200">
-                  #{idx + 1} <span className="text-slate-500">{r.referrer_id}</span>
-                </div>
-                <div className="text-emerald-300 font-medium">{r.invited}</div>
-              </div>
-            ))}
+            <ul className="divide-y divide-[#26272B]/60 text-[11px]">
+              {overview?.referralTop?.map((r, idx) => (
+                <li key={r.referrer_id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0 text-[#F5F5F7]">
+                    #{idx + 1} <span className="break-all text-[#6B7280]">{r.referrer_id}</span>
+                  </div>
+                  <div className="financial-figure shrink-0 font-medium text-[#16C784]">{r.invited}</div>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
+        </Panel>
       </section>
     </div>
   );
 }
-

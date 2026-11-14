@@ -262,7 +262,7 @@ const LEADERBOARD_DATA: Record<LeaderboardCategory, LeaderboardRow[]> = {
 const COMMUNITY_EVENTS: CommunityEvent[] = [
   { id: "e1", text: "Alex deposited 0.42 BTC", timeAgo: "2 min ago" },
   { id: "e2", text: "Sarah unlocked Level 3", timeAgo: "7 min ago" },
-  { id: "e3", text: "Mike deposited 3,200 MATIC", timeAgo: "11 min ago" },
+  { id: "e3", text: "Mike deposited 3,200 SOL", timeAgo: "11 min ago" },
   { id: "e4", text: "Referral boost activated for Daniel", timeAgo: "18 min ago" },
   { id: "e5", text: "Priya hit a new earnings milestone", timeAgo: "25 min ago" }
 ];
@@ -688,7 +688,7 @@ export function LandingPage() {
     3_491,
     Number.isFinite(statActiveDepositors) ? statActiveDepositors : 3_491
   );
-  const safeStatHighestMultiplier = Math.max(1, Number.isFinite(statHighestMultiplier) ? statHighestMultiplier : 1);
+  const safeStatHighestMultiplier = Math.max(1, Number.isFinite(statHighestMultiplier) ? statHighestMultiplier : 4);
   const safeCommunityMembers = Math.max(0, Number.isFinite(communityMembers) ? communityMembers : 0);
   const safeActiveToday = Math.max(
     0,
@@ -777,17 +777,19 @@ export function LandingPage() {
                 <h1 className="display-font text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight leading-tight">
                   <span className="text-[#F5F5F7]">Grow your </span>
                   <span className="bg-gradient-to-r from-[#C6A15B] via-[#FACC15] to-[#FFFFFF] bg-clip-text display-font text-transparent">
-                    crypto
+                    Crypto
                   </span>
-                  <span className="text-[#F5F5F7]"> with </span>
+                  <span className="text-[#F5F5F7]"> with our artificial </span>
                   <span className="bg-gradient-to-r from-[#16C784] to-[#38BDF8] bg-clip-text display-font text-transparent">
-                    intelligent
+                    Intelligence 
                   </span>
-                  <span className="text-[#F5F5F7]"> multipliers</span>
+                  <span className="text-[#F5F5F7]"> trading </span>
+                  <span className="bg-gradient-to-r from-[#16C784] to-[#38BDF8] bg-clip-text display-font text-transparent">
+                    System 
+                  </span>
                 </h1>
                 <p className="text-lg sm:text-xl text-[#9CA3AF] max-w-xl">
-                  Deposit assets, unlock levels, and amplify your earnings
-                  automatically.
+                  Deposit assets, track activity, and manage everything from a single, structured dashboard.
                 </p>
               </div>
 
@@ -856,7 +858,7 @@ export function LandingPage() {
                     onClick={() => navigate("/register")}
                     className="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#C6A15B] to-[#FACC15] px-6 py-3 text-center text-sm font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_32px_rgba(198,161,91,0.48)] sm:w-auto sm:min-w-[210px]"
                   >
-                    <span>Start Depositing</span>
+                    <span>Get started</span>
                     <ArrowRight className="h-4 w-4" />
                   </button>
                   <button
@@ -880,6 +882,10 @@ export function LandingPage() {
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-[#16C784]" />
                     <span>Community-driven rewards</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#16C784]" />
+                    <span>No hidden mechanics. No exaggerated claims</span>
                   </div>
                 </div>
               </div>
@@ -905,7 +911,7 @@ export function LandingPage() {
                       Pending Earnings
                     </p>
                     <p className="text-xl font-semibold text-[#16C784]">
-                      0.42 ETH
+                      1000.00 ETH
                     </p>
                   </div>
 
@@ -928,7 +934,7 @@ export function LandingPage() {
                         ease: "easeInOut"
                       }}
                     >
-                      x1.45
+                      x2.00
                     </motion.p>
                   </div>
 
@@ -2022,7 +2028,7 @@ export function LandingPage() {
                     onClick={() => navigate("/register")}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#C6A15B] px-5 py-2.5 text-xs font-semibold text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.9)] hover:shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-all hover:scale-105 sm:w-auto"
                   >
-                    <span>Start Depositing Securely</span>
+                    <span>Get started </span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                   <button
@@ -3153,8 +3159,8 @@ export function LandingPage() {
                     Transparency promise
                   </p>
                   <p className="mt-2 text-xs text-[#D1D5DB]">
-                    Before you deposit, you can see how every mechanic works — verification, levels,
-                    multipliers, and withdrawals — with no dark corners or hidden rules.
+                    Before you deposit, you can see how every mechanic works - verification, levels,
+                    multipliers, and withdrawals - with no dark corners or hidden rules.
                   </p>
                 </div>
               </div>

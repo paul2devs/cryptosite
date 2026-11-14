@@ -132,7 +132,7 @@ export function LoginPage() {
                 </Link>
               </p>
               <p className="text-[0.7rem] text-slate-400/80">
-                Secure platform — blockchain-verified deposits &amp; withdrawals. All
+                Secure platform - blockchain-verified deposits &amp; withdrawals. All
                 sessions are protected with encrypted transport.
               </p>
             </div>

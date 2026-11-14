@@ -1,9 +1,17 @@
 import { Op } from "sequelize";
+import {
+  buildPortfolioHoldings,
+  computeAllocation,
+  type PortfolioAllocationSlice,
+  type PortfolioHolding
+} from "../domain/portfolioRules";
 import { Deposit } from "../models/Deposit";
 import { User } from "../models/User";
 import { Notification } from "../models/Notification";
 import { getAllMarketPrices } from "./marketDataService";
 import { getUserProgression } from "./gamificationService";
+import { calculateDepositLevelForUser } from "./depositLevelService";
+import { userPerformance } from "./financialOperationsService";
 
 type PortfolioSymbol = "BTC" | "ETH" | "SOL" | "USDT";
 
@@ -178,6 +186,85 @@ export async function getPortfolioSummary(userId: string): Promise<{
     projectedEarnings: {
       currentMultiplier,
       projectedValue
+    }
+  };
+}
+
+export interface PortfolioTotals {
+  totalValue: number;
+  investedPrincipal: number;
+  availableBalance: number;
+  lockedBalance: number;
+  pendingEarnings: number;
+  realizedEarnings: number;
+  unrealizedProfitLoss: number | null;
+  unrealizedRoiPercent: number | null;
+}
+
+export interface PortfolioOverview {
+  currency: "USD";
+  updatedAt: string;
+  totals: PortfolioTotals;
+  holdings: PortfolioHolding[];
+  allocation: PortfolioAllocationSlice[];
+  performance: Awaited<ReturnType<typeof userPerformance>> & { range: string };
+}
+
+export async function getPortfolioOverview(
+  userId: string,
+  range: string
+): Promise<PortfolioOverview> {
+  const user = await User.findByPk(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const [summary, prices, progression, depositLevel, performance] = await Promise.all([
+    getPortfolioSummary(userId),
+    getAllMarketPrices(),
+    getUserProgression(user),
+    calculateDepositLevelForUser(userId),
+    userPerformance(userId, range)
+  ]);
+
+  const priceMap: Record<string, number> = {};
+  (Object.keys(prices) as Array<keyof typeof prices>).forEach((symbol) => {
+    const point = prices[symbol];
+    if (point && Number.isFinite(point.price)) {
+      priceMap[symbol] = point.price;
+    }
+  });
+
+  const holdings = buildPortfolioHoldings(summary.assets, priceMap);
+  const allocation = computeAllocation(holdings);
+
+  const realizedEarnings = Number(performance.realizedEarnings);
+  const unrealizedAvailable =
+    performance.cumulative.status === "verified" && performance.cumulative.profitLoss !== null;
+
+  return {
+    currency: "USD",
+    updatedAt: new Date().toISOString(),
+    totals: {
+      totalValue: summary.totalCurrentValue,
+      investedPrincipal: depositLevel.totalDepositedUsd,
+      availableBalance: progression.withdrawableBalance ?? 0,
+      lockedBalance: progression.lockedBalance ?? 0,
+      pendingEarnings: progression.pendingEarningsTotal ?? summary.pendingEarnings,
+      realizedEarnings: Number.isFinite(realizedEarnings) ? realizedEarnings : 0,
+      unrealizedProfitLoss: unrealizedAvailable
+        ? Number(performance.cumulative.profitLoss)
+        : null,
+      unrealizedRoiPercent:
+        unrealizedAvailable && performance.cumulative.roiPercent !== null
+          ? Number(performance.cumulative.roiPercent)
+          : null
+    },
+    holdings,
+    allocation,
+    performance: {
+      ...performance,
+      range
     }
   };
 }

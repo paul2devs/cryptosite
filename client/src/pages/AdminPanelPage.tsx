@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../utils/api";
 import { Seo } from "../components/Seo";
+import {
+  EmptyState,
+  ErrorRow,
+  Panel,
+  StatusBadge,
+  type Tone
+} from "../components/dashboard/primitives";
 
 interface AdminDeposit {
   deposit_id: string;
@@ -37,6 +45,23 @@ interface AdminRiskFlag {
   email: string;
   score: number;
   risk_level: string;
+}
+
+const inputClass =
+  "w-full rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2 text-xs text-[#F5F5F7] outline-none placeholder:text-[#6B7280] focus:border-[#C6A15B]/60";
+
+function statusTone(status: string): Tone {
+  const normalized = status.toLowerCase();
+  if (normalized === "approved") return "positive";
+  if (normalized === "rejected") return "negative";
+  return "gold";
+}
+
+function riskTone(level: string): Tone {
+  const normalized = level.toLowerCase();
+  if (normalized === "high") return "negative";
+  if (normalized === "medium") return "gold";
+  return "positive";
 }
 
 export function AdminPanelPage() {
@@ -111,7 +136,7 @@ export function AdminPanelPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-responsive space-y-6">
       <Seo
         title="Admin – approvals"
         description="Admin approvals dashboard for deposits and withdrawals."
@@ -119,165 +144,137 @@ export function AdminPanelPage() {
         robots="noindex,nofollow"
       />
       <section className="space-y-2">
-        <h1 className="text-xl font-semibold mb-1">Admin panel</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="display-font text-xl font-semibold text-[#F5F5F7]">Admin panel</h1>
+        <p className="text-sm text-[#9CA3AF]">
           Review activity, manage user payouts, and send broadcast announcements.
         </p>
+        <Link
+          to="/admin/operations"
+          className="inline-flex text-sm text-[#C6A15B] transition-colors hover:text-[#D4B070]"
+        >
+          Open operations monitoring
+        </Link>
       </section>
-      {error && (
-        <p className="text-xs text-red-400 bg-red-950/40 border border-red-900 rounded-lg px-3 py-2">
-          {error}
-        </p>
-      )}
-      <section className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-          <h2 className="text-sm font-medium">Deposits</h2>
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1 text-xs">
-            {deposits.length === 0 && (
-              <p className="text-slate-500">No deposits yet.</p>
-            )}
-            {deposits.map((d) => (
-              <div
-                key={d.deposit_id}
-                className="border border-slate-800 rounded-lg px-3 py-2 space-y-1 bg-slate-950"
-              >
-                <div className="flex justify-between">
-                  <span className="font-medium">
-                    {d.amount} {d.crypto_type}
-                  </span>
-                  <span
-                    className={
-                      d.status === "Approved"
-                        ? "text-emerald-300"
-                        : d.status === "Rejected"
-                        ? "text-red-400"
-                        : "text-amber-300"
-                    }
-                  >
-                    {d.status}
-                  </span>
-                </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>User: {d.user_id}</span>
-                  <span>{new Date(d.timestamp).toLocaleString()}</span>
-                </div>
-                {d.status === "Pending" && (
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => updateDepositStatus(d.deposit_id, "Approved")}
-                      className="px-2 py-1 rounded-full bg-emerald-600 text-slate-950"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateDepositStatus(d.deposit_id, "Rejected")}
-                      className="px-2 py-1 rounded-full bg-red-600 text-slate-50"
-                    >
-                      Reject
-                    </button>
+
+      {error ? <ErrorRow message={error} /> : null}
+
+      <section className="grid gap-4 md:grid-cols-2">
+        <Panel className="min-w-0">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Deposits</h2>
+          <div className="mt-2 max-h-80 overflow-y-auto pr-1">
+            {deposits.length === 0 && <EmptyState title="No deposits yet" />}
+            <ul className="divide-y divide-[#26272B]/60 text-[11px]">
+              {deposits.map((d) => (
+                <li key={d.deposit_id} className="py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="financial-figure text-sm font-medium text-[#F5F5F7]">
+                      {d.amount} {d.crypto_type}
+                    </span>
+                    <StatusBadge tone={statusTone(d.status)} label={d.status} />
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-          <h2 className="text-sm font-medium">Withdrawals</h2>
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1 text-xs">
-            {withdrawals.length === 0 && (
-              <p className="text-slate-500">No withdrawals yet.</p>
-            )}
-            {withdrawals.map((w) => (
-              <div
-                key={w.withdrawal_id}
-                className="border border-slate-800 rounded-lg px-3 py-2 space-y-1 bg-slate-950"
-              >
-                <div className="flex justify-between">
-                  <span className="font-medium">{w.amount}</span>
-                  <span
-                    className={
-                      w.status === "Approved"
-                        ? "text-emerald-300"
-                        : w.status === "Rejected"
-                        ? "text-red-400"
-                        : "text-amber-300"
-                    }
-                  >
-                    {w.status}
-                  </span>
-                </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>User: {w.user_id}</span>
-                  <span>{new Date(w.timestamp).toLocaleString()}</span>
-                </div>
-                {w.status === "Pending" && (
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateWithdrawalStatus(w.withdrawal_id, "Approved")
-                      }
-                      className="px-2 py-1 rounded-full bg-emerald-600 text-slate-950"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateWithdrawalStatus(w.withdrawal_id, "Rejected")
-                      }
-                      className="px-2 py-1 rounded-full bg-red-600 text-slate-50"
-                    >
-                      Reject
-                    </button>
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[#9CA3AF]">
+                    <span className="min-w-0 break-all">User: {d.user_id}</span>
+                    <span className="shrink-0">{new Date(d.timestamp).toLocaleString()}</span>
                   </div>
-                )}
-              </div>
-            ))}
+                  {d.status === "Pending" && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateDepositStatus(d.deposit_id, "Approved")}
+                        className="btn btn-sm bg-[#16C784]/12 text-[#16C784] hover:bg-[#16C784]/20"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateDepositStatus(d.deposit_id, "Rejected")}
+                        className="btn btn-sm bg-[#EA3943]/12 text-[#EA3943] hover:bg-[#EA3943]/20"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
+        </Panel>
+
+        <Panel className="min-w-0">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Withdrawals</h2>
+          <div className="mt-2 max-h-80 overflow-y-auto pr-1">
+            {withdrawals.length === 0 && <EmptyState title="No withdrawals yet" />}
+            <ul className="divide-y divide-[#26272B]/60 text-[11px]">
+              {withdrawals.map((w) => (
+                <li key={w.withdrawal_id} className="py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="financial-figure text-sm font-medium text-[#F5F5F7]">{w.amount}</span>
+                    <StatusBadge tone={statusTone(w.status)} label={w.status} />
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[#9CA3AF]">
+                    <span className="min-w-0 break-all">User: {w.user_id}</span>
+                    <span className="shrink-0">{new Date(w.timestamp).toLocaleString()}</span>
+                  </div>
+                  {w.status === "Pending" && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateWithdrawalStatus(w.withdrawal_id, "Approved")}
+                        className="btn btn-sm bg-[#16C784]/12 text-[#16C784] hover:bg-[#16C784]/20"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateWithdrawalStatus(w.withdrawal_id, "Rejected")}
+                        className="btn btn-sm bg-[#EA3943]/12 text-[#EA3943] hover:bg-[#EA3943]/20"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Panel>
       </section>
-      <section className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3 text-xs">
-          <h2 className="text-sm font-medium">User stats</h2>
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {users.length === 0 && (
-              <p className="text-slate-500">No users yet.</p>
-            )}
-            {users.map((u) => (
-              <div
-                key={u.user_id}
-                className="border border-slate-800 rounded-lg px-3 py-2 bg-slate-950 space-y-1"
-              >
-                <div className="flex justify-between">
-                  <span className="font-medium">{u.name}</span>
-                  <span className="text-slate-400 text-[0.7rem]">
-                    {u.email}
-                  </span>
-                </div>
-                <div className="flex justify-between text-slate-300">
-                  <span>
-                    L{u.level} · {u.xp} XP
-                  </span>
-                  <span>Streak {u.streak}d</span>
-                </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Pending {u.pendingEarningsTotal.toFixed(4)}</span>
-                  <span>x{u.multiplier.toFixed(2)}</span>
-                </div>
-              </div>
-            ))}
+
+      <section className="grid gap-4 md:grid-cols-2">
+        <Panel className="min-w-0">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">User stats</h2>
+          <div className="mt-2 max-h-72 overflow-y-auto pr-1">
+            {users.length === 0 && <EmptyState title="No users yet" />}
+            <ul className="divide-y divide-[#26272B]/60 text-[11px]">
+              {users.map((u) => (
+                <li key={u.user_id} className="py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+                    <span className="min-w-0 font-medium text-[#F5F5F7]">{u.name}</span>
+                    <span className="min-w-0 break-all text-[10px] text-[#9CA3AF]">{u.email}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[#9CA3AF]">
+                    <span>
+                      L{u.level} · {u.xp} XP
+                    </span>
+                    <span>Streak {u.streak}d</span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[#9CA3AF]">
+                    <span className="financial-figure">Pending {u.pendingEarningsTotal.toFixed(4)}</span>
+                    <span className="financial-figure">x{u.multiplier.toFixed(2)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3 text-xs">
-          <h2 className="text-sm font-medium">Broadcast notification</h2>
-          <div className="space-y-2">
+        </Panel>
+
+        <Panel className="min-w-0">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Broadcast notification</h2>
+          <div className="mt-2 space-y-2">
             <select
               value={broadcastType}
               onChange={(e) => setBroadcastType(e.target.value)}
-              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/60"
+              className={inputClass}
             >
               <option value="admin_announcement">Admin announcement</option>
               <option value="promo_multiplier">Promo multiplier</option>
@@ -286,61 +283,47 @@ export function AdminPanelPage() {
               value={broadcastMessage}
               onChange={(e) => setBroadcastMessage(e.target.value)}
               rows={3}
-              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/60"
+              className={inputClass}
               placeholder="Message to all users"
             />
-            {broadcastStatus && (
-              <p className="text-[0.7rem] text-slate-300">{broadcastStatus}</p>
-            )}
+            {broadcastStatus && <p className="text-[11px] text-[#9CA3AF]">{broadcastStatus}</p>}
             <button
               type="button"
               onClick={sendBroadcast}
               disabled={!broadcastMessage}
-              className="rounded-lg bg-primary hover:bg-primary-dark text-slate-950 font-medium px-3 py-2 text-xs disabled:opacity-60"
+              className="btn btn-md btn-primary w-full sm:w-auto"
             >
               Send broadcast
             </button>
           </div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3 text-xs">
-          <h2 className="text-sm font-medium">Risk & behavior flags</h2>
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+        </Panel>
+
+        <Panel className="min-w-0">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Risk & behavior flags</h2>
+          <div className="mt-2 max-h-72 overflow-y-auto pr-1">
             {riskFlags.length === 0 && (
-              <p className="text-slate-500">
-                No high-risk users detected at the moment.
-              </p>
+              <EmptyState
+                title="No high-risk users detected at the moment"
+                description="Risk and behavior flags appear here when activity is elevated."
+              />
             )}
-            {riskFlags.map((r) => (
-              <div
-                key={r.user_id}
-                className="border border-slate-800 rounded-lg px-3 py-2 bg-slate-950 space-y-1"
-              >
-                <div className="flex justify-between">
-                  <span className="font-medium">{r.name}</span>
-                  <span className="text-slate-400 text-[0.7rem]">
-                    {r.email}
-                  </span>
-                </div>
-                <div className="flex justify-between text-slate-300">
-                  <span>Score {r.score.toFixed(1)}</span>
-                  <span
-                    className={
-                      r.risk_level === "high"
-                        ? "text-red-400"
-                        : r.risk_level === "medium"
-                        ? "text-amber-300"
-                        : "text-emerald-300"
-                    }
-                  >
-                    {r.risk_level.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-            ))}
+            <ul className="divide-y divide-[#26272B]/60 text-[11px]">
+              {riskFlags.map((r) => (
+                <li key={r.user_id} className="py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+                    <span className="min-w-0 font-medium text-[#F5F5F7]">{r.name}</span>
+                    <span className="min-w-0 break-all text-[10px] text-[#9CA3AF]">{r.email}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[#9CA3AF]">
+                    <span className="financial-figure">Score {r.score.toFixed(1)}</span>
+                    <StatusBadge tone={riskTone(r.risk_level)} label={r.risk_level} />
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
+        </Panel>
       </section>
     </div>
   );
 }
-

@@ -6,35 +6,13 @@ import { User } from "../models/User";
 import { Notification } from "../models/Notification";
 import { recordWithdrawalAttempt } from "../services/behaviorService";
 import { trackUserActivity } from "../services/activityService";
-import { calculateDepositLevelForUser } from "../services/depositLevelService";
+import { reviewWithdrawal } from "../services/financialOperationsService";
 import { sendWithdrawalStatusEmail } from "../services/email/emailService";
-
-function getWithdrawalMinLevel(): number {
-  const raw = process.env.WITHDRAWAL_MIN_LEVEL;
-  const parsed = raw ? Number(raw) : 2;
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return 2;
-  }
-  return parsed;
-}
-
-function getWithdrawalCooldownHours(): number {
-  const raw = process.env.WITHDRAWAL_COOLDOWN_HOURS;
-  const parsed = raw ? Number(raw) : 24;
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    return 24;
-  }
-  return parsed;
-}
-
-function getMaxDailyWithdrawal(): number {
-  const raw = process.env.WITHDRAWAL_MAX_DAILY_AMOUNT;
-  const parsed = raw ? Number(raw) : 0;
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 0;
-  }
-  return parsed;
-}
+import {
+  getUserWithdrawalSummary,
+  reserveWithdrawal,
+  WithdrawalError
+} from "../services/withdrawalService";
 
 export async function createWithdrawal(
   req: AuthenticatedRequest,
@@ -51,86 +29,58 @@ export async function createWithdrawal(
     return;
   }
 
-  const { amount } = req.body as { amount: number };
+  const { amount, asset, address, network, idempotencyKey } = req.body as {
+    amount: number;
+    asset?: string;
+    address?: string;
+    network?: string | null;
+    idempotencyKey?: string;
+  };
 
   try {
-    const user = await User.findByPk(req.user.userId);
-    if (!user) {
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
-
-    const depositStats = await calculateDepositLevelForUser(user.user_id);
-
-    const minLevel = Math.max(getWithdrawalMinLevel(), 5);
-    if (depositStats.level < minLevel) {
-      res.status(403).json({
-        message:
-          "Withdrawals are locked until you reach Level 5 based on your total approved deposits."
-      });
-      return;
-    }
-
-    const cooldownHours = getWithdrawalCooldownHours();
-    if (cooldownHours > 0 && user.last_withdrawal_at) {
-      const now = new Date();
-      const last = new Date(user.last_withdrawal_at);
-      const hoursSince =
-        (now.getTime() - last.getTime()) / (1000 * 60 * 60);
-      if (hoursSince < cooldownHours) {
-        res.status(429).json({
-          message: "Withdrawal cooldown active. Please try again later."
-        });
-        return;
-      }
-    }
-
-    if (amount > user.withdrawable_balance) {
-      await recordWithdrawalAttempt(user, amount, false);
-      res.status(400).json({
-        message: "Requested amount exceeds your withdrawable balance"
-      });
-      return;
-    }
-
-    const maxDaily = getMaxDailyWithdrawal();
-    if (maxDaily > 0 && amount > maxDaily) {
-      await recordWithdrawalAttempt(user, amount, false);
-      res.status(400).json({
-        message: "Requested amount exceeds the daily withdrawal limit"
-      });
-      return;
-    }
-
-    const withdrawal = await Withdrawal.create({
-      user_id: req.user.userId,
-      amount
-    });
-
-    user.withdrawable_balance -= amount;
-    user.last_withdrawal_at = new Date();
-    await user.save();
-
-    await Notification.create({
-      type: "withdrawal_created",
-      message: "Withdrawal request submitted",
-      user_id: req.user.userId
-    });
-    sendWithdrawalStatusEmail({
-      to: user.email,
-      name: user.name,
-      status: "Pending",
-      amount
-    });
-
-    await recordWithdrawalAttempt(user, amount, true);
-    await trackUserActivity(user.user_id, "withdrawal", {
+    const result = await reserveWithdrawal(req.user.userId, {
+      asset,
+      address,
+      network,
       amount,
-      withdrawal_id: withdrawal.withdrawal_id
+      idempotencyKey
     });
+    const withdrawal = result.withdrawal;
 
-    res.status(201).json(withdrawal);
+    if (!result.duplicate) {
+      const user = await User.findByPk(req.user.userId);
+      if (user) {
+        await Notification.create({
+          type: "withdrawal_created",
+          message: "Withdrawal request submitted",
+          user_id: req.user.userId
+        });
+        sendWithdrawalStatusEmail({
+          to: user.email,
+          name: user.name,
+          status: "Pending",
+          amount: Number(withdrawal.amount)
+        });
+        await recordWithdrawalAttempt(user, Number(withdrawal.amount), true);
+      }
+      await trackUserActivity(req.user.userId, "withdrawal", {
+        amount: Number(withdrawal.amount),
+        withdrawal_id: withdrawal.withdrawal_id
+      });
+    }
+
+    res.status(result.duplicate ? 200 : 201).json(withdrawal);
   } catch (error) {
+    if (error instanceof WithdrawalError) {
+      if (error.status === 400 || error.status === 403 || error.status === 429) {
+        const user = await User.findByPk(req.user.userId);
+        if (user) {
+          await recordWithdrawalAttempt(user, Number(amount), false).catch(() => undefined);
+        }
+      }
+      res.status(error.status).json({ message: error.message });
+      return;
+    }
     res.status(500).json({ message: "Failed to create withdrawal" });
   }
 }
@@ -180,41 +130,22 @@ export async function getWithdrawalSummary(
   }
 
   try {
-    const user = await User.findByPk(req.user.userId);
-    if (!user) {
-      res.status(404).json({ message: "User not found" });
+    const summary = await getUserWithdrawalSummary(req.user.userId);
+    res.status(200).json(summary);
+  } catch (error) {
+    if (error instanceof WithdrawalError) {
+      res.status(error.status).json({ message: error.message });
       return;
     }
-
-    const depositStats = await calculateDepositLevelForUser(user.user_id);
-
-    const minLevel = Math.max(getWithdrawalMinLevel(), 5);
-    const cooldownHours = getWithdrawalCooldownHours();
-
-    let cooldownRemainingSeconds = 0;
-    if (cooldownHours > 0 && user.last_withdrawal_at) {
-      const now = new Date();
-      const last = new Date(user.last_withdrawal_at);
-      const msSince = now.getTime() - last.getTime();
-      const cooldownMs = cooldownHours * 60 * 60 * 1000;
-      cooldownRemainingSeconds = Math.max(0, Math.floor((cooldownMs - msSince) / 1000));
-    }
-
-    res.status(200).json({
-      withdrawable_balance: user.withdrawable_balance,
-      locked_balance: user.locked_balance,
-      pending_earnings_total:
-        (user.pending_earnings as any)?.total !== undefined
-          ? Number((user.pending_earnings as any).total)
-          : 0,
-      user_level: depositStats.level,
-      min_level: minLevel,
-      cooldown_seconds_remaining: cooldownRemainingSeconds
-    });
-  } catch {
     res.status(500).json({ message: "Failed to load withdrawal summary" });
   }
 }
+
+const LEGACY_STATUS_MAP: Record<string, string> = {
+  Pending: "requested",
+  Approved: "approved",
+  Rejected: "rejected"
+};
 
 export async function updateWithdrawalStatus(
   req: AuthenticatedRequest,
@@ -230,53 +161,24 @@ export async function updateWithdrawalStatus(
     return;
   }
 
+  const detailed = LEGACY_STATUS_MAP[status];
+  if (!detailed) {
+    res.status(400).json({ message: "Unsupported withdrawal status" });
+    return;
+  }
+
   try {
-    const withdrawal = await Withdrawal.findByPk(id);
-    if (!withdrawal) {
-      res.status(404).json({ message: "Withdrawal not found" });
-      return;
-    }
-
-    const user = await User.findByPk(withdrawal.user_id);
-    if (!user) {
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
-
-    if (withdrawal.status === "Rejected" && status === "Approved") {
-      res.status(400).json({ message: "Cannot approve a rejected withdrawal" });
-      return;
-    }
-
-    if (withdrawal.status === "Approved" && status !== "Approved") {
-      res.status(400).json({ message: "Approved withdrawals cannot be changed" });
-      return;
-    }
-
-    if (status === "Rejected" && withdrawal.status === "Pending") {
-      user.withdrawable_balance += withdrawal.amount;
-      await user.save();
-    }
-
-    withdrawal.status = status;
-    await withdrawal.save();
-
-    await Notification.create({
-      type: "withdrawal_status",
-      message: `Your withdrawal was ${status}`,
-      user_id: withdrawal.user_id
-    });
-
-    sendWithdrawalStatusEmail({
-      to: user.email,
-      name: user.name,
-      status,
-      amount: withdrawal.amount
-    });
-
+    const withdrawal = await reviewWithdrawal(
+      req.user.userId,
+      id,
+      detailed,
+      "Status updated from the admin panel."
+    );
     res.status(200).json(withdrawal);
   } catch (error) {
-    res.status(500).json({ message: "Failed to update withdrawal" });
+    const message = error instanceof Error ? error.message : "Failed to update withdrawal";
+    const notFound = message === "Withdrawal not found";
+    res.status(notFound ? 404 : 400).json({ message });
   }
 }
 

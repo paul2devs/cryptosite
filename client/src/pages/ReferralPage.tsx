@@ -168,14 +168,14 @@ export function ReferralPage() {
                 boosts that accelerate your earnings journey.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-[#9CA3AF]">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#0F0F10] px-3 py-1.5">
-                <Users className="h-3.5 w-3.5 text-[#C6A15B]" />
-                <span>Turn your network into a shared reward engine.</span>
+            <div className="grid gap-2 text-xs text-[#9CA3AF] sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+              <div className="inline-flex max-w-full items-center gap-2 rounded-full bg-[#0F0F10] px-3 py-1.5">
+                <Users className="h-3.5 w-3.5 shrink-0 text-[#C6A15B]" />
+                <span className="min-w-0">Turn your network into a shared reward engine.</span>
               </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#0F0F10] px-3 py-1.5">
-                <Award className="h-3.5 w-3.5 text-[#16C784]" />
-                <span>Boosts are real, on-chain verified multipliers.</span>
+              <div className="inline-flex max-w-full items-center gap-2 rounded-full bg-[#0F0F10] px-3 py-1.5">
+                <Award className="h-3.5 w-3.5 shrink-0 text-[#16C784]" />
+                <span className="min-w-0">Boosts are real, on-chain verified multipliers.</span>
               </div>
             </div>
           </div>
@@ -261,8 +261,8 @@ export function ReferralPage() {
                 Your invite code
               </p>
               <div className="rounded-2xl bg-[#17181A]/40 px-4 py-4 sm:px-5 sm:py-5 space-y-4 backdrop-blur-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-1">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
                     <p className="text-xs font-medium text-[#F5F5F7]">
                       Your Referral Code
                     </p>
@@ -271,17 +271,17 @@ export function ReferralPage() {
                       unlocks multipliers for both of you.
                     </p>
                   </div>
-                  <div className="rounded-full bg-[#0F0F10]/80 px-3 py-1.5 text-[11px] font-mono text-[#C6A15B]">
+                  <div className="max-w-[45%] shrink-0 truncate rounded-full bg-[#0F0F10]/80 px-3 py-1.5 text-[11px] font-mono text-[#C6A15B]">
                     {data?.referralCode ?? user.referral_code ?? "—"}
                   </div>
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-[#F5F5F7]">Invite link</p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <div className="flex-1 rounded-xl bg-[#0F0F10]/80 px-3 py-2.5 text-[11px] text-[#F5F5F7] font-mono break-all">
+                    <div className="min-w-0 flex-1 rounded-xl bg-[#0F0F10]/80 px-3 py-2.5 text-[11px] text-[#F5F5F7] font-mono break-all">
                       {link ?? "Generate your invite link by activating your account."}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex shrink-0 gap-2">
                       <button
                         type="button"
                         onClick={async () => {
@@ -292,7 +292,7 @@ export function ReferralPage() {
                           setCopyToast("Invite link copied");
                         }}
                         disabled={!link}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50 sm:flex-none"
                       >
                         <Copy className="h-3.5 w-3.5" />
                         <span>Copy</span>
@@ -305,14 +305,14 @@ export function ReferralPage() {
                           }
                           navigator
                             .share({
-                              title: "Join my crypto levels journey",
+                              title: "Join my NexaCrypto journey",
                               text: "Deposit with me and unlock multiplier boosts on this platform.",
                               url: link
                             })
                             .catch(() => {});
                         }}
                         disabled={!link || !("share" in navigator)}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50 sm:flex-none"
                       >
                         <Share2 className="h-3.5 w-3.5" />
                         <span>Share</span>
@@ -335,7 +335,7 @@ export function ReferralPage() {
                     const url = `https://t.me/share/url?url=${encodeURIComponent(
                       link
                     )}&text=${encodeURIComponent(
-                      "Join this crypto levels platform with me and unlock multiplier boosts."
+                      "Join this NexaCrypto platform with me and unlock multiplier boosts."
                     )}`;
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
@@ -352,7 +352,7 @@ export function ReferralPage() {
                       return;
                     }
                     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(
-                      `Join this crypto levels platform with me and unlock multiplier boosts: ${link}`
+                      `Join this NexaCrypto platform with me and unlock multiplier boosts: ${link}`
                     )}`;
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
@@ -502,7 +502,7 @@ export function ReferralPage() {
 
               {hasRewards && (
                 <div className="overflow-hidden rounded-xl bg-[#0F0F10]">
-                  <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] gap-2 px-3 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#9CA3AF]">
+                  <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.9fr)] gap-3 px-3 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#9CA3AF] sm:grid">
                     <span>User</span>
                     <span>Reward</span>
                     <span>Status</span>
@@ -515,20 +515,25 @@ export function ReferralPage() {
                       return (
                         <div
                           key={reward.id}
-                          className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] gap-2 px-3 py-2.5 text-xs text-[#F5F5F7] transition-colors hover:bg-[#111827]"
+                          className="px-3 py-3 text-xs text-[#F5F5F7] transition-colors hover:bg-[#111827] sm:grid sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.9fr)] sm:items-center sm:gap-3"
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#17181A] text-[11px] font-medium text-[#F5F5F7]">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#17181A] text-[11px] font-medium text-[#F5F5F7]">
                               F
                             </div>
-                            <div className="flex flex-col">
-                              <span className="font-medium">Invited friend</span>
-                              <span className="text-[11px] text-[#9CA3AF]">
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate font-medium">Invited friend</span>
+                              <span className="truncate text-[11px] text-[#9CA3AF]">
                                 {reward.reward_type}
                               </span>
                             </div>
+                            <span
+                              className={`ml-auto inline-flex shrink-0 items-center justify-center rounded-full border px-2 py-0.5 text-[10px] sm:hidden ${pill.className}`}
+                            >
+                              {pill.label}
+                            </span>
                           </div>
-                          <div className="flex flex-col">
+                          <div className="mt-2 flex min-w-0 flex-col sm:mt-0">
                             <span className="font-medium">
                               {formatMultiplier(reward.reward_value)}
                             </span>
@@ -536,14 +541,14 @@ export function ReferralPage() {
                               Multiplier boost applied on first approved deposit.
                             </span>
                           </div>
-                          <div className="flex items-center">
+                          <div className="hidden items-center sm:flex">
                             <span
                               className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] ${pill.className}`}
                             >
                               {pill.label}
                             </span>
                           </div>
-                          <div className="flex flex-col text-[11px] text-[#9CA3AF]">
+                          <div className="mt-2 flex flex-col text-[11px] text-[#9CA3AF] sm:mt-0">
                             <span>
                               {date.toLocaleDateString(undefined, {
                                 month: "short",

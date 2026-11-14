@@ -344,7 +344,10 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
   }
 
   return (
-    <div ref={wrapperRef} className="fixed bottom-24 right-4 z-50 sm:bottom-6 sm:right-6">
+    <div
+      ref={wrapperRef}
+      className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50 sm:right-6 lg:bottom-6"
+    >
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -352,7 +355,7 @@ export function SupportChatWidget({ enabled }: { enabled: boolean }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.18 }}
-            className="mb-3 flex h-[480px] w-[min(92vw,370px)] flex-col overflow-hidden rounded-2xl border border-[#26272B] bg-[#121315] shadow-[0_24px_60px_rgba(0,0,0,0.75)]"
+            className="card mb-3 flex h-[480px] max-h-[calc(100dvh-11rem)] w-[min(23rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] flex-col overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.75)] lg:max-h-[calc(100dvh-7rem)]"
           >
             <div className="flex items-center justify-between border-b border-[#26272B] px-4 py-3">
               <div>

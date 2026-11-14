@@ -17,7 +17,7 @@ export function renderEmailLayout(args: {
     ? `<p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">${escapeHtml(
         args.footerNote
       )}</p>`
-    : `<p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">You’re receiving this email because security-relevant or reward-related activity occurred on your Crypto Levels account.</p>`;
+    : `<p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">You’re receiving this email because security-relevant or reward-related activity occurred on your NexaCrypto account.</p>`;
 
   const cta =
     args.ctaLabel && args.ctaHref
@@ -63,7 +63,7 @@ export function renderEmailLayout(args: {
                             </div>
                           </td>
                           <td style="padding-left:10px;vertical-align:middle;">
-                            <div style="color:#F5F5F7;font-size:13px;font-weight:700;letter-spacing:0.16em;">CRYPTO LEVELS</div>
+                            <div style="color:#F5F5F7;font-size:13px;font-weight:700;letter-spacing:0.16em;">NexaCrypto</div>
                             <div style="color:#9CA3AF;font-size:11px;">Custodial levels &amp; multiplier rewards</div>
                           </td>
                         </tr>
@@ -105,7 +105,7 @@ export function renderEmailLayout(args: {
             </tr>
             <tr>
               <td style="padding:16px 10px 0 10px;text-align:center;color:#6B7280;font-size:11px;line-height:16px;">
-                © ${new Date().getFullYear()} Crypto Levels. All rights reserved.
+                © ${new Date().getFullYear()} NexaCrypto. All rights reserved.
               </td>
             </tr>
           </table>

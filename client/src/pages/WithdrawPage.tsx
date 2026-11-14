@@ -1,720 +1,530 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Hourglass, Lock, Wallet, CheckCircle2, Circle, ChevronDown, Check } from "lucide-react";
-import { api } from "../utils/api";
+import { FormEvent, useMemo, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Seo } from "../components/Seo";
-import btcLogo from "../assets/crypto/btc.svg";
-import ethLogo from "../assets/crypto/eth.svg";
-import usdtLogo from "../assets/crypto/usdt.svg";
-import solLogo from "../assets/crypto/sol.svg";
+import { Panel, SectionHeader, ErrorRow } from "../components/dashboard/primitives";
+import { SolidArrowRight, SolidCheck } from "../components/icons/SolidIcons";
+import { useWithdrawData } from "../hooks/useWithdrawData";
+import { useBalanceVisibility } from "../components/BalanceVisibilityProvider";
+import { maskValue } from "../components/portfolio/utils";
+import { formatNumber, formatUsd } from "../utils/format";
+import {
+  estimateWithdrawFees,
+  getWithdrawNetworkOption,
+  validateWithdrawAddress,
+  validateWithdrawAmount,
+  withdrawalReference,
+  type AddressValidation,
+  type AmountValidation,
+  type WithdrawCryptoType,
+  type WithdrawSymbol
+} from "../utils/withdraw";
+import { requiredConfirmations } from "../utils/deposit";
+import type { WithdrawalRecord } from "../utils/transactions";
+import { WithdrawPageHeader } from "../components/withdraw/WithdrawPageHeader";
+import { WithdrawEligibilityPanel } from "../components/withdraw/WithdrawEligibilityPanel";
+import { MaturityPolicyCard } from "../components/withdraw/MaturityPolicyCard";
+import { WithdrawProcessingTimeline } from "../components/withdraw/WithdrawProcessingTimeline";
+import {
+  WithdrawStepper,
+  type WithdrawStep,
+  type WithdrawStepState
+} from "../components/withdraw/WithdrawStepper";
+import { WithdrawAssetSelector } from "../components/withdraw/WithdrawAssetSelector";
+import { WithdrawNetworkSelector } from "../components/withdraw/WithdrawNetworkSelector";
+import { WithdrawAmountInput } from "../components/withdraw/WithdrawAmountInput";
+import { WithdrawDestinationInput } from "../components/withdraw/WithdrawDestinationInput";
+import { WithdrawReviewStep } from "../components/withdraw/WithdrawReviewStep";
+import { WithdrawalHistory } from "../components/withdraw/WithdrawalHistory";
+import { WithdrawalDetailStatus } from "../components/withdraw/WithdrawalDetailStatus";
+import { WithdrawLoadingSkeleton } from "../components/withdraw/WithdrawLoadingSkeleton";
 
-interface Withdrawal {
-  withdrawal_id: string;
-  amount: number;
-  status: string;
-  timestamp: string;
-  asset?: string;
-  address?: string;
-  network?: string | null;
+const EMPTY_AMOUNT: AmountValidation = { valid: false, empty: true, message: null };
+const EMPTY_ADDRESS: AddressValidation = { valid: false, empty: true, message: null };
+
+/** Ordered steps of the withdrawal flow, matching the rendered panels. */
+const STEP_LABELS = ["Asset", "Network", "Amount", "Destination", "Review", "Confirm"] as const;
+const LAST_STEP = STEP_LABELS.length - 1;
+
+function extractMessage(error: unknown, fallback: string): string {
+  const candidate = error as { response?: { data?: { message?: string } } } | undefined;
+  const message = candidate?.response?.data?.message;
+  return typeof message === "string" && message.length > 0 ? message : fallback;
 }
 
-interface WithdrawalSummary {
-  withdrawable_balance: number;
-  locked_balance: number;
-  pending_earnings_total: number;
-  user_level: number;
-  min_level: number;
-  cooldown_seconds_remaining: number;
+function createIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `wd-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
-interface SavedWallet {
-  wallet_id: string;
-  asset: string;
-  address: string;
-  network: string | null;
-}
-
-type WithdrawalAsset = "BTC" | "ETH" | "USDT" | "SOL";
-type UsdtNetwork = "ERC20" | "TRC20";
-
-const WITHDRAW_ASSETS: { id: WithdrawalAsset; name: string; icon: string }[] = [
-  { id: "BTC", name: "Bitcoin", icon: btcLogo },
-  { id: "ETH", name: "Ethereum", icon: ethLogo },
-  { id: "USDT", name: "Tether", icon: usdtLogo },
-  { id: "SOL", name: "Solana", icon: solLogo }
-];
 
 export function WithdrawPage() {
-  const [amount, setAmount] = useState("");
-  const [asset, setAsset] = useState<WithdrawalAsset>("BTC");
-  const [network, setNetwork] = useState<UsdtNetwork | null>(null);
-  const [assetMenuOpen, setAssetMenuOpen] = useState(false);
+  const {
+    summary,
+    withdrawals,
+    loading,
+    historyLoading,
+    summaryError,
+    historyError,
+    submitting,
+    submitWithdrawal,
+    refresh,
+    refreshHistory
+  } = useWithdrawData();
+
+  const { hidden } = useBalanceVisibility();
+
+  const [step, setStep] = useState(0);
+  const [symbol, setSymbol] = useState<WithdrawSymbol | null>(null);
+  const [cryptoType, setCryptoType] = useState<WithdrawCryptoType | null>(null);
   const [address, setAddress] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
-  const [pendingEarnings, setPendingEarnings] = useState(0);
-  const [userLevel, setUserLevel] = useState<number | null>(null);
-  const [minLevel, setMinLevel] = useState<number | null>(null);
-  const [withdrawableBalance, setWithdrawableBalance] = useState(0);
-  const [lockedBalance, setLockedBalance] = useState(0);
-  const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const [canWithdraw, setCanWithdraw] = useState(false);
-  const [loadingSummary, setLoadingSummary] = useState(true);
-  const [savedWallets, setSavedWallets] = useState<SavedWallet[]>([]);
-  const assetMenuRef = useRef<HTMLDivElement | null>(null);
+  const [amount, setAmount] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [lastSubmitted, setLastSubmitted] = useState<WithdrawalRecord | null>(null);
+  const idempotencyRef = useRef<string | null>(null);
 
-  const loadWithdrawals = async () => {
-    try {
-      const response = await api.get<Withdrawal[]>("/withdrawals/me");
-      setWithdrawals(response.data);
-    } catch {
-      setError("Failed to load withdrawals");
-    }
+  const resetIdempotency = () => {
+    idempotencyRef.current = null;
   };
 
-  const refreshSummary = async () => {
-    try {
-      const summaryRes = await api.get<WithdrawalSummary>("/withdrawals/summary");
-      const summary = summaryRes.data;
-      setPendingEarnings(summary.pending_earnings_total);
-      setUserLevel(summary.user_level);
-      setMinLevel(summary.min_level);
-      setWithdrawableBalance(summary.withdrawable_balance);
-      setLockedBalance(summary.locked_balance);
-      setCooldownSeconds(summary.cooldown_seconds_remaining);
-      const eligible =
-        summary.user_level >= summary.min_level &&
-        summary.withdrawable_balance > 0 &&
-        summary.cooldown_seconds_remaining === 0;
-      setCanWithdraw(eligible);
-    } catch {
-      setCanWithdraw(false);
-    } finally {
-      setLoadingSummary(false);
+  const assets = summary?.supported_assets ?? [];
+  const activeSymbol: WithdrawSymbol | null =
+    symbol && assets.some((asset) => asset.symbol === symbol)
+      ? symbol
+      : ((assets[0]?.symbol as WithdrawSymbol | undefined) ?? null);
+
+  const currentAsset = assets.find((asset) => asset.symbol === activeSymbol) ?? null;
+  const networks = currentAsset?.networks ?? [];
+  const activeCryptoType: WithdrawCryptoType | null =
+    cryptoType && networks.some((network) => network.cryptoType === cryptoType)
+      ? cryptoType
+      : (networks[0]?.cryptoType ?? null);
+
+  const currentNetwork =
+    networks.find((network) => network.cryptoType === activeCryptoType) ?? networks[0] ?? null;
+  const option = currentNetwork ? getWithdrawNetworkOption(currentNetwork.cryptoType) : null;
+  const confirmations = option ? requiredConfirmations(option.cryptoType) : 0;
+
+  const availableBalance = summary
+    ? Math.max(
+        0,
+        summary.withdrawable_balance -
+          (summary.maturity.policyInEffect ? summary.maturity.maturingAmount : 0)
+      )
+    : 0;
+
+  const amountValidation = option ? validateWithdrawAmount(amount, option.decimals) : EMPTY_AMOUNT;
+  const addressValidation = option
+    ? validateWithdrawAddress(option.cryptoType, address)
+    : EMPTY_ADDRESS;
+
+  const parsedAmount = Number(amount);
+  const minAmount = currentNetwork?.minAmount ?? 0;
+  const maxAmount = currentNetwork?.maxAmount ?? 0;
+
+  const limitMessage = useMemo(() => {
+    if (!option || !amountValidation.valid) {
+      return null;
     }
+    if (parsedAmount > availableBalance) {
+      return "Requested amount exceeds your available withdrawal balance.";
+    }
+    if (minAmount > 0 && parsedAmount < minAmount) {
+      return `The minimum withdrawal for ${option.symbolLabel} is ${formatNumber(minAmount, 8)}.`;
+    }
+    if (maxAmount > 0 && parsedAmount > maxAmount) {
+      return `The maximum withdrawal for ${option.symbolLabel} is ${formatNumber(maxAmount, 8)}.`;
+    }
+    return null;
+  }, [option, amountValidation.valid, parsedAmount, availableBalance, minAmount, maxAmount]);
+
+  const fees = estimateWithdrawFees({
+    amount: amountValidation.valid ? parsedAmount : 0,
+    networkFee: currentNetwork?.networkFee ?? 0,
+    platformFeePercent: summary?.platform_fee_percent ?? 0
+  });
+
+  const eligible = summary?.eligibility.canWithdraw === true;
+  const canAdvanceFromAmount = amountValidation.valid && limitMessage === null;
+  const canAdvanceFromDestination = addressValidation.valid;
+
+  const canContinue =
+    step === 0
+      ? assets.length > 0
+      : step === 1
+        ? option !== null
+        : step === 2
+          ? canAdvanceFromAmount
+          : step === 3
+            ? canAdvanceFromDestination
+            : step === 4
+              ? eligible && canAdvanceFromAmount && canAdvanceFromDestination
+              : false;
+
+  const canSubmit =
+    eligible &&
+    option !== null &&
+    addressValidation.valid &&
+    amountValidation.valid &&
+    limitMessage === null &&
+    fees.netAmount > 0 &&
+    confirmed &&
+    !submitting;
+
+  const stepState = (index: number): WithdrawStepState =>
+    index < step ? "done" : index === step ? "active" : "upcoming";
+
+  const steps: WithdrawStep[] = STEP_LABELS.map((label, index) => ({
+    id: label.toLowerCase(),
+    label,
+    state: stepState(index)
+  }));
+
+  const handleSelectSymbol = (nextSymbol: WithdrawSymbol) => {
+    if (nextSymbol === activeSymbol) {
+      return;
+    }
+    setSymbol(nextSymbol);
+    setCryptoType(null);
+    setAddress("");
+    setAmount("");
+    setConfirmed(false);
+    setFormError(null);
+    resetIdempotency();
   };
 
-  useEffect(() => {
-    const init = async () => {
-      await Promise.all([loadWithdrawals(), refreshSummary()]);
-      try {
-        const settingsRes = await api.get<{ settings: { withdrawal_wallets: SavedWallet[] } }>(
-          "/user/settings"
-        );
-        setSavedWallets(settingsRes.data.settings.withdrawal_wallets || []);
-      } catch {
-        const raw = localStorage.getItem("withdraw_wallets");
-        if (raw) {
-          const parsed = JSON.parse(raw) as SavedWallet[];
-          setSavedWallets(Array.isArray(parsed) ? parsed : []);
-        }
-      }
-    };
-    init();
-  }, []);
-
-  useEffect(() => {
-    const targetAsset = asset === "USDT" ? (network === "TRC20" ? "USDT_TRC20" : "USDT_ERC20") : asset;
-    const matchedWallet = savedWallets.find((wallet) => wallet.asset === targetAsset);
-    if (matchedWallet && address.trim().length === 0) {
-      setAddress(matchedWallet.address);
-    }
-  }, [asset, network, savedWallets, address]);
-
-  useEffect(() => {
-    if (!message && !error) {
+  const handleChangeNetwork = (nextCryptoType: WithdrawCryptoType) => {
+    if (nextCryptoType === activeCryptoType) {
       return;
     }
-    const timeout = setTimeout(() => {
-      setMessage(null);
-      setError(null);
-    }, 4000);
-    return () => clearTimeout(timeout);
-  }, [message, error]);
+    setCryptoType(nextCryptoType);
+    setAddress("");
+    setAmount("");
+    setConfirmed(false);
+    setFormError(null);
+    resetIdempotency();
+  };
 
-  useEffect(() => {
-    const onDocumentClick = (event: MouseEvent) => {
-      if (!assetMenuRef.current) {
-        return;
-      }
-      if (!assetMenuRef.current.contains(event.target as Node)) {
-        setAssetMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDocumentClick);
-    return () => document.removeEventListener("mousedown", onDocumentClick);
-  }, []);
+  const goNext = () => {
+    setFormError(null);
+    setStep((current) => Math.min(LAST_STEP, current + 1));
+  };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    const trimmed = address.trim();
-    if (!amount || !trimmed) {
+  const goBack = () => {
+    setFormError(null);
+    setStep((current) => Math.max(0, current - 1));
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setFormError(null);
+    if (!option || !currentNetwork) {
+      setFormError("Select a supported asset and network before requesting a withdrawal.");
       return;
     }
-    if (Number(amount) <= 0 || Number(amount) > withdrawableBalance) {
+    if (!eligible) {
+      setFormError("Your account is not currently eligible to withdraw.");
       return;
     }
-    setSubmitting(true);
-    setMessage(null);
-    setError(null);
+    if (!addressValidation.valid) {
+      setFormError(addressValidation.message ?? "Enter a valid destination address.");
+      return;
+    }
+    if (!amountValidation.valid) {
+      setFormError(amountValidation.message ?? "Enter a valid withdrawal amount.");
+      return;
+    }
+    if (limitMessage) {
+      setFormError(limitMessage);
+      return;
+    }
+    if (fees.netAmount <= 0) {
+      setFormError("Fees exceed the requested amount. Increase the amount to continue.");
+      return;
+    }
+    if (!confirmed) {
+      setFormError("Confirm the withdrawal details before submitting.");
+      return;
+    }
+
+    if (!idempotencyRef.current) {
+      idempotencyRef.current = createIdempotencyKey();
+    }
+
     try {
-      const payload: any = { amount: Number(amount) };
-      const resolvedAsset =
-        asset === "USDT" ? (network === "TRC20" ? "USDT_TRC20" : "USDT_ERC20") : asset;
-      payload.asset = resolvedAsset;
-      payload.address = trimmed;
-      payload.network = network || (asset === "USDT" ? "ERC20" : null);
-      const res = await api.post<Withdrawal>("/withdrawals", payload);
-      setMessage("Withdrawal request submitted");
+      const created = await submitWithdrawal({
+        asset: option.cryptoType,
+        network: option.networkType,
+        address: address.trim(),
+        amount: parsedAmount,
+        idempotencyKey: idempotencyRef.current
+      });
+      setLastSubmitted(created);
       setAmount("");
       setAddress("");
-      await Promise.all([loadWithdrawals(), refreshSummary()]);
-      const created = res.data;
-      const merged: Withdrawal = {
-        ...created,
-        asset: resolvedAsset as Withdrawal["asset"],
-        address: trimmed,
-        network: payload.network
-      };
-      setWithdrawals((prev) => [merged, ...prev.filter((w) => w.withdrawal_id !== merged.withdrawal_id)]);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to submit withdrawal");
-    } finally {
-      setSubmitting(false);
+      setConfirmed(false);
+      resetIdempotency();
+      setStep(0);
+    } catch (error) {
+      setFormError(
+        extractMessage(
+          error,
+          "We could not submit your withdrawal. Please review the details and try again."
+        )
+      );
     }
   };
 
-  const levelRequirementMet =
-    userLevel !== null && minLevel !== null ? userLevel >= minLevel : false;
-  const hasWithdrawableBalance = withdrawableBalance > 0;
-  const cooldownCleared = cooldownSeconds === 0;
+  const showSkeleton = loading && !summary;
 
-  const levelProgressPercent = useMemo(() => {
-    if (userLevel === null || minLevel === null || minLevel <= 0) {
-      return 0;
-    }
-    const ratio = Math.min(userLevel / minLevel, 1);
-    return Math.round(ratio * 100);
-  }, [userLevel, minLevel]);
+  const maturityCondition = summary?.maturity.policyInEffect
+    ? `Maturity policy ${summary.maturity.policyVersion}: balances received under it are withdrawable ${summary.maturity.lockupDays} days after the period start. This is a disclosed investment term, and no additional waiting period applies once it elapses.`
+    : "No maturity period applies to your balance.";
 
-  const numericAmount = Number(amount) || 0;
-  const amountExceedsBalance = numericAmount > withdrawableBalance;
-  const isFormValid =
-    canWithdraw &&
-    numericAmount > 0 &&
-    !amountExceedsBalance &&
-    !submitting &&
-    address.trim().length > 0 &&
-    (asset !== "USDT" || network !== null);
+  const processingNote = option
+    ? `Reviewed for security, then broadcast to ${option.networkLabel}. Completion is confirmed after ${confirmations} network confirmation${confirmations === 1 ? "" : "s"}.`
+    : "";
 
-  const tooltipMessage =
-    !levelRequirementMet || !cooldownCleared
-      ? `Withdrawals unlock at Level ${minLevel ?? ""}`
-      : !hasWithdrawableBalance
-      ? "You need withdrawable balance to request a payout"
-      : "";
-
-  const getStatusClass = (status: string) => {
-    if (status === "Approved") {
-      return "border-emerald-500/50 bg-emerald-500/10 text-emerald-300";
-    }
-    if (status === "Rejected") {
-      return "border-[#EA3943]/60 bg-[#EA3943]/10 text-[#FCA5A5]";
-    }
-    return "border-[#C6A15B]/60 bg-[#C6A15B]/10 text-[#F5F5F7]";
-  };
-
-  const formatShortId = (id: string) => {
-    if (!id) {
-      return "—";
-    }
-    if (id.length <= 10) {
-      return id;
-    }
-    return `${id.slice(0, 4)}...${id.slice(-4)}`;
-  };
-
-  const selectedAsset = WITHDRAW_ASSETS.find((entry) => entry.id === asset) ?? WITHDRAW_ASSETS[0];
+  const actionBarClass =
+    "fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-40 bg-[#0F0F10]/95 shadow-[0_-1px_0_0_#26272B] backdrop-blur-md lg:static lg:inset-auto lg:z-auto lg:bg-transparent lg:py-0 lg:shadow-none lg:backdrop-blur-none";
 
   return (
-    <div className="page-responsive borderless-ui space-y-10">
+    <div className="page-responsive borderless-ui min-w-0 space-y-8 pb-16 sm:space-y-10 lg:pb-0">
       <Seo
-        title="Withdraw rewards"
-        description="Request secure withdrawals from your NexaCrypto withdrawable balance. Withdrawals are level-gated and reviewed for security."
+        title="Withdraw funds – secure payouts on supported networks"
+        description="Request withdrawals from your matured balance on supported crypto assets and networks, with transparent maturity terms, fees, and on-chain verification."
         path="/withdraw"
       />
-      <section className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-[#F5F5F7]">
-          Withdraw
-        </h1>
-        <p className="text-sm text-[#9CA3AF]">
-          Review your earnings, check withdrawal eligibility, and submit secure payout requests.
-        </p>
-      </section>
 
-      <section className="space-y-5">
-        <div className="rounded-2xl bg-[#17181A]/40 px-4 py-4 sm:px-5 sm:py-5 space-y-4 backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-2">
-            <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[#9CA3AF]">
-                Balance Overview
-              </p>
-              <p className="text-xs text-[#9CA3AF]">
-                Understand what is pending, what is withdrawable, and what remains locked.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row text-xs">
-            <div className="flex flex-1 items-center justify-between rounded-xl bg-[#0F0F10]/70 px-3 py-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#17181A] text-[#9CA3AF]">
-                  <Hourglass className="h-3.5 w-3.5" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] text-[#9CA3AF]">
-                    Pending Earnings
-                  </span>
-                  <motion.span
-                    key={pendingEarnings}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-sm font-semibold text-[#F5F5F7]"
-                  >
-                    {pendingEarnings.toFixed(4)}
-                  </motion.span>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-1 items-center justify-between rounded-xl bg-[#0F0F10]/70 px-3 py-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F18] text-[#16C784]">
-                  <Wallet className="h-3.5 w-3.5" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] text-[#9CA3AF]">
-                    Withdrawable Balance
-                  </span>
-                  <motion.span
-                    key={withdrawableBalance}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-sm font-semibold text-[#16C784]"
-                  >
-                    {withdrawableBalance.toFixed(4)}
-                  </motion.span>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-1 items-center justify-between rounded-xl bg-[#0F0F10]/70 px-3 py-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#111827] text-[#9CA3AF]">
-                  <Lock className="h-3.5 w-3.5" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] text-[#9CA3AF]">
-                    Locked Balance
-                  </span>
-                  <motion.span
-                    key={lockedBalance}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-sm font-semibold text-[#9CA3AF]"
-                  >
-                    {lockedBalance.toFixed(4)}
-                  </motion.span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <WithdrawPageHeader
+        summary={summary}
+        loading={loading}
+        error={summaryError}
+        busy={loading || historyLoading || submitting}
+        onRefresh={refresh}
+      />
 
-        <div className="rounded-2xl bg-[#17181A]/30 px-4 py-3 sm:px-5 sm:py-4 text-xs text-[#9CA3AF]">
-          <p>
-            Withdrawals are reviewed by the admin team. Once you reach level{" "}
-            <span className="font-medium text-[#F5F5F7]">
-              {minLevel ?? 5}
-            </span>{" "}
-            based on your approved deposits and your cooldown is cleared, you can request payouts from your earnings.
-          </p>
-        </div>
-      </section>
+      {summaryError ? <ErrorRow message={summaryError} onRetry={refresh} /> : null}
 
-      <section className="flex flex-col gap-6 lg:flex-row items-start">
-        <div className="space-y-5 lg:flex-1">
-          <div className="rounded-2xl bg-[#17181A]/40 px-4 py-4 sm:px-5 sm:py-5 space-y-4 backdrop-blur-sm">
-            <div className="flex items-center justify-between gap-2">
-              <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[#9CA3AF]">
-                  Withdrawal Status
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-semibold text-[#F5F5F7]">
-                    Current Level {userLevel ?? "–"}
-                  </span>
-                  {minLevel !== null && (
-                    <span className="text-[11px] text-[#9CA3AF]">
-                      Withdrawals unlock at Level {minLevel}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-[11px] text-[#9CA3AF]">
-                Progress to withdrawal unlock
-              </p>
-              <div className="h-2 rounded-full bg-[#2A2B2E] overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{
-                    backgroundImage: "linear-gradient(90deg,#C6A15B,#F4D48A)"
-                  }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${levelProgressPercent}%` }}
-                  transition={{ type: "spring", stiffness: 120, damping: 20 }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-[#9CA3AF]">
-                <span>
-                  Level {userLevel ?? "–"} / Level {minLevel ?? "–"}
-                </span>
-                {cooldownSeconds > 0 && (
-                  <span>
-                    Cooldown:{" "}
-                    {Math.ceil(cooldownSeconds / 3600)}
-                    h remaining
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+      {showSkeleton ? (
+        <WithdrawLoadingSkeleton />
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start">
+          <div className="min-w-0 space-y-6">
+            <WithdrawEligibilityPanel summary={summary} loading={loading} />
 
-          <div className="rounded-2xl bg-[#17181A] px-4 py-4 sm:px-5 sm:py-5 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-[#F5F5F7]">
-                  Withdrawal Eligibility
-                </p>
-                <p className="text-[11px] text-[#9CA3AF]">
-                  All conditions must be met before payouts can be requested.
-                </p>
-              </div>
+            <div className="min-w-0">
+              <WithdrawStepper steps={steps} />
             </div>
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between rounded-xl bg-[#0F0F10]/80 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  {levelRequirementMet ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                  ) : (
-                    <Circle className="h-4 w-4 text-[#4B5563]" />
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-[11px] text-[#F5F5F7]">
-                      Level {minLevel ?? "5"} or higher
-                    </span>
-                    <span className="text-[11px] text-[#9CA3AF]">
-                      Based on your total approved deposits.
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-[#0F0F10]/80 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  {hasWithdrawableBalance ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                  ) : (
-                    <Circle className="h-4 w-4 text-[#4B5563]" />
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-[11px] text-[#F5F5F7]">
-                      Withdrawable balance available
-                    </span>
-                    <span className="text-[11px] text-[#9CA3AF]">
-                      You can only request up to your withdrawable balance.
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-[#0F0F10]/80 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  {cooldownCleared ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                  ) : (
-                    <Circle className="h-4 w-4 text-[#4B5563]" />
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-[11px] text-[#F5F5F7]">
-                      Cooldown cleared
-                    </span>
-                    <span className="text-[11px] text-[#9CA3AF]">
-                      A short cooldown protects the platform from abusive behavior.
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p className="text-[11px] text-[#9CA3AF]">
-              These safeguards protect both you and the platform while keeping rewards fair and sustainable.
-            </p>
-          </div>
-        </div>
 
-        <div className="space-y-5 lg:flex-1">
-          <form
-            onSubmit={handleSubmit}
-            className="rounded-2xl bg-[#17181A]/40 px-4 py-4 sm:px-5 sm:py-5 space-y-4 backdrop-blur-sm"
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-[#F5F5F7]">
-                    Withdrawal Request Form
-                  </p>
-                  <p className="text-[11px] text-[#9CA3AF]">
-                    Specify how much you want to withdraw from your available balance.
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-[#9CA3AF]" htmlFor="asset-trigger">
-                    Asset
-                  </label>
-                  <div className="relative" ref={assetMenuRef}>
-                    <button
-                      id="asset-trigger"
-                      type="button"
-                      onClick={() => setAssetMenuOpen((prev) => !prev)}
-                      className="flex w-full items-center justify-between rounded-xl bg-[#0F0F10] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A15B]/60"
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <img src={selectedAsset.icon} alt={selectedAsset.name} className="h-5 w-5" loading="lazy" />
-                        <span>{selectedAsset.name} ({selectedAsset.id})</span>
-                      </span>
-                      <ChevronDown className={`h-4 w-4 text-[#9CA3AF] transition-transform ${assetMenuOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    <AnimatePresence>
-                      {assetMenuOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 6 }}
-                          className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-[#26272B] bg-[#0F0F10] shadow-[0_18px_35px_rgba(0,0,0,0.6)]"
-                        >
-                          {WITHDRAW_ASSETS.map((entry) => (
-                            <button
-                              key={entry.id}
-                              type="button"
-                              onClick={() => {
-                                setAsset(entry.id);
-                                if (entry.id !== "USDT") {
-                                  setNetwork(null);
-                                } else if (network === null) {
-                                  setNetwork("ERC20");
-                                }
-                                setAssetMenuOpen(false);
-                              }}
-                              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm text-[#F5F5F7] transition-colors hover:bg-[#17181A]"
-                            >
-                              <span className="flex items-center gap-2.5">
-                                <img src={entry.icon} alt={entry.name} className="h-5 w-5" loading="lazy" />
-                                <span>{entry.name} ({entry.id})</span>
-                              </span>
-                              {asset === entry.id && <Check className="h-4 w-4 text-[#C6A15B]" />}
-                            </button>
-                          ))}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-                {asset === "USDT" && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-[#9CA3AF]" htmlFor="network">
-                      Network
-                    </label>
-                    <select
-                      id="network"
-                      value={network || ""}
-                      onChange={(e) =>
-                        setNetwork((e.target.value as UsdtNetwork) || "ERC20")
-                      }
-                      className="w-full rounded-xl bg-[#0F0F10] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A15B]/60 focus:border-transparent"
-                    >
-                      <option value="ERC20">Ethereum (ERC20)</option>
-                      <option value="TRC20">Tron (TRC20)</option>
-                    </select>
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  <label className="text-xs text-[#9CA3AF]" htmlFor="dest-address">
-                    Withdrawal Wallet Address
-                  </label>
-                  <input
-                    id="dest-address"
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                    className="w-full rounded-xl bg-[#0F0F10] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A15B]/60 focus:border-transparent"
-                    placeholder="Enter your wallet address"
+            <form onSubmit={handleSubmit} className="min-w-0 space-y-6">
+              {step === 0 ? (
+                <Panel className="space-y-4">
+                  <SectionHeader
+                    eyebrow="Step 1 of 6"
+                    title="Select asset"
+                    description="Only assets supported by the platform are listed. Your withdrawal is settled in the asset you choose."
                   />
-                  <p className="text-[11px] text-[#9CA3AF]">
-                    Ensure the wallet address matches the selected asset network. Incorrect addresses may result in permanent loss of funds.
+                  <WithdrawAssetSelector
+                    assets={assets}
+                    value={activeSymbol}
+                    onSelect={handleSelectSymbol}
+                    disabled={submitting}
+                  />
+                  <p className="text-[11px] text-[#6B7280]">
+                    Available to withdraw: {maskValue(hidden, formatUsd(availableBalance))}. Validated
+                    against the authoritative ledger when you submit.
                   </p>
-                </div>
-                <label
-                  className="flex items-center justify-between text-xs text-[#9CA3AF]"
-                  htmlFor="withdraw-amount"
-                >
-                  <span>Amount to withdraw</span>
-                  <span className="text-[11px] text-[#9CA3AF]">
-                    Max: {withdrawableBalance.toFixed(4)}
-                  </span>
-                </label>
-                <div className="relative">
-                  <input
-                    id="withdraw-amount"
-                    type="number"
-                    min="0"
-                    step="0.0001"
+                </Panel>
+              ) : null}
+
+              {step === 1 ? (
+                <Panel className="space-y-5">
+                  <SectionHeader
+                    eyebrow="Step 2 of 6"
+                    title="Select supported network"
+                    description="Use the network that matches your destination wallet. Sending on the wrong network can permanently lose funds."
+                  />
+                  <WithdrawNetworkSelector
+                    networks={networks}
+                    value={activeCryptoType}
+                    onChange={handleChangeNetwork}
+                    disabled={submitting}
+                  />
+                </Panel>
+              ) : null}
+
+              {step === 2 && option ? (
+                <Panel className="space-y-5">
+                  <SectionHeader
+                    eyebrow="Step 3 of 6"
+                    title="Enter amount"
+                    description="Amounts are checked against your available matured balance and the per-network limits."
+                  />
+                  <WithdrawAmountInput
+                    option={option}
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                    className="w-full rounded-xl bg-[#0F0F10] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6A15B]/60 focus:border-transparent"
-                    placeholder="Enter withdrawal amount"
+                    onChange={(next) => {
+                      setAmount(next);
+                      setConfirmed(false);
+                      setFormError(null);
+                      resetIdempotency();
+                    }}
+                    validation={amountValidation}
+                    disabled={submitting}
+                    availableBalance={availableBalance}
+                    networkFee={currentNetwork?.networkFee ?? 0}
+                    platformFeePercent={summary?.platform_fee_percent ?? 0}
+                    minAmount={minAmount}
+                    maxAmount={maxAmount}
+                    limitMessage={limitMessage}
                   />
-                </div>
-                <p className="text-[11px] text-[#9CA3AF]">
-                  Withdrawals must be less than or equal to your withdrawable balance.
-                </p>
-                {amountExceedsBalance && (
-                  <p className="text-[11px] text-[#EA3943]">
-                    Amount exceeds your withdrawable balance.
-                  </p>
-                )}
-              </div>
-            </div>
+                </Panel>
+              ) : null}
 
-            {message && (
-              <div className="rounded-xl bg-[#071A14] px-3 py-2 text-xs text-[#A7F3D0]">
-                {message}
-              </div>
-            )}
-            {error && (
-              <div className="rounded-xl bg-[#1F1214] px-3 py-2 text-xs text-[#FCA5A5]">
-                {error}
-              </div>
-            )}
+              {step === 3 && option ? (
+                <Panel className="space-y-5">
+                  <SectionHeader
+                    eyebrow="Step 4 of 6"
+                    title="Enter destination wallet address"
+                    description={`The address must match ${option.networkLabel}. Withdrawals cannot be reversed once broadcast.`}
+                  />
+                  <WithdrawDestinationInput
+                    option={option}
+                    value={address}
+                    onChange={(next) => {
+                      setAddress(next);
+                      setConfirmed(false);
+                      setFormError(null);
+                      resetIdempotency();
+                    }}
+                    validation={addressValidation}
+                    disabled={submitting}
+                  />
+                </Panel>
+              ) : null}
 
-            <button
-              type="submit"
-              disabled={!isFormValid}
-              title={!isFormValid && tooltipMessage ? tooltipMessage : undefined}
-              className="mt-1 inline-flex w-full items-center justify-center rounded-xl bg-[#C6A15B] px-4 py-3 text-sm font-medium text-[#0F0F10] shadow-[0_0_0_1px_rgba(0,0,0,0.85)] transition-transform transition-shadow hover:-translate-y-[1px] hover:shadow-[0_0_24px_rgba(198,161,91,0.55)] disabled:translate-y-0 disabled:opacity-60 disabled:hover:shadow-none"
-            >
-              {submitting ? "Submitting..." : "Request Withdrawal"}
-            </button>
-          </form>
+              {step === 4 && option ? (
+                <Panel className="space-y-5">
+                  <SectionHeader
+                    eyebrow="Step 5 of 6"
+                    title="Review fees and net amount"
+                    description="Confirm the applicable fees, processing detail and the net amount you will receive before you commit."
+                  />
+                  <WithdrawReviewStep
+                    option={option}
+                    address={address.trim()}
+                    amount={amountValidation.valid ? parsedAmount : 0}
+                    fees={fees}
+                    maturityCondition={maturityCondition}
+                    processingNote={processingNote}
+                  />
+                </Panel>
+              ) : null}
 
-          <div className="rounded-2xl bg-[#17181A] px-4 py-4 sm:px-5 sm:py-5 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium text-[#F5F5F7]">
-                  Recent Withdrawals
-                </p>
-                <p className="text-[11px] text-[#9CA3AF]">
-                  Track the status of your withdrawal requests in one place.
-                </p>
-              </div>
-            </div>
-            <div className="mt-2 max-h-64 overflow-y-auto pr-1 text-xs">
-              {withdrawals.length === 0 && !loadingSummary && (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-xl bg-[#0F0F10] px-4 py-6 text-center">
-                  <p className="text-xs font-medium text-[#F5F5F7]">
-                    Your withdrawal history will appear here once you request your first payout.
-                  </p>
-                </div>
-              )}
-              {withdrawals.length > 0 && (
-                <div className="space-y-1 overflow-x-auto">
-                  <div className="min-w-[620px]">
-                    <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)] gap-2 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[#9CA3AF]">
-                      <span>Date</span>
-                      <span>Amount</span>
-                      <span>Status</span>
-                      <span>Transaction</span>
-                    </div>
-                    <div className="divide-y divide-[#26272B]/50">
-                      {withdrawals.map((w) => (
-                        <div
-                          key={w.withdrawal_id}
-                          className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)] gap-2 px-2 py-2.5 text-xs text-[#F5F5F7] transition-colors hover:bg-[#111827]"
-                        >
-                          <div className="flex flex-col text-[11px] text-[#9CA3AF]">
-                            <span>
-                              {new Date(w.timestamp).toLocaleDateString(undefined, {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric"
-                              })}
-                            </span>
-                            <span>{new Date(w.timestamp).toLocaleTimeString()}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <span>
-                              {w.amount.toFixed(4)}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <span
-                              className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] ${getStatusClass(
-                                w.status
-                              )}`}
-                            >
-                              {w.status}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <span className="font-mono text-[11px] text-[#9CA3AF]">
-                              {formatShortId(w.withdrawal_id)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+              {step === 5 && option ? (
+                <Panel className="space-y-5">
+                  <SectionHeader
+                    eyebrow="Step 6 of 6"
+                    title="Confirm withdrawal"
+                    description={`You will receive ${formatNumber(fees.netAmount, option.decimals)} ${option.symbolLabel} on ${option.networkLabel}.`}
+                  />
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-[#0F0F10] px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={confirmed}
+                      disabled={submitting}
+                      onChange={(event) => {
+                        setConfirmed(event.target.checked);
+                        setFormError(null);
+                      }}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[#C6A15B]"
+                    />
+                    <span className="text-[11px] leading-relaxed text-[#9CA3AF]">
+                      I have verified the destination address, fees and net amount, and I authorize
+                      this withdrawal.
+                    </span>
+                  </label>
+                  {!eligible ? (
+                    <ErrorRow message="Your account is not currently eligible to submit a withdrawal." />
+                  ) : null}
+                </Panel>
+              ) : null}
+
+              {formError ? <ErrorRow message={formError} /> : null}
+
+              {lastSubmitted ? (
+                <div className="flex gap-2 rounded-xl bg-[#16C784]/10 px-3 py-3">
+                  <SolidCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#16C784]" />
+                  <div className="min-w-0 space-y-0.5 text-[11px]">
+                    <p className="font-medium text-[#F5F5F7]">
+                      Withdrawal request received ·{" "}
+                      {withdrawalReference(lastSubmitted.withdrawal_id)}
+                    </p>
+                    <p className="text-[#9CA3AF]">
+                      The amount is reserved from your matured balance and released automatically if
+                      the request is rejected or fails. Completion is only confirmed on-chain.
+                    </p>
                   </div>
                 </div>
-              )}
-            </div>
+              ) : null}
+
+              <div className={actionBarClass}>
+                <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:px-0 lg:py-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={goBack}
+                      disabled={step === 0 || submitting}
+                      className="btn btn-secondary btn-md"
+                    >
+                      Back
+                    </button>
+                    <span className="text-[11px] text-[#6B7280]">
+                      Step {step + 1} of {steps.length}
+                    </span>
+                  </div>
+
+                  {step < LAST_STEP ? (
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      disabled={!canContinue || submitting}
+                      className="btn btn-primary btn-md"
+                    >
+                      Continue
+                      <SolidArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  ) : (
+                    <button type="submit" disabled={!canSubmit} className="btn btn-primary btn-md">
+                      {submitting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <SolidCheck className="h-3.5 w-3.5" />
+                      )}
+                      {submitting ? "Submitting…" : "Confirm withdrawal"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div className="min-w-0 space-y-6">
+            <MaturityPolicyCard maturity={summary?.maturity ?? null} loading={loading} />
+            <WithdrawProcessingTimeline />
+            {lastSubmitted ? <WithdrawalDetailStatus withdrawal={lastSubmitted} /> : null}
           </div>
         </div>
-      </section>
+      )}
 
-      <AnimatePresence>
-        {(message || error) && (
-          <motion.div
-            className="fixed bottom-24 right-4 z-40 max-w-xs rounded-2xl border px-3 py-2 text-xs shadow-lg bg-[#0F0F10]"
-            initial={{ opacity: 0, y: 10, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.96 }}
-          >
-            <div
-              className={
-                error
-                  ? "border-[#EA3943]/60 bg-[#1F1214] text-[#FCA5A5]"
-                  : "border-[#16C784]/60 bg-[#071A14] text-[#A7F3D0]"
-              }
-            >
-              <div className="px-2 py-1.5">
-                <p>{error || message}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <WithdrawalHistory
+        withdrawals={withdrawals}
+        loading={historyLoading}
+        error={historyError}
+        onRetry={refreshHistory}
+      />
     </div>
   );
 }
-

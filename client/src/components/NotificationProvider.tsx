@@ -10,10 +10,10 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 import { AnimatePresence, motion, PanInfo } from "framer-motion";
+import { X } from "lucide-react";
 import type { RootState } from "../store";
 import { api } from "../utils/api";
 import { getRealtimeSocket, SocialProofEvent } from "../utils/realtime";
-import type { ActivityEvent } from "../data/activityFeed";
 
 export interface NotificationItem {
   notification_id: string;
@@ -30,9 +30,6 @@ interface NotificationContextValue {
   panelNotifications: NotificationItem[];
   unreadCount: number;
   markAllRead: () => void;
-  pushActivityNotification: (title: string, body: string) => void;
-  activityEvents: ActivityEvent[];
-  pushActivityEvent: (event: ActivityEvent) => void;
 }
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(
@@ -52,7 +49,6 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     []
   );
   const [unreadCount, setUnreadCount] = useState(0);
-  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const dismissedIdsRef = useRef<Set<string>>(new Set());
   const generatedCycleKeysRef = useRef<Set<string>>(new Set());
@@ -144,7 +140,6 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       setSocialEvent(null);
       setPanelNotifications([]);
       setUnreadCount(0);
-      setActivityEvents([]);
       seenIdsRef.current = new Set();
       dismissedIdsRef.current = new Set();
       generatedCycleKeysRef.current = new Set();
@@ -386,28 +381,6 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     setUnreadCount(0);
   };
 
-  const pushActivityNotification = (title: string, body: string) => {
-    const now = new Date().toISOString();
-    const id = `activity-${now}-${Math.random().toString(36).slice(2, 8)}`;
-    const item: NotificationItem = {
-      notification_id: id,
-      type: title,
-      message: body,
-      timestamp: now
-    };
-    queueNotification(item, `activity:${title}:${body}`);
-  };
-
-  const pushActivityEvent = (event: ActivityEvent) => {
-    setActivityEvents((prev) => {
-      const exists = prev.some((e) => e.id === event.id);
-      if (exists) {
-        return prev;
-      }
-      return [...prev, event];
-    });
-  };
-
   const value: NotificationContextValue = useMemo(
     () => ({
       toastQueue,
@@ -416,18 +389,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       setSocialEvent,
       panelNotifications,
       unreadCount,
-      markAllRead,
-      pushActivityNotification,
-      activityEvents,
-      pushActivityEvent
+      markAllRead
     }),
-    [
-      toastQueue,
-      socialEvent,
-      panelNotifications,
-      unreadCount,
-      activityEvents
-    ]
+    [toastQueue, socialEvent, panelNotifications, unreadCount]
   );
 
   return (
@@ -483,7 +447,7 @@ export function NotificationToasts() {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 top-4 z-40 flex justify-center">
+      <div className="pointer-events-none fixed inset-x-0 top-[4.5rem] z-40 flex justify-center px-4">
         <AnimatePresence>
           {active && (
             <motion.div
@@ -498,25 +462,25 @@ export function NotificationToasts() {
               onHoverEnd={() => setIsPaused(false)}
               onTouchStart={() => setIsPaused(true)}
               onTouchEnd={() => setIsPaused(false)}
-              className="pointer-events-auto mx-4 w-full max-w-sm rounded-xl border border-slate-800 bg-slate-900/95 px-4 py-3 text-xs shadow-xl"
+              className="card pointer-events-auto w-full max-w-sm px-4 py-3 text-xs shadow-xl"
             >
               <div className="mb-1 flex items-center justify-between gap-3">
-                <div className="font-medium text-slate-100">{getNotificationTitle(active.type)}</div>
+                <div className="font-medium text-[#F5F5F7]">{getNotificationTitle(active.type)}</div>
                 <button
                   type="button"
                   onClick={dismiss}
-                  className="rounded-full px-1 text-slate-400 transition-colors hover:text-slate-100"
+                  className="-mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[#9CA3AF] transition-colors hover:bg-[#1F2023] hover:text-[#F5F5F7]"
                   aria-label="Dismiss notification"
                 >
-                  x
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="text-slate-300">{active.message}</div>
+              <div className="text-[#9CA3AF]">{active.message}</div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 flex justify-center px-4 lg:bottom-4">
         <AnimatePresence>
           {socialEvent && (
             <motion.div
@@ -524,7 +488,7 @@ export function NotificationToasts() {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="pointer-events-none mx-4 w-full max-w-md rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-center text-xs text-emerald-200 shadow-lg"
+              className="pointer-events-none w-full max-w-md rounded-full bg-[#16C784]/12 px-4 py-2 text-center text-xs text-[#16C784] shadow-lg ring-1 ring-inset ring-[#16C784]/30"
             >
               {socialEvent.message}
             </motion.div>

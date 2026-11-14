@@ -40,7 +40,11 @@ function defaultAccountSettings() {
             deposit_updates: true,
             withdrawal_updates: true,
             rewards_bonuses: true,
-            announcements: true
+            announcements: true,
+            daily_performance: false,
+            significant_moves: false,
+            distributions: false,
+            strategy_announcements: false
         },
         preferences: {
             language: "en"
@@ -70,7 +74,19 @@ function normalizeSettings(raw) {
                 : base.notifications.rewards_bonuses,
             announcements: typeof notifications.announcements === "boolean"
                 ? notifications.announcements
-                : base.notifications.announcements
+                : base.notifications.announcements,
+            daily_performance: typeof notifications.daily_performance === "boolean"
+                ? notifications.daily_performance
+                : base.notifications.daily_performance,
+            significant_moves: typeof notifications.significant_moves === "boolean"
+                ? notifications.significant_moves
+                : base.notifications.significant_moves,
+            distributions: typeof notifications.distributions === "boolean"
+                ? notifications.distributions
+                : base.notifications.distributions,
+            strategy_announcements: typeof notifications.strategy_announcements === "boolean"
+                ? notifications.strategy_announcements
+                : base.notifications.strategy_announcements
         },
         preferences: {
             language: typeof preferences.language === "string" && ALLOWED_LANGUAGES.has(preferences.language)
@@ -290,7 +306,7 @@ async function updateNotificationSettings(req, res) {
         res.status(401).json({ message: "Unauthorized" });
         return;
     }
-    const { deposit_updates, withdrawal_updates, rewards_bonuses, announcements } = req.body;
+    const body = req.body;
     try {
         const user = await User_1.User.findByPk(req.user.userId);
         if (!user) {
@@ -299,10 +315,14 @@ async function updateNotificationSettings(req, res) {
         }
         const settings = normalizeSettings(user.account_settings);
         settings.notifications = {
-            deposit_updates: Boolean(deposit_updates),
-            withdrawal_updates: Boolean(withdrawal_updates),
-            rewards_bonuses: Boolean(rewards_bonuses),
-            announcements: Boolean(announcements)
+            deposit_updates: typeof body.deposit_updates === "boolean" ? body.deposit_updates : settings.notifications.deposit_updates,
+            withdrawal_updates: typeof body.withdrawal_updates === "boolean" ? body.withdrawal_updates : settings.notifications.withdrawal_updates,
+            rewards_bonuses: typeof body.rewards_bonuses === "boolean" ? body.rewards_bonuses : settings.notifications.rewards_bonuses,
+            announcements: typeof body.announcements === "boolean" ? body.announcements : settings.notifications.announcements,
+            daily_performance: typeof body.daily_performance === "boolean" ? body.daily_performance : settings.notifications.daily_performance,
+            significant_moves: typeof body.significant_moves === "boolean" ? body.significant_moves : settings.notifications.significant_moves,
+            distributions: typeof body.distributions === "boolean" ? body.distributions : settings.notifications.distributions,
+            strategy_announcements: typeof body.strategy_announcements === "boolean" ? body.strategy_announcements : settings.notifications.strategy_announcements
         };
         user.account_settings = settings;
         await user.save();

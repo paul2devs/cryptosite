@@ -18,8 +18,13 @@ import bonusRoutes from "./routes/bonusRoutes";
 import aiRoutes from "./routes/aiRoutes";
 import referralRoutes from "./routes/referralRoutes";
 import adminAuthRoutes from "./routes/adminAuthRoutes";
+import operationsRoutes from "./routes/operationsRoutes";
+import { ensureDefaultMembershipBenefits, ensureDefaultMembershipTiers } from "./services/membershipService";
+import { ensureDefaultInvestmentLevelBenefits, ensureDefaultInvestmentLevels } from "./services/investmentLevelService";
 import { ensureDefaultLevels } from "./services/gamificationService";
 import { ensureAdminAccount } from "./services/adminBootstrapService";
+import { ensureDefaultBonusCampaign } from "./services/bonusEngineService";
+import { ensurePlatformSettings } from "./services/platformSettingsService";
 import "./models";
 
 const app = express();
@@ -86,6 +91,7 @@ app.use("/api/bonuses", bonusRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/admin_auth", adminAuthRoutes);
+app.use("/api/operations", operationsRoutes);
 
 app.use((req, res, next) => {
   if (res.headersSent) {
@@ -113,6 +119,12 @@ export async function startApp(): Promise<void> {
   validateCoreEnv();
   await initDatabase();
   await ensureDefaultLevels();
+  await ensureDefaultMembershipTiers();
+  await ensureDefaultMembershipBenefits();
+  await ensureDefaultInvestmentLevels();
+  await ensureDefaultInvestmentLevelBenefits();
+  await ensurePlatformSettings();
+  await ensureDefaultBonusCampaign();
   await ensureAdminAccount();
 }
 

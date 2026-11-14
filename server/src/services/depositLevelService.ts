@@ -1,6 +1,8 @@
-import { Deposit } from "../models/Deposit";
+import { formatDecimal, parseDecimal } from "../domain/money";
+import { InvestmentLevelRange, nextLevelAfter, qualifyLevel } from "../domain/investmentLevelRules";
+import { InvestmentLevel } from "../models/InvestmentLevel";
 import { User } from "../models/User";
-import { getAllMarketPrices } from "./marketDataService";
+import { calculateQualifyingInvestment } from "./investmentLevelService";
 
 export interface DepositLevelStats {
   totalDepositedUsd: number;
@@ -11,88 +13,53 @@ export interface DepositLevelStats {
   remainingToNext: number | null;
 }
 
-const LEVEL_THRESHOLDS: Array<{ level: number; requiredTotal: number }> = [
-  { level: 1, requiredTotal: 1000 },
-  { level: 2, requiredTotal: 3000 },
-  { level: 3, requiredTotal: 5000 },
-  { level: 4, requiredTotal: 7000 },
-  { level: 5, requiredTotal: 10000 },
-  { level: 6, requiredTotal: 12000 },
-  { level: 7, requiredTotal: 15000 },
-  { level: 8, requiredTotal: 18000 },
-  { level: 9, requiredTotal: 22000 },
-  { level: 10, requiredTotal: 25000 }
-];
-
-function mapCryptoTypeToSymbol(cryptoType: string): "BTC" | "ETH" | "SOL" | "USDT" | null {
-  if (cryptoType === "BTC" || cryptoType === "ETH" || cryptoType === "SOL") {
-    return cryptoType;
-  }
-  if (cryptoType === "ERC20" || cryptoType === "TRC20") {
-    return "USDT";
-  }
-  return null;
+function toRange(level: InvestmentLevel): InvestmentLevelRange {
+  return {
+    id: level.level_config_id,
+    levelNumber: level.level_number,
+    thresholdCents: parseDecimal(String(level.qualification_threshold), 2),
+    active: level.active,
+    sortOrder: level.sort_order
+  };
 }
 
-export function getDepositLevelDetailsFromTotal(totalUsd: number): DepositLevelStats {
-  let level = 0;
-  let currentLevelRequiredTotal = 0;
-  let nextLevel: number | null = null;
-  let nextLevelRequiredTotal: number | null = null;
+function toNumber(value: string): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
-  for (const entry of LEVEL_THRESHOLDS) {
-    if (totalUsd >= entry.requiredTotal) {
-      level = entry.level;
-      currentLevelRequiredTotal = entry.requiredTotal;
-    } else {
-      nextLevel = entry.level;
-      nextLevelRequiredTotal = entry.requiredTotal;
-      break;
-    }
-  }
-
-  let remainingToNext: number | null = null;
-  if (nextLevelRequiredTotal !== null) {
-    const diff = nextLevelRequiredTotal - totalUsd;
-    remainingToNext = diff > 0 ? diff : 0;
-  }
+export function getDepositLevelDetailsFromTotal(
+  totalUsd: number,
+  levels: InvestmentLevelRange[]
+): DepositLevelStats {
+  const safeTotal = Number.isFinite(totalUsd) && totalUsd > 0 ? totalUsd : 0;
+  const amountCents = parseDecimal(safeTotal.toFixed(2), 2);
+  const qualified = qualifyLevel(amountCents, levels);
+  const next = nextLevelAfter(qualified ? qualified.levelNumber : null, levels);
+  const nextRequiredTotal = next ? toNumber(formatDecimal(next.thresholdCents, 2)) : null;
+  const remainingToNext = next
+    ? Math.max(0, toNumber(formatDecimal(next.thresholdCents - amountCents, 2)))
+    : null;
 
   return {
-    totalDepositedUsd: totalUsd,
-    level,
-    currentLevelRequiredTotal,
-    nextLevel,
-    nextLevelRequiredTotal,
+    totalDepositedUsd: safeTotal,
+    level: qualified ? qualified.levelNumber : 0,
+    currentLevelRequiredTotal: qualified ? toNumber(formatDecimal(qualified.thresholdCents, 2)) : 0,
+    nextLevel: next ? next.levelNumber : null,
+    nextLevelRequiredTotal: nextRequiredTotal,
     remainingToNext
   };
 }
 
 export async function calculateDepositLevelForUser(userId: string): Promise<DepositLevelStats> {
-  const [deposits, prices] = await Promise.all([
-    Deposit.findAll({
-      where: {
-        user_id: userId,
-        status: "Approved"
-      }
-    }),
-    getAllMarketPrices()
+  const [qualification, levels] = await Promise.all([
+    calculateQualifyingInvestment(userId),
+    InvestmentLevel.findAll({ order: [["level_number", "ASC"]] })
   ]);
-
-  let totalUsd = 0;
-
-  for (const deposit of deposits) {
-    const symbol = mapCryptoTypeToSymbol(deposit.crypto_type);
-    if (!symbol) {
-      continue;
-    }
-    const pricePoint = prices[symbol];
-    if (!pricePoint || !Number.isFinite(pricePoint.price)) {
-      continue;
-    }
-    totalUsd += deposit.amount * pricePoint.price;
-  }
-
-  return getDepositLevelDetailsFromTotal(totalUsd);
+  const ranges = levels.map(toRange);
+  const totalUsd =
+    qualification.complete && qualification.amount !== null ? toNumber(qualification.amount) : 0;
+  return getDepositLevelDetailsFromTotal(totalUsd, ranges);
 }
 
 export async function refreshUserDepositLevel(user: User): Promise<DepositLevelStats> {
@@ -101,4 +68,3 @@ export async function refreshUserDepositLevel(user: User): Promise<DepositLevelS
   await user.save();
   return stats;
 }
-

@@ -33,6 +33,9 @@ export async function initDatabase(): Promise<void> {
     const shouldAlter = String(process.env.DB_SYNC_ALTER || "").toLowerCase() === "true";
     await sequelize.sync({ alter: shouldAlter });
     await reconcileUsersSchema();
+    await reconcileWithdrawalsSchema();
+    await reconcileMembershipSchema();
+    await reconcileInvestmentLevelSchema();
     dbOk = true;
     dbError = null;
     // eslint-disable-next-line no-console
@@ -106,6 +109,137 @@ async function reconcileUsersSchema(): Promise<void> {
       type: DataTypes.DATE,
       allowNull: true,
       defaultValue: null
+    });
+  }
+}
+
+async function reconcileWithdrawalsSchema(): Promise<void> {
+  const queryInterface = sequelize.getQueryInterface();
+  let definition: Record<string, unknown>;
+  try {
+    definition = await queryInterface.describeTable("withdrawals");
+  } catch {
+    return;
+  }
+
+  if (!("idempotency_key" in definition)) {
+    await queryInterface.addColumn("withdrawals", "idempotency_key", {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null
+    });
+    try {
+      await queryInterface.addIndex("withdrawals", ["idempotency_key"], {
+        unique: true,
+        name: "withdrawals_idempotency_key_unique"
+      });
+    } catch {
+      // The unique index already exists or the parallel sync created it.
+    }
+  }
+}
+
+async function reconcileMembershipSchema(): Promise<void> {
+  const queryInterface = sequelize.getQueryInterface();
+  let membershipColumns: Record<string, unknown>;
+  let historyColumns: Record<string, unknown>;
+  try {
+    membershipColumns = await queryInterface.describeTable("user_memberships");
+    historyColumns = await queryInterface.describeTable("membership_histories");
+  } catch {
+    return;
+  }
+
+  if (!("manual_tier_id" in membershipColumns)) {
+    await queryInterface.addColumn("user_memberships", "manual_tier_id", {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("manual_reason" in membershipColumns)) {
+    await queryInterface.addColumn("user_memberships", "manual_reason", {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("manual_set_at" in membershipColumns)) {
+    await queryInterface.addColumn("user_memberships", "manual_set_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("source" in historyColumns)) {
+    await queryInterface.addColumn("membership_histories", "source", {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "automatic"
+    });
+  }
+  if (!("actor_admin_id" in historyColumns)) {
+    await queryInterface.addColumn("membership_histories", "actor_admin_id", {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+}
+
+async function reconcileInvestmentLevelSchema(): Promise<void> {
+  const queryInterface = sequelize.getQueryInterface();
+  let userLevelColumns: Record<string, unknown>;
+  let historyColumns: Record<string, unknown>;
+  let benefitColumns: Record<string, unknown>;
+  try {
+    userLevelColumns = await queryInterface.describeTable("user_investment_levels");
+    historyColumns = await queryInterface.describeTable("investment_level_histories");
+    benefitColumns = await queryInterface.describeTable("investment_level_benefits");
+  } catch {
+    return;
+  }
+
+  if (!("manual_level_id" in userLevelColumns)) {
+    await queryInterface.addColumn("user_investment_levels", "manual_level_id", {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("manual_reason" in userLevelColumns)) {
+    await queryInterface.addColumn("user_investment_levels", "manual_reason", {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("manual_set_at" in userLevelColumns)) {
+    await queryInterface.addColumn("user_investment_levels", "manual_set_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("source" in historyColumns)) {
+    await queryInterface.addColumn("investment_level_histories", "source", {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "automatic"
+    });
+  }
+  if (!("actor_admin_id" in historyColumns)) {
+    await queryInterface.addColumn("investment_level_histories", "actor_admin_id", {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("category" in benefitColumns)) {
+    await queryInterface.addColumn("investment_level_benefits", "category", {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "tools"
     });
   }
 }

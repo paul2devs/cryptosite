@@ -6,6 +6,7 @@ import { scheduleMarketDataRefresh } from "./cron/marketData";
 import { scheduleBonusWatcher } from "./cron/bonusScheduler";
 import { scheduleMarketAlerts } from "./cron/marketAlerts";
 import { scheduleEarningsEngine } from "./cron/earningsEngine";
+import { schedulePerformanceEngine } from "./cron/performanceEngine";
 import { scheduleMultiplierWatcher } from "./cron/multiplierWatcher";
 import { scheduleRetentionEngine } from "./cron/retention";
 import { initSocketServer } from "./realtime/socket";
@@ -25,6 +26,7 @@ startApp()
     scheduleBonusWatcher();
     scheduleMarketAlerts();
     scheduleEarningsEngine();
+    schedulePerformanceEngine();
     scheduleMultiplierWatcher();
     scheduleRetentionEngine();
     scheduleBonusOptimization();

@@ -41,7 +41,11 @@ router.patch(
     body("deposit_updates").isBoolean(),
     body("withdrawal_updates").isBoolean(),
     body("rewards_bonuses").isBoolean(),
-    body("announcements").isBoolean()
+    body("announcements").isBoolean(),
+    body("daily_performance").optional().isBoolean(),
+    body("significant_moves").optional().isBoolean(),
+    body("distributions").optional().isBoolean(),
+    body("strategy_announcements").optional().isBoolean()
   ],
   updateNotificationSettings
 );

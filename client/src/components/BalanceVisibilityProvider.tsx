@@ -54,7 +54,12 @@ export function BalanceToggle({ className }: { className?: string }) {
       type="button"
       onClick={toggle}
       aria-label={hidden ? "Show balances" : "Hide balances"}
-      className={className || "inline-flex items-center justify-center rounded-full border border-[#26272B] bg-[#17181A] p-1.5 text-[#9CA3AF] hover:text-[#F5F5F7]"}
+      aria-pressed={hidden}
+      title={hidden ? "Show balances" : "Hide balances"}
+      className={
+        className ||
+        "inline-flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full text-[#6B7280] transition-colors hover:bg-[#17181A] hover:text-[#F5F5F7] sm:h-8 sm:w-8"
+      }
     >
       {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
     </button>

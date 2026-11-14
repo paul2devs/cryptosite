@@ -30,6 +30,11 @@ Deposit.init({
         allowNull: true,
         defaultValue: null
     },
+    network: { type: sequelize_1.DataTypes.STRING, allowNull: true },
+    deposit_wallet: { type: sequelize_1.DataTypes.STRING, allowNull: true },
+    confirmation_count: { type: sequelize_1.DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    verification_result: { type: sequelize_1.DataTypes.JSONB, allowNull: true },
+    confirmed_at: { type: sequelize_1.DataTypes.DATE, allowNull: true },
     status: {
         type: sequelize_1.DataTypes.STRING,
         allowNull: false,

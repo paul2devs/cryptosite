@@ -14,7 +14,11 @@ router.patch("/settings/notifications", auth_1.authenticate, [
     (0, express_validator_1.body)("deposit_updates").isBoolean(),
     (0, express_validator_1.body)("withdrawal_updates").isBoolean(),
     (0, express_validator_1.body)("rewards_bonuses").isBoolean(),
-    (0, express_validator_1.body)("announcements").isBoolean()
+    (0, express_validator_1.body)("announcements").isBoolean(),
+    (0, express_validator_1.body)("daily_performance").optional().isBoolean(),
+    (0, express_validator_1.body)("significant_moves").optional().isBoolean(),
+    (0, express_validator_1.body)("distributions").optional().isBoolean(),
+    (0, express_validator_1.body)("strategy_announcements").optional().isBoolean()
 ], userController_1.updateNotificationSettings);
 router.patch("/settings/preferences/language", auth_1.authenticate, [(0, express_validator_1.body)("language").isString().isLength({ min: 2, max: 5 })], userController_1.updateLanguage);
 router.delete("/settings/account", auth_1.authenticate, [(0, express_validator_1.body)("password").isString().isLength({ min: 8 })], userController_1.deleteAccount);

@@ -82,6 +82,8 @@ User.init({
                 deposit_updates: true,
                 withdrawal_updates: true,
                 rewards_bonuses: true,
+                investment_updates: true,
+                performance_updates: true,
                 announcements: true
             },
             preferences: {

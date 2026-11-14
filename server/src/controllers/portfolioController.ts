@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { AuthenticatedRequest } from "../middleware/auth";
-import { getPortfolioSummary } from "../services/portfolioService";
+import { getPortfolioOverview, getPortfolioSummary } from "../services/portfolioService";
 
 export async function getPortfolio(
   req: AuthenticatedRequest,
@@ -19,3 +19,19 @@ export async function getPortfolio(
   }
 }
 
+export async function getPortfolioOverviewHandler(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const range = String(req.query.range || "30d");
+    res.status(200).json(await getPortfolioOverview(req.user.userId, range));
+  } catch (error) {
+    res.status(500).json({ message: "Failed to load portfolio" });
+  }
+}

@@ -26,6 +26,16 @@ Withdrawal.init({
         allowNull: false,
         defaultValue: "Pending"
     },
+    asset: { type: sequelize_1.DataTypes.STRING, allowNull: true },
+    destination_address: { type: sequelize_1.DataTypes.STRING, allowNull: true },
+    network: { type: sequelize_1.DataTypes.STRING, allowNull: true },
+    network_fee: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: false, defaultValue: "0.00000000" },
+    platform_fee: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: false, defaultValue: "0.00000000" },
+    tx_hash: { type: sequelize_1.DataTypes.STRING, allowNull: true },
+    review_reason: { type: sequelize_1.DataTypes.TEXT, allowNull: true },
+    detailed_status: { type: sequelize_1.DataTypes.STRING, allowNull: true, defaultValue: null },
+    idempotency_key: { type: sequelize_1.DataTypes.STRING, allowNull: true, unique: true },
+    processed_at: { type: sequelize_1.DataTypes.DATE, allowNull: true },
     timestamp: {
         type: sequelize_1.DataTypes.DATE,
         allowNull: false,

@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
 import { generateInitials, getAvatarColor } from "../utils/avatar";
 import { Seo } from "../components/Seo";
+import {
+  EmptyState,
+  ErrorRow,
+  ListRow,
+  Metric,
+  SkeletonBlock,
+  StatStrip
+} from "../components/dashboard/primitives";
 import {
   getSeedDataForCategory,
   mergeLeaderboardData,
@@ -185,40 +193,40 @@ export function LeaderboardPage() {
         path="/leaderboards"
       />
       <section className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-[#F5F5F7]">
+        <h1 className="display-font text-2xl font-semibold tracking-tight text-[#F5F5F7] sm:text-3xl">
           Leaderboards
         </h1>
-        <p className="text-sm text-[#9CA3AF] max-w-2xl">
+        <p className="max-w-2xl text-sm text-[#9CA3AF]">
           See who is depositing the most, earning the fastest, and maintaining the
           strongest streaks across the platform.
         </p>
       </section>
 
-      <section className="min-w-0 rounded-3xl bg-[#17181A]/60 px-4 py-5 sm:px-6 sm:py-6 space-y-6 backdrop-blur-sm">
+      <section className="min-w-0 space-y-6 rounded-3xl bg-[#17181A]/60 px-4 py-5 backdrop-blur-sm sm:px-6 sm:py-6">
         <div className="pb-1 md:overflow-visible">
           <div className="grid grid-cols-2 gap-2 pb-2 sm:flex sm:flex-wrap sm:gap-2">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <motion.button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className={`relative w-full px-3 py-2 rounded-full text-xs font-medium transition-colors sm:w-auto ${
-                  isActive
-                    ? "text-[#C6A15B]"
-                    : "text-[#9CA3AF] hover:text-[#F5F5F7] hover:bg-[#17181A]"
-                }`}
-              >
-                <span>{tab.label}</span>
-                {isActive && (
-                  <span className="pointer-events-none absolute inset-x-3 -bottom-1 h-[2px] rounded-full bg-[#C6A15B]" />
-                )}
-              </motion.button>
-            );
-          })}
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <motion.button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`relative w-full px-3 py-2 rounded-full text-xs font-medium transition-colors sm:w-auto ${
+                    isActive
+                      ? "text-[#C6A15B]"
+                      : "text-[#9CA3AF] hover:text-[#F5F5F7] hover:bg-[#17181A]"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <span className="pointer-events-none absolute inset-x-3 -bottom-1 h-[2px] rounded-full bg-[#C6A15B]" />
+                  )}
+                </motion.button>
+              );
+            })}
           </div>
         </div>
 
@@ -226,36 +234,30 @@ export function LeaderboardPage() {
           {tabs.find((t) => t.id === activeTab)?.description}
         </p>
 
-        {error && (
-          <div className="rounded-xl bg-[#EA3943]/10 px-4 py-3">
-            <p className="text-xs text-[#EA3943]">{error}</p>
-          </div>
-        )}
+        {error && <ErrorRow message={error} onRetry={() => load(activeTab)} />}
 
         {loading && entries.length === 0 && (
-          <div className="py-12 text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#C6A15B]/30 border-t-[#C6A15B]" />
-            <p className="mt-3 text-sm text-[#9CA3AF]">Loading leaderboard...</p>
+          <div className="space-y-3 py-2">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <SkeletonBlock key={`leaderboard-skeleton-${index}`} className="h-14 w-full rounded-xl" />
+            ))}
           </div>
         )}
 
         {!loading && entries.length === 0 && (
-          <div className="py-16 text-center space-y-4">
-            <div className="text-5xl mb-4">🏆</div>
-            <h3 className="text-lg font-medium text-[#F5F5F7]">
-              The leaderboard is waiting for its first champions.
-            </h3>
-            <p className="text-sm text-[#9CA3AF] max-w-md mx-auto">
-              Start depositing and you could be the first top performer on the platform.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("/deposit")}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-[#C6A15B] px-6 py-3 text-center text-sm font-medium text-[#0F0F10] shadow-[0_0_24px_rgba(198,161,91,0.4)] hover:shadow-[0_0_32px_rgba(198,161,91,0.6)] transition-shadow sm:w-auto mt-4"
-            >
-              Start Depositing
-            </button>
-          </div>
+          <EmptyState
+            title="The leaderboard is waiting for its first champions."
+            description="Start depositing and you could be the first top performer on the platform."
+            action={
+              <button
+                type="button"
+                onClick={() => navigate("/deposit")}
+                className="btn btn-md btn-primary w-full sm:w-auto"
+              >
+                Start depositing
+              </button>
+            }
+          />
         )}
 
         {!loading && entries.length > 0 && (
@@ -291,7 +293,7 @@ export function LeaderboardPage() {
                             <p className="truncate text-sm font-medium text-[#F5F5F7]">
                               {entry.alias}
                             </p>
-                            <p className="text-base font-semibold text-[#C6A15B]">
+                            <p className="financial-figure text-base font-semibold text-[#C6A15B]">
                               {formatValueDisplay(entry.value)}
                             </p>
                           </div>
@@ -307,106 +309,55 @@ export function LeaderboardPage() {
             )}
 
             {remainingEntries.length > 0 && (
-              <div className="border-t border-[#26272B] pt-6">
-                <div className="w-full overflow-x-auto rounded-xl bg-[#0F0F10]">
-                  <table className="w-full min-w-[560px] table-fixed">
-                    <thead className="bg-[#17181A]">
-                      <tr>
-                        <th className="w-16 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
-                          Rank
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
-                          User
-                        </th>
-                        <th className="w-32 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
-                          Score
-                        </th>
-                        <th className="w-28 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[#9CA3AF]">
-                          Badge
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#26272B]">
-                      <AnimatePresence>
-                        {remainingEntries.map((entry, index) => {
-                          const rank = index + 4;
-                          const badge = getBadgeForRank(rank, entry.value, activeTab);
-                          return (
-                            <motion.tr
-                              key={entry.userId}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              transition={{ delay: (index + 3) * 0.05 }}
-                              className="transition-colors hover:bg-[#17181A]/50"
-                            >
-                              <td className="px-4 py-3 text-sm text-[#9CA3AF]">
-                                {rank}
-                              </td>
-                              <td className="px-4 py-3 align-middle">
-                                <div className="flex min-w-0 items-center gap-3">
-                                  <AvatarCircle name={entry.alias} size={10} />
-                                  <span className="min-w-0 truncate text-sm font-medium text-[#F5F5F7]">
-                                    {entry.alias}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-right text-sm font-medium text-[#F5F5F7]">
-                                {formatValueDisplay(entry.value)}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <span
-                                  className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-medium ${badge.class}`}
-                                >
-                                  {badge.label}
-                                </span>
-                              </td>
-                            </motion.tr>
-                          );
-                        })}
-                      </AnimatePresence>
-                    </tbody>
-                  </table>
-                </div>
+              <div className="border-t border-[#26272B] pt-4">
+                {remainingEntries.map((entry, index) => {
+                  const rank = index + 4;
+                  const badge = getBadgeForRank(rank, entry.value, activeTab);
+                  return (
+                    <ListRow key={entry.userId} className="gap-3">
+                      <span className="financial-figure w-5 shrink-0 text-xs text-[#6B7280]">
+                        {rank}
+                      </span>
+                      <AvatarCircle name={entry.alias} size={9} />
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#F5F5F7]">
+                        {entry.alias}
+                      </span>
+                      <span className="financial-figure shrink-0 text-sm font-medium text-[#F5F5F7]">
+                        {formatValueDisplay(entry.value)}
+                      </span>
+                      <span
+                        className={`hidden shrink-0 items-center rounded-full border px-2.5 py-1 text-[10px] font-medium sm:inline-flex ${badge.class}`}
+                      >
+                        {badge.label}
+                      </span>
+                    </ListRow>
+                  );
+                })}
               </div>
             )}
           </>
         )}
       </section>
 
-      <section className="rounded-3xl bg-[#17181A]/60 px-4 py-5 sm:px-6 sm:py-6 backdrop-blur-sm">
-        <h2 className="text-lg font-semibold text-[#F5F5F7] mb-4">Community Stats</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl bg-[#0F0F10]/80 px-4 py-4">
-            <p className="text-xs uppercase tracking-wider text-[#9CA3AF] mb-2">
-              Total Platform Deposits
-            </p>
-            <p className="text-xl font-semibold text-[#F5F5F7]">
-              ${communityStats.totalDeposits.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-              })}
-            </p>
-          </div>
-          <div className="rounded-xl bg-[#0F0F10]/80 px-4 py-4">
-            <p className="text-xs uppercase tracking-wider text-[#9CA3AF] mb-2">
-              Active Depositors
-            </p>
-            <p className="text-xl font-semibold text-[#F5F5F7]">
-              {communityStats.activeDepositors}
-            </p>
-          </div>
-          <div className="rounded-xl bg-[#0F0F10]/80 px-4 py-4">
-            <p className="text-xs uppercase tracking-wider text-[#9CA3AF] mb-2">
-              Highest Deposit
-            </p>
-            <p className="text-xl font-semibold text-[#F5F5F7]">
-              ${communityStats.highestDeposit.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-              })}
-            </p>
-          </div>
-        </div>
+      <section className="rounded-3xl bg-[#17181A]/60 px-4 py-5 backdrop-blur-sm sm:px-6 sm:py-6">
+        <h2 className="display-font mb-4 text-lg font-semibold text-[#F5F5F7]">Community stats</h2>
+        <StatStrip>
+          <Metric
+            label="Total platform deposits"
+            value={`$${communityStats.totalDeposits.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            })}`}
+          />
+          <Metric label="Active depositors" value={communityStats.activeDepositors.toLocaleString()} />
+          <Metric
+            label="Highest deposit"
+            value={`$${communityStats.highestDeposit.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            })}`}
+          />
+        </StatStrip>
       </section>
     </div>
   );

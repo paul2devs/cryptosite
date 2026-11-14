@@ -14,6 +14,12 @@ import { trackUserActivity } from "../services/activityService";
 import { grantReferralRewardsOnApprovedDeposit } from "../services/referralService";
 import { getPlatformWallets } from "../services/walletService";
 import { verifyDepositOnChain } from "../services/blockchainVerificationService";
+import { recordConfirmedDeposit } from "../services/financialOperationsService";
+import {
+  isSupportedDepositCryptoType,
+  resolveDepositNetwork,
+  validateDepositSubmission
+} from "../domain/depositRules";
 import QRCode from "qrcode";
 import { sendDepositStatusEmail } from "../services/email/emailService";
 
@@ -45,15 +51,25 @@ export async function createDeposit(
       return;
     }
 
-    if (!tx_hash || typeof tx_hash !== "string" || tx_hash.trim().length < 8) {
+    if (!isSupportedDepositCryptoType(crypto_type)) {
       res.status(400).json({
-        message:
-          "A valid blockchain transaction hash is required to submit a deposit."
+        message: "Select a supported asset and network before submitting a deposit."
       });
       return;
     }
 
-    const normalizedHash = tx_hash.trim();
+    const submission = validateDepositSubmission({
+      cryptoType: crypto_type,
+      amount,
+      txHash: tx_hash
+    });
+    if (!submission.valid) {
+      res.status(400).json({ message: submission.errors[0] });
+      return;
+    }
+
+    const normalizedHash = submission.normalizedTxHash;
+    const numericAmount = submission.numericAmount;
 
     const existing = await Deposit.findOne({
       where: { tx_hash: normalizedHash }
@@ -62,14 +78,6 @@ export async function createDeposit(
       res.status(400).json({
         message:
           "This transaction hash has already been submitted. Each on-chain transaction can only be used once."
-      });
-      return;
-    }
-
-    const numericAmount = Number(amount);
-    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      res.status(400).json({
-        message: "Deposit amount must be a positive number."
       });
       return;
     }
@@ -125,7 +133,11 @@ export async function createDeposit(
       user_id: req.user.userId,
       crypto_type,
       amount: numericAmount,
-      tx_hash: normalizedHash
+      tx_hash: normalizedHash,
+      network: verification.network || resolveDepositNetwork(crypto_type),
+      deposit_wallet: verification.toAddress || null,
+      confirmation_count: verification.confirmations ?? 0,
+      verification_result: verification
     });
 
     await applyDepositGamification(user, deposit, {
@@ -277,10 +289,26 @@ export async function updateDepositStatus(
     const previousStatus = deposit.status;
     deposit.status = status;
 
-    if (status === "Approved") {
-      if (!deposit.approved_at) {
-        deposit.approved_at = new Date();
+    if (status === "Approved" && previousStatus !== "Approved") {
+      if (!deposit.tx_hash) {
+        res.status(400).json({ message: "Deposit cannot be confirmed without a transaction hash." });
+        return;
       }
+      const verification = await verifyDepositOnChain({
+        cryptoType: deposit.crypto_type as any,
+        txHash: deposit.tx_hash,
+        expectedAmount: Number(deposit.amount)
+      });
+      deposit.verification_result = verification;
+      deposit.confirmation_count = verification.confirmations ?? 0;
+      if (!verification.success) {
+        res.status(400).json({
+          message: verification.failureReason || "Deposit cannot be confirmed without successful blockchain verification."
+        });
+        return;
+      }
+      deposit.approved_at = new Date();
+      deposit.confirmed_at = deposit.approved_at;
     }
 
     if (previousStatus === "Approved" && status !== "Approved") {
@@ -308,6 +336,7 @@ export async function updateDepositStatus(
 
     if (status === "Approved" && previousStatus !== "Approved") {
       await grantReferralRewardsOnApprovedDeposit(deposit);
+      await recordConfirmedDeposit(deposit);
     }
 
     res.status(200).json(deposit);

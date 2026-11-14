@@ -33,11 +33,20 @@ const AdminPanelPage = lazy(() =>
 const PortfolioPage = lazy(() =>
   import("./pages/PortfolioPage").then((m) => ({ default: m.PortfolioPage }))
 );
+const MembershipPage = lazy(() =>
+  import("./pages/MembershipPage").then((m) => ({ default: m.MembershipPage }))
+);
+const InvestmentLevelsPage = lazy(() =>
+  import("./pages/InvestmentLevelsPage").then((m) => ({ default: m.InvestmentLevelsPage }))
+);
 const LeaderboardPage = lazy(() =>
   import("./pages/LeaderboardPage").then((m) => ({ default: m.LeaderboardPage }))
 );
 const ReferralPage = lazy(() =>
   import("./pages/ReferralPage").then((m) => ({ default: m.ReferralPage }))
+);
+const AdminOperationsPage = lazy(() =>
+  import("./pages/AdminOperationsPage").then((m) => ({ default: m.AdminOperationsPage }))
 );
 const AdminAnalyticsPage = lazy(() =>
   import("./pages/AdminAnalyticsPage").then((m) => ({
@@ -46,6 +55,16 @@ const AdminAnalyticsPage = lazy(() =>
 );
 const SettingsPage = lazy(() =>
   import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage }))
+);
+const TransactionsPage = lazy(() =>
+  import("./pages/TransactionsPage").then((m) => ({
+    default: m.TransactionsPage
+  }))
+);
+const PerformancePage = lazy(() =>
+  import("./pages/PerformancePage").then((m) => ({
+    default: m.PerformancePage
+  }))
 );
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -142,6 +161,38 @@ function App() {
             }
           />
           <Route
+            path="/membership"
+            element={
+              <ProtectedRoute>
+                <MembershipPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/investment-levels"
+            element={
+              <ProtectedRoute>
+                <InvestmentLevelsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/performance"
+            element={
+              <ProtectedRoute>
+                <PerformancePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/transactions"
+            element={
+              <ProtectedRoute>
+                <TransactionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/leaderboards"
             element={
               <ProtectedRoute>
@@ -162,6 +213,14 @@ function App() {
             element={
               <AdminRoute>
                 <AdminPanelPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/operations"
+            element={
+              <AdminRoute>
+                <AdminOperationsPage />
               </AdminRoute>
             }
           />

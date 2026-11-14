@@ -24,8 +24,13 @@ const bonusRoutes_1 = __importDefault(require("./routes/bonusRoutes"));
 const aiRoutes_1 = __importDefault(require("./routes/aiRoutes"));
 const referralRoutes_1 = __importDefault(require("./routes/referralRoutes"));
 const adminAuthRoutes_1 = __importDefault(require("./routes/adminAuthRoutes"));
+const operationsRoutes_1 = __importDefault(require("./routes/operationsRoutes"));
+const membershipService_1 = require("./services/membershipService");
+const investmentLevelService_1 = require("./services/investmentLevelService");
 const gamificationService_1 = require("./services/gamificationService");
 const adminBootstrapService_1 = require("./services/adminBootstrapService");
+const bonusEngineService_1 = require("./services/bonusEngineService");
+const platformSettingsService_1 = require("./services/platformSettingsService");
 require("./models");
 const app = (0, express_1.default)();
 const defaultAllowedOrigins = [
@@ -82,6 +87,7 @@ app.use("/api/bonuses", bonusRoutes_1.default);
 app.use("/api/ai", aiRoutes_1.default);
 app.use("/api/referrals", referralRoutes_1.default);
 app.use("/api/admin_auth", adminAuthRoutes_1.default);
+app.use("/api/operations", operationsRoutes_1.default);
 app.use((req, res, next) => {
     if (res.headersSent) {
         next();
@@ -106,6 +112,12 @@ async function startApp() {
     (0, env_1.validateCoreEnv)();
     await (0, database_1.initDatabase)();
     await (0, gamificationService_1.ensureDefaultLevels)();
+    await (0, membershipService_1.ensureDefaultMembershipTiers)();
+    await (0, membershipService_1.ensureDefaultMembershipBenefits)();
+    await (0, investmentLevelService_1.ensureDefaultInvestmentLevels)();
+    await (0, investmentLevelService_1.ensureDefaultInvestmentLevelBenefits)();
+    await (0, platformSettingsService_1.ensurePlatformSettings)();
+    await (0, bonusEngineService_1.ensureDefaultBonusCampaign)();
     await (0, adminBootstrapService_1.ensureAdminAccount)();
 }
 exports.default = app;

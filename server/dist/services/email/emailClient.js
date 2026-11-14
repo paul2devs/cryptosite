@@ -42,7 +42,7 @@ function getAppBaseUrl() {
 function getMailFrom() {
     if (cachedFrom)
         return cachedFrom;
-    const from = process.env.EMAIL_FROM || "Crypto Levels <no-reply@cryptolevels.app>";
+    const from = process.env.EMAIL_FROM || "NexaCrypto <no-reply@nexacrypto.com>";
     cachedFrom = from;
     return from;
 }

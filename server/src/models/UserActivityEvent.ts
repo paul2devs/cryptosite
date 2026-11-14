@@ -4,11 +4,21 @@ import { User } from "./User";
 
 export type UserActivityType =
   | "login"
+  | "logout"
   | "deposit"
+  | "deposit_confirmed"
   | "withdrawal"
+  | "withdrawal_reviewed"
   | "notification_click"
   | "password_reset_request"
-  | "password_reset_complete";
+  | "password_reset_complete"
+  | "password_changed"
+  | "membership_upgrade"
+  | "configuration_change"
+  | "performance_unavailable"
+  | "investment_allocation"
+  | "promotional_bonus"
+  | "admin_action";
 
 export interface UserActivityEventAttributes {
   id: string;

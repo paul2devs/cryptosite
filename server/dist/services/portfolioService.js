@@ -1,11 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPortfolioSummary = getPortfolioSummary;
+exports.getPortfolioOverview = getPortfolioOverview;
+const portfolioRules_1 = require("../domain/portfolioRules");
 const Deposit_1 = require("../models/Deposit");
 const User_1 = require("../models/User");
 const Notification_1 = require("../models/Notification");
 const marketDataService_1 = require("./marketDataService");
 const gamificationService_1 = require("./gamificationService");
+const depositLevelService_1 = require("./depositLevelService");
+const financialOperationsService_1 = require("./financialOperationsService");
 async function getPortfolioSummary(userId) {
     const user = await User_1.User.findByPk(userId);
     if (!user) {
@@ -114,6 +118,54 @@ async function getPortfolioSummary(userId) {
         projectedEarnings: {
             currentMultiplier,
             projectedValue
+        }
+    };
+}
+async function getPortfolioOverview(userId, range) {
+    const user = await User_1.User.findByPk(userId);
+    if (!user) {
+        throw new Error("User not found");
+    }
+    const [summary, prices, progression, depositLevel, performance] = await Promise.all([
+        getPortfolioSummary(userId),
+        (0, marketDataService_1.getAllMarketPrices)(),
+        (0, gamificationService_1.getUserProgression)(user),
+        (0, depositLevelService_1.calculateDepositLevelForUser)(userId),
+        (0, financialOperationsService_1.userPerformance)(userId, range)
+    ]);
+    const priceMap = {};
+    Object.keys(prices).forEach((symbol) => {
+        const point = prices[symbol];
+        if (point && Number.isFinite(point.price)) {
+            priceMap[symbol] = point.price;
+        }
+    });
+    const holdings = (0, portfolioRules_1.buildPortfolioHoldings)(summary.assets, priceMap);
+    const allocation = (0, portfolioRules_1.computeAllocation)(holdings);
+    const realizedEarnings = Number(performance.realizedEarnings);
+    const unrealizedAvailable = performance.cumulative.status === "verified" && performance.cumulative.profitLoss !== null;
+    return {
+        currency: "USD",
+        updatedAt: new Date().toISOString(),
+        totals: {
+            totalValue: summary.totalCurrentValue,
+            investedPrincipal: depositLevel.totalDepositedUsd,
+            availableBalance: progression.withdrawableBalance ?? 0,
+            lockedBalance: progression.lockedBalance ?? 0,
+            pendingEarnings: progression.pendingEarningsTotal ?? summary.pendingEarnings,
+            realizedEarnings: Number.isFinite(realizedEarnings) ? realizedEarnings : 0,
+            unrealizedProfitLoss: unrealizedAvailable
+                ? Number(performance.cumulative.profitLoss)
+                : null,
+            unrealizedRoiPercent: unrealizedAvailable && performance.cumulative.roiPercent !== null
+                ? Number(performance.cumulative.roiPercent)
+                : null
+        },
+        holdings,
+        allocation,
+        performance: {
+            ...performance,
+            range
         }
     };
 }

@@ -1,34 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { Bell, CircleUser, LogOut, Menu, Settings, User, X } from "lucide-react";
-import type { RootState } from "../store";
-import { AppDispatch } from "../store";
-import { logout } from "../store/authSlice";
-import { useNotificationContext, getNotificationTitle } from "./NotificationProvider";
+import { Menu, X } from "lucide-react";
 import { useI18n } from "../i18n/I18nProvider";
 
-interface NavbarProps {
-  showSidebarToggle?: boolean;
-  onToggleSidebar?: () => void;
-}
-
-export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
+export function Navbar() {
   const { t } = useI18n();
-  const user = useSelector((state: RootState) => state.auth.user);
-  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { panelNotifications, unreadCount, markAllRead } = useNotificationContext();
-  const [avatarOpen, setAvatarOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
-  const avatarId = "navbar-avatar-button";
-  const notificationId = "navbar-notification-button";
-  const avatarMenuRef = useRef<HTMLDivElement | null>(null);
-  const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
 
   const isLanding = location.pathname === "/landing";
 
@@ -114,11 +95,6 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
     setMobileMenuOpen(false);
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate("/landing", { replace: true });
-  };
-
   useEffect(() => {
     setPortalReady(true);
   }, []);
@@ -137,270 +113,69 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
     };
   }, [mobileMenuOpen]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target) {
-        return;
-      }
-      const avatarButton = document.getElementById(avatarId);
-      const notificationButton = document.getElementById(notificationId);
-      const avatarMenu = avatarMenuRef.current;
-      const notificationsMenu = notificationsMenuRef.current;
-      const clickedInsideAvatar =
-        (avatarButton?.contains(target) ?? false) || (avatarMenu?.contains(target) ?? false);
-      const clickedInsideNotifications =
-        (notificationButton?.contains(target) ?? false) ||
-        (notificationsMenu?.contains(target) ?? false);
-
-      if (!clickedInsideAvatar && !clickedInsideNotifications) {
-        setAvatarOpen(false);
-        setNotificationsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [avatarId, notificationId]);
-
   return (
     <header className="fixed inset-x-0 top-0 z-40 bg-[#050509]/80 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.7)]">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
-          {showSidebarToggle && (
-            <button
-              type="button"
-              onClick={onToggleSidebar}
-              className="hidden lg:inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#26272B] bg-[#17181A] text-[#9CA3AF]"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-          )}
-          {!user && (
-            <Link to="/landing" className="flex items-center gap-2">
-              <img src="/logo.png" alt="NexaCrypto" className="h-7 w-7 rounded-full object-cover" />
-              <span className="text-sm font-semibold tracking-tight text-[#F5F5F7] sm:text-base">
-                NexaCrypto
-              </span>
-            </Link>
-          )}
-        </div>
-        {isLanding && !user && (
+        <Link to="/landing" className="flex items-center gap-2">
+          <img src="/logo.png" alt="NexaCrypto" className="h-7 w-7 rounded-full object-cover" />
+          <span className="text-sm font-semibold tracking-tight text-[#F5F5F7] sm:text-base">
+            NexaCrypto
+          </span>
+        </Link>
+        {isLanding && (
           <div className="hidden items-center gap-5 text-[11px] text-[#9CA3AF] md:flex">
             {landingSections.map((item) => {
               const isActive = activeLandingSection === item.id;
               return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleLandingNavClick(item.id)}
-                className={`group relative text-[11px] font-medium transition-colors ${
-                  isActive ? "text-[#F5F5F7]" : "text-[#9CA3AF] hover:text-[#F5F5F7]"
-                }`}
-              >
-                <span>{item.label}</span>
-                <span
-                  className={`pointer-events-none absolute -bottom-1 left-0 h-px w-full origin-left bg-[#C6A15B] transition-transform duration-200 ${
-                    isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleLandingNavClick(item.id)}
+                  className={`group relative text-[11px] font-medium transition-colors ${
+                    isActive ? "text-[#F5F5F7]" : "text-[#9CA3AF] hover:text-[#F5F5F7]"
                   }`}
-                />
-              </button>
+                >
+                  <span>{item.label}</span>
+                  <span
+                    className={`pointer-events-none absolute -bottom-1 left-0 h-px w-full origin-left bg-[#C6A15B] transition-transform duration-200 ${
+                      isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                    }`}
+                  />
+                </button>
               );
             })}
           </div>
         )}
         <nav className="flex items-center gap-3 text-[11px] sm:text-xs">
-          {user && user.is_admin && (
-            <>
-              <NavLink
-                to="/admin"
-                className={({ isActive }) =>
-                  `hidden rounded-full px-2 py-1 border text-[11px] md:inline-flex ${
-                    isActive
-                      ? "border-[#C6A15B] text-[#C6A15B]"
-                      : "border-[#26272B] text-[#9CA3AF]"
-                  }`
-                }
-              >
-                {t("nav_admin")}
-              </NavLink>
-              <NavLink
-                to="/admin/analytics"
-                className={({ isActive }) =>
-                  `hidden rounded-full px-2 py-1 border text-[11px] md:inline-flex ${
-                    isActive
-                      ? "border-[#C6A15B] text-[#C6A15B]"
-                      : "border-[#26272B] text-[#9CA3AF]"
-                  }`
-                }
-              >
-                {t("nav_intelligence")}
-              </NavLink>
-            </>
-          )}
-          {!user && (
-            <>
-              <div className="hidden items-center gap-2 sm:flex">
-                <NavLink
-                  to="/login"
-                  className={({ isActive }) =>
-                    `rounded-full px-3 py-1 text-xs ${
-                      isActive
-                        ? "bg-[#C6A15B] text-[#0F0F10]"
-                        : "bg-[#17181A] text-[#F5F5F7]"
-                    }`
-                  }
-                >
-                  {t("nav_login")}
-                </NavLink>
-                <NavLink
-                  to="/register"
-                  className={({ isActive }) =>
-                    `rounded-full bg-gradient-to-r from-[#C6A15B] to-[#FACC15] px-3 py-1 text-xs font-semibold text-[#0F0F10] shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_0_32px_rgba(198,161,91,0.7)] ${
-                      isActive ? "" : ""
-                    }`
-                  }
-                >
-                  {t("nav_register")}
-                </NavLink>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] shadow-[0_0_18px_rgba(0,0,0,0.6)] sm:hidden"
-                aria-label="Open navigation"
-              >
-                <Menu className="h-4 w-4" />
-              </button>
-            </>
-          )}
-          {user && (
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="relative">
-                <button
-                  id={notificationId}
-                  type="button"
-                  onClick={() => {
-                    markAllRead();
-                    setNotificationsOpen((open) => !open);
-                    setAvatarOpen(false);
-                  }}
-                  className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#17181A] text-[#9CA3AF] hover:text-[#F5F5F7]"
-                >
-                  <Bell className="h-4 w-4" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[#EA3943] px-1 text-[10px] font-semibold text-white">
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                  )}
-                </button>
-                {notificationsOpen && (
-                  <div
-                    ref={notificationsMenuRef}
-                    className="absolute right-0 z-[9999] mt-3 w-72 rounded-2xl border border-[#26272B] bg-[#17181A] text-[#F5F5F7] backdrop-blur-sm shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
-                  >
-                    <div className="border-b border-[#26272B] px-4 py-2.5">
-                      <p className="text-xs font-semibold text-[#F5F5F7]">
-                        {t("nav_notifications")}
-                      </p>
-                    </div>
-                    <div className="max-h-80 space-y-1 overflow-y-auto px-2 py-2 text-xs">
-                      {panelNotifications.length === 0 && (
-                        <p className="px-2 py-2 text-[11px] text-[#9CA3AF]">
-                          You are all caught up. New activity will appear here in
-                          real time.
-                        </p>
-                      )}
-                      {panelNotifications.length > 0 &&
-                        panelNotifications
-                          .slice()
-                          .sort(
-                            (a, b) =>
-                              new Date(b.timestamp).getTime() -
-                              new Date(a.timestamp).getTime()
-                          )
-                          .map((item) => (
-                            <div
-                              key={item.notification_id}
-                              className="px-3 py-2 text-[11px] hover:bg-[#0F0F10] rounded-xl"
-                            >
-                              <p className="font-medium text-[#F5F5F7]">
-                                {getNotificationTitle(item.type)}
-                              </p>
-                              <p className="mt-0.5 text-[11px] text-[#9CA3AF]">
-                                {item.message}
-                              </p>
-                              <p className="mt-0.5 text-[10px] text-[#6B7280]">
-                                {new Date(item.timestamp).toLocaleString()}
-                              </p>
-                            </div>
-                          ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="relative">
-                <button
-                  id={avatarId}
-                  type="button"
-                  onClick={() => {
-                    setAvatarOpen((open) => !open);
-                    setNotificationsOpen(false);
-                  }}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] ring-2 ring-[#C6A15B]"
-                >
-                  <CircleUser className="h-4 w-4" />
-                </button>
-                {avatarOpen && (
-                  <div
-                    ref={avatarMenuRef}
-                    className="absolute right-0 z-40 mt-3 w-48 rounded-2xl border border-[#26272B] bg-[#0F0F10] py-2 text-xs shadow-xl"
-                  >
-                    <div className="px-3 pb-2 text-[11px] text-[#9CA3AF]">
-                      <p className="truncate">
-                        {user.email ?? user.name ?? "Signed in"}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAvatarOpen(false);
-                        navigate("/");
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#17181A]"
-                    >
-                      <User className="h-3.5 w-3.5" />
-                      <span>{t("nav_profile")}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAvatarOpen(false);
-                        navigate("/settings");
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#17181A]"
-                    >
-                      <Settings className="h-3.5 w-3.5" />
-                      <span>{t("nav_settings")}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#17181A]"
-                    >
-                      <LogOut className="h-3.5 w-3.5" />
-                      <span>{t("nav_logout")}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          <div className="hidden items-center gap-2 sm:flex">
+            <NavLink
+              to="/login"
+              className={({ isActive }) =>
+                `rounded-full px-3 py-1 text-xs ${
+                  isActive ? "bg-[#C6A15B] text-[#0F0F10]" : "bg-[#17181A] text-[#F5F5F7]"
+                }`
+              }
+            >
+              {t("nav_login")}
+            </NavLink>
+            <NavLink
+              to="/register"
+              className="rounded-full bg-gradient-to-r from-[#C6A15B] to-[#FACC15] px-3 py-1 text-xs font-semibold text-[#0F0F10] shadow-[0_0_24px_rgba(198,161,91,0.5)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_0_32px_rgba(198,161,91,0.7)]"
+            >
+              {t("nav_register")}
+            </NavLink>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] shadow-[0_0_18px_rgba(0,0,0,0.6)] sm:hidden"
+            aria-label="Open navigation"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
         </nav>
       </div>
-      {!user &&
-        mobileMenuOpen &&
+      {mobileMenuOpen &&
         portalReady &&
         createPortal(
           <div
@@ -431,7 +206,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
               </div>
 
               <div className="flex-1 overflow-y-auto overscroll-contain pb-10 text-[#F5F5F7]">
-                {isLanding && (
+                {isLanding ? (
                   <div className="space-y-3">
                     {landingSections.map((item) => {
                       const isActive = activeLandingSection === item.id;
@@ -451,9 +226,7 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
                       );
                     })}
                   </div>
-                )}
-
-                {!isLanding && (
+                ) : (
                   <div className="space-y-2">
                     <button
                       type="button"
@@ -498,4 +271,3 @@ export function Navbar({ showSidebarToggle, onToggleSidebar }: NavbarProps) {
     </header>
   );
 }
-

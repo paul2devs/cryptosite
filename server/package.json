@@ -7,7 +7,8 @@
     "dev": "node ../node_modules/ts-node-dev/lib/bin.js --respawn --transpile-only src/server.ts",
     "build": "node ../node_modules/typescript/bin/tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "lint": "node ../node_modules/eslint/bin/eslint.js \"src/**/*.{ts,tsx}\""
+    "lint": "node ../node_modules/eslint/bin/eslint.js \"src/**/*.{ts,tsx}\"",
+    "test": "node ../node_modules/typescript/bin/tsc -p tsconfig.json && node --test dist/domain/membershipRules.test.js dist/domain/investmentLevelRules.test.js dist/domain/performanceRules.test.js dist/domain/withdrawalRules.test.js dist/domain/portfolioRules.test.js dist/domain/depositRules.test.js dist/domain/ledgerRules.test.js dist/domain/transactionRules.test.js dist/domain/bonusRules.test.js dist/domain/earningsRules.test.js"
   },
   "dependencies": {
     "axios": "^1.7.9",
