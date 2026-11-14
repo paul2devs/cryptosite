@@ -69,6 +69,20 @@ import {
   savePlatformSetting
 } from "../services/platformSettingsService";
 import type { PlatformSettingCategory } from "../models/PlatformSetting";
+import {
+  deactivateReward,
+  deleteReward,
+  getRewardDashboard,
+  grantRewardToUser,
+  listRewardCatalog,
+  listUserRewardsForAdmin,
+  redeemReward,
+  revokeUserReward,
+  rewardAdminSummary,
+  saveRewardForAdmin,
+  type RewardCatalogInput,
+  type RewardGrantInput
+} from "../services/rewardService";
 import { getDailyPerformanceDetail, reconcilePerformance } from "../services/performanceService";
 import {
   getUserTransactionDetail,
@@ -776,5 +790,104 @@ export async function adminProfitDistribution(req: AuthenticatedRequest, res: Re
     res.status(201).json(await recordProfitDistribution(req.user.userId, body));
   } catch (error) {
     fail(res, error);
+  }
+}
+
+export async function currentRewards(req: AuthenticatedRequest, res: Response) {
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    res.status(200).json(await getRewardDashboard(req.user.userId));
+  } catch (error) {
+    fail(res, error, 500);
+  }
+}
+
+export async function redeemUserReward(req: AuthenticatedRequest, res: Response) {
+  if (rejected(req, res)) return;
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    res.status(200).json(await redeemReward(req.user.userId, req.params.userRewardId));
+  } catch (error) {
+    fail(res, error);
+  }
+}
+
+export async function adminRewards(_req: AuthenticatedRequest, res: Response) {
+  try {
+    res.status(200).json(await rewardAdminSummary());
+  } catch (error) {
+    fail(res, error, 500);
+  }
+}
+
+export async function adminRewardCatalog(_req: AuthenticatedRequest, res: Response) {
+  try {
+    res.status(200).json({ rewards: await listRewardCatalog() });
+  } catch (error) {
+    fail(res, error, 500);
+  }
+}
+
+export async function adminSaveReward(req: AuthenticatedRequest, res: Response) {
+  if (rejected(req, res)) return;
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    const body = req.body as RewardCatalogInput;
+    res.status(200).json(await saveRewardForAdmin(req.user.userId, body));
+  } catch (error) {
+    fail(res, error);
+  }
+}
+
+export async function adminDeactivateReward(req: AuthenticatedRequest, res: Response) {
+  if (rejected(req, res)) return;
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    res
+      .status(200)
+      .json(await deactivateReward(req.user.userId, req.params.rewardId, String(req.body.reason || "")));
+  } catch (error) {
+    fail(res, error);
+  }
+}
+
+export async function adminDeleteReward(req: AuthenticatedRequest, res: Response) {
+  if (rejected(req, res)) return;
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    res.status(200).json(await deleteReward(req.user.userId, req.params.rewardId, String(req.body.reason || "")));
+  } catch (error) {
+    fail(res, error);
+  }
+}
+
+export async function adminGrantReward(req: AuthenticatedRequest, res: Response) {
+  if (rejected(req, res)) return;
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    const body = req.body as RewardGrantInput;
+    res.status(201).json(await grantRewardToUser(req.user.userId, body));
+  } catch (error) {
+    fail(res, error);
+  }
+}
+
+export async function adminRevokeReward(req: AuthenticatedRequest, res: Response) {
+  if (rejected(req, res)) return;
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    res
+      .status(200)
+      .json(await revokeUserReward(req.user.userId, req.params.userRewardId, String(req.body.reason || "")));
+  } catch (error) {
+    fail(res, error);
+  }
+}
+
+export async function adminUserRewards(req: AuthenticatedRequest, res: Response) {
+  try {
+    res.status(200).json(await listUserRewardsForAdmin(req.query as Record<string, unknown>));
+  } catch (error) {
+    fail(res, error, 500);
   }
 }

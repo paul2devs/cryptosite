@@ -148,6 +148,7 @@ export async function fetchUserTransactions(): Promise<TransactionRecord[]> {
 export type TransactionCategory =
   | "deposit"
   | "bonus"
+  | "reward"
   | "withdrawal"
   | "investment"
   | "distribution"

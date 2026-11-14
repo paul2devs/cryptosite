@@ -35,6 +35,8 @@ export interface DepositSubmissionPayload {
   crypto_type: CryptoType;
   amount: number;
   tx_hash: string;
+  /** USD value the user entered; re-validated against the backend rate. */
+  usd_amount: number;
 }
 
 interface XpLevelResponse {

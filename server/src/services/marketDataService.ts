@@ -3,12 +3,20 @@ import { getCachedJson, setCachedJson } from "../config/cache";
 
 export type SupportedSymbol = "BTC" | "ETH" | "SOL" | "USDT" | "BNB" | "XRP";
 
+/**
+ * The upstream provider that produced a price point. The platform never
+ * fabricates prices: every quote is traceable to a configured provider so the
+ * deposit flow can disclose the rate source to the user.
+ */
+export type MarketDataSource = "coingecko" | "binance";
+
 export interface MarketDataPoint {
   symbol: SupportedSymbol;
   price: number;
   change24h: number;
   marketCap: number;
   lastUpdated: string;
+  source?: MarketDataSource;
 }
 
 type MarketCache = Record<SupportedSymbol, MarketDataPoint>;
@@ -94,6 +102,10 @@ export async function fetchFromCoinGecko(): Promise<MarketCache> {
     },
   };
 
+  for (const point of Object.values(result)) {
+    point.source = "coingecko";
+  }
+
   return result;
 }
 
@@ -145,6 +157,10 @@ async function fetchFromBinance(): Promise<MarketCache> {
     BNB: entries.find(([s]) => s === "BNB")![1],
     XRP: entries.find(([s]) => s === "XRP")![1],
   };
+
+  for (const point of Object.values(result)) {
+    point.source = "binance";
+  }
 
   return result;
 }

@@ -10,17 +10,18 @@ import {
   Stat
 } from "../components/dashboard/primitives";
 import { SolidCheck, SolidShield } from "../components/icons/SolidIcons";
+import { DISCLOSURES } from "../constants/copy";
 import { useDepositData } from "../hooks/useDepositData";
-import { useLiveMarket, type LiveMarketSymbol } from "../hooks/useLiveMarket";
-import { formatNumber, formatUsd, truncateMiddle } from "../utils/format";
+import { useDepositQuote } from "../hooks/useDepositQuote";
+import { formatUsd, truncateMiddle } from "../utils/format";
 import {
   cryptoTypeFromAssetParam,
   defaultCryptoTypeForSymbol,
   depositReference,
   getNetworkOption,
   symbolForCryptoType,
-  validateAmountInput,
   validateTxHashInput,
+  validateUsdAmountInput,
   type CryptoType,
   type DepositSymbol
 } from "../utils/deposit";
@@ -35,7 +36,6 @@ import { DepositHistory } from "../components/deposit/DepositHistory";
 import { DepositLoadingSkeleton } from "../components/deposit/DepositLoadingSkeleton";
 import { DepositVerificationStatus } from "../components/deposit/DepositVerificationStatus";
 
-const MARKET_SYMBOLS: LiveMarketSymbol[] = ["BTC", "ETH", "SOL", "USDT"];
 const LAST_STEP = 5;
 
 function extractMessage(error: unknown, fallback: string): string {
@@ -98,22 +98,30 @@ export function DepositPage() {
     refresh
   } = useDepositData();
 
-  const { data: market, loading: marketLoading, error: marketError } = useLiveMarket(MARKET_SYMBOLS);
-
   const option = getNetworkOption(cryptoType);
-  const usdPrice = market[symbol]?.price ?? null;
 
   const address = useMemo(
     () => addresses.find((item) => item.asset === option.platformAsset) ?? null,
     [addresses, option.platformAsset]
   );
 
-  const amountValidation = validateAmountInput(amount, option.decimals);
+  // `amount` holds the USD value the user enters. The crypto equivalent is
+  // always derived by the backend pricing service via the deposit quote.
+  const amountValidation = validateUsdAmountInput(amount);
   const txValidation = validateTxHashInput(txHash);
 
-  const parsedAmount = Number(amount);
-  const amountValueUsd =
-    amountValidation.valid && usdPrice !== null && usdPrice > 0 ? parsedAmount * usdPrice : null;
+  const parsedUsd = Number(amount);
+  const usdAmount = amountValidation.valid && Number.isFinite(parsedUsd) ? parsedUsd : null;
+
+  const {
+    quote,
+    loading: quoteLoading,
+    error: quoteError,
+    refresh: refreshQuote
+  } = useDepositQuote(cryptoType, usdAmount);
+
+  const conversionReady = quote?.available === true && quote.cryptoAmountLabel !== null;
+  const cryptoAmountLabel = conversionReady ? quote!.cryptoAmountLabel! : "—";
 
   const lastSubmittedDeposit = successId
     ? deposits.find((deposit) => deposit.deposit_id === successId) ?? null
@@ -153,7 +161,7 @@ export function DepositPage() {
       return false;
     }
     if (step === 2) {
-      return amountValidation.valid;
+      return amountValidation.valid && conversionReady;
     }
     if (step === 3) {
       return address !== null;
@@ -207,8 +215,14 @@ export function DepositPage() {
       setFormError("Deposit addresses are unavailable right now. Please refresh and try again.");
       return;
     }
-    if (!amountValidation.valid) {
+    if (!amountValidation.valid || usdAmount === null) {
       setFormError(amountValidation.message ?? "Enter a valid deposit amount.");
+      return;
+    }
+    if (!quote || quote.available !== true || quote.cryptoAmount === null) {
+      setFormError(
+        "We cannot submit this deposit until a verified conversion rate is available. Please refresh the rate and try again."
+      );
       return;
     }
     if (!txValidation.valid) {
@@ -218,7 +232,8 @@ export function DepositPage() {
     try {
       const created = await submitDeposit({
         crypto_type: cryptoType,
-        amount: parsedAmount,
+        amount: quote.cryptoAmount,
+        usd_amount: usdAmount,
         tx_hash: txHash.trim()
       });
       setSuccessId(created.deposit_id);
@@ -301,7 +316,7 @@ export function DepositPage() {
                   <SectionHeader
                     eyebrow="Step 3"
                     title="Enter amount"
-                    description={`The ${option.symbolLabel} amount you enter is what you send on the ${option.networkLabel} network.`}
+                    description={`Enter the amount you want to deposit in USD. We convert it to ${option.symbolLabel} at the current verified rate.`}
                   />
                   <DepositAmountInput
                     option={option}
@@ -312,9 +327,10 @@ export function DepositPage() {
                     }}
                     validation={amountValidation}
                     disabled={submitting}
-                    usdPrice={usdPrice}
-                    priceLoading={marketLoading}
-                    priceError={marketError}
+                    quote={quote}
+                    quoteLoading={quoteLoading}
+                    quoteError={quoteError}
+                    onRefreshRate={refreshQuote}
                   />
                 </Panel>
               ) : null}
@@ -323,7 +339,7 @@ export function DepositPage() {
                 <DepositInstructions
                   option={option}
                   address={address}
-                  amount={amount}
+                  quote={quote}
                   loading={loading}
                   error={addressesError}
                   onRetry={refresh}
@@ -355,7 +371,7 @@ export function DepositPage() {
                   <SectionHeader
                     eyebrow="Step 6"
                     title="Submit deposit for verification"
-                    description="Review the details below. Submitting does not credit your balance — we verify the transaction on-chain first."
+                    description={DISCLOSURES.onChainVerification}
                   />
 
                   <div className="space-y-2 rounded-xl bg-[#0F0F10] px-3 py-3">
@@ -363,7 +379,11 @@ export function DepositPage() {
                     <ReviewRow label="Network" value={option.networkLabel} />
                     <ReviewRow
                       label="Amount"
-                      value={`${formatNumber(parsedAmount, option.decimals)} ${option.symbolLabel}`}
+                      value={usdAmount !== null ? formatUsd(usdAmount) : "—"}
+                    />
+                    <ReviewRow
+                      label="You send"
+                      value={conversionReady ? cryptoAmountLabel : "Rate unavailable"}
                     />
                     <ReviewRow
                       label="Transaction hash"
@@ -383,15 +403,12 @@ export function DepositPage() {
                         </p>
                         <p className="text-[#9CA3AF]">
                           We are verifying this transaction on-chain. It stays pending until the
-                          backend confirms it independently.
+                          platform confirms it independently.
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-[11px] text-[#6B7280]">
-                      Submitting a transaction hash does not credit your balance. Your deposit is
-                      only confirmed after the platform verifies it on-chain.
-                    </p>
+                    <p className="text-[11px] text-[#6B7280]">{DISCLOSURES.depositsNotCredited}</p>
                   )}
                 </Panel>
               ) : null}
@@ -441,17 +458,13 @@ export function DepositPage() {
                 <Stat label="Network" value={option.networkLabel} hint={`${option.networkType} network`} />
                 <Stat
                   label="Amount"
-                  value={
-                    amountValidation.valid
-                      ? `${formatNumber(parsedAmount, option.decimals)} ${option.symbolLabel}`
-                      : "—"
-                  }
-                  hint={amountValidation.valid ? "Amount you transfer" : "Enter an amount"}
+                  value={amountValidation.valid && usdAmount !== null ? formatUsd(usdAmount) : "—"}
+                  hint={amountValidation.valid ? "USD you deposit" : "Enter an amount"}
                 />
                 <Stat
-                  label="Estimated value"
-                  value={amountValueUsd !== null ? formatUsd(amountValueUsd) : "—"}
-                  hint="Live market estimate"
+                  label="You send"
+                  value={conversionReady ? cryptoAmountLabel : "—"}
+                  hint={conversionReady ? "Equivalent at the verified rate" : "Waiting for a live rate"}
                 />
               </StatStrip>
             </Panel>

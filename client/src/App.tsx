@@ -45,6 +45,9 @@ const LeaderboardPage = lazy(() =>
 const ReferralPage = lazy(() =>
   import("./pages/ReferralPage").then((m) => ({ default: m.ReferralPage }))
 );
+const RewardsPage = lazy(() =>
+  import("./pages/RewardsPage").then((m) => ({ default: m.RewardsPage }))
+);
 const AdminOperationsPage = lazy(() =>
   import("./pages/AdminOperationsPage").then((m) => ({ default: m.AdminOperationsPage }))
 );
@@ -173,6 +176,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <InvestmentLevelsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rewards"
+            element={
+              <ProtectedRoute>
+                <RewardsPage />
               </ProtectedRoute>
             }
           />

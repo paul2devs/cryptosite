@@ -86,7 +86,7 @@ export function Layout({ children }: LayoutProps) {
               onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
             />
           ) : null}
-          <div className="flex min-h-screen flex-1 flex-col transition-all duration-300">
+          <div className="flex min-h-screen min-w-0 flex-1 flex-col transition-all duration-300">
             {isAppShell ? (
               <DashboardHeader
                 showSidebarToggle
@@ -100,14 +100,14 @@ export function Layout({ children }: LayoutProps) {
             <CookieBanner />
             <SupportChatWidget enabled={showSupportChat} />
             <main
-              className={`flex-1 transition-all duration-300 ${
+              className={`min-w-0 flex-1 transition-all duration-300 ${
                 isPublicMarketingOrAuthPage ? "pt-16" : "px-4 pb-28 pt-16 sm:px-6 lg:px-8 lg:pb-10"
               }`}
             >
               {isPublicMarketingOrAuthPage ? (
                 children
               ) : (
-                <div className="mx-auto w-full max-w-[1240px]">{children}</div>
+                <div className="mx-auto w-full min-w-0 max-w-[1240px]">{children}</div>
               )}
             </main>
             {isPublicMarketingOrAuthPage ? <Footer /> : null}

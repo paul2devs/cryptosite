@@ -204,13 +204,6 @@ const FAQ_ITEMS: FaqItem[] = [
   }
 ];
 
-interface DepositActivity {
-  id: string;
-  amount: string;
-  asset: string;
-  timeAgo: string;
-}
-
 type LeaderboardCategory = "topDepositors" | "weeklyEarners" | "fastestGrowing";
 
 interface LeaderboardRow {
@@ -218,61 +211,31 @@ interface LeaderboardRow {
   scoreLabel: string;
 }
 
-interface CommunityEvent {
-  id: string;
-  text: string;
-  timeAgo: string;
-}
-
-const mockActivities: DepositActivity[] = [
-  { id: "1", amount: "0.52", asset: "BTC", timeAgo: "2 minutes ago" },
-  { id: "2", amount: "18", asset: "ETH", timeAgo: "5 minutes ago" },
-  { id: "3", amount: "3,400", asset: "SOL", timeAgo: "8 minutes ago" },
-  { id: "4", amount: "1.2", asset: "BTC", timeAgo: "12 minutes ago" },
-  { id: "5", amount: "45", asset: "ETH", timeAgo: "15 minutes ago" },
-  { id: "6", amount: "8,500", asset: "SOL", timeAgo: "18 minutes ago" },
-  { id: "7", amount: "3,200", asset: "BTC", timeAgo: "25 minutes ago" },
-  { id: "8", amount: "950", asset: "ETH", timeAgo: "32 minutes ago" }
-];
-
+// Illustrative sample data only. Usernames and scores are obvious placeholders,
+// never real users or real balances. Live rankings are shown on /leaderboards.
 const LEADERBOARD_DATA: Record<LeaderboardCategory, LeaderboardRow[]> = {
   topDepositors: [
-    { username: "CryptoWhale", scoreLabel: "$48,000" },
-    { username: "DeFiKing", scoreLabel: "$31,200" },
-    { username: "ChainMaster", scoreLabel: "$27,900" },
-    { username: "BlockTitan", scoreLabel: "$21,400" },
-    { username: "SatoshiNode", scoreLabel: "$19,600" }
+    { username: "Sample user 1", scoreLabel: "—" },
+    { username: "Sample user 2", scoreLabel: "—" },
+    { username: "Sample user 3", scoreLabel: "—" },
+    { username: "Sample user 4", scoreLabel: "—" },
+    { username: "Sample user 5", scoreLabel: "—" }
   ],
   weeklyEarners: [
-    { username: "YieldPilot", scoreLabel: "$7,420" },
-    { username: "GammaFlow", scoreLabel: "$6,310" },
-    { username: "LayerZero", scoreLabel: "$5,980" },
-    { username: "NodeRunner", scoreLabel: "$4,760" },
-    { username: "VaultGuardian", scoreLabel: "$4,120" }
+    { username: "Sample user 1", scoreLabel: "—" },
+    { username: "Sample user 2", scoreLabel: "—" },
+    { username: "Sample user 3", scoreLabel: "—" },
+    { username: "Sample user 4", scoreLabel: "—" },
+    { username: "Sample user 5", scoreLabel: "—" }
   ],
   fastestGrowing: [
-    { username: "NewHorizon", scoreLabel: "+182%" },
-    { username: "VoltaEdge", scoreLabel: "+163%" },
-    { username: "SolRise", scoreLabel: "+149%" },
-    { username: "EthWave", scoreLabel: "+133%" },
-    { username: "BTCSignal", scoreLabel: "+127%" }
+    { username: "Sample user 1", scoreLabel: "—" },
+    { username: "Sample user 2", scoreLabel: "—" },
+    { username: "Sample user 3", scoreLabel: "—" },
+    { username: "Sample user 4", scoreLabel: "—" },
+    { username: "Sample user 5", scoreLabel: "—" }
   ]
 };
-
-const COMMUNITY_EVENTS: CommunityEvent[] = [
-  { id: "e1", text: "Alex deposited 0.42 BTC", timeAgo: "2 min ago" },
-  { id: "e2", text: "Sarah unlocked Level 3", timeAgo: "7 min ago" },
-  { id: "e3", text: "Mike deposited 3,200 SOL", timeAgo: "11 min ago" },
-  { id: "e4", text: "Referral boost activated for Daniel", timeAgo: "18 min ago" },
-  { id: "e5", text: "Priya hit a new earnings milestone", timeAgo: "25 min ago" }
-];
-
-function getAssetLogo(asset: string): string {
-  if (asset === "BTC") return btcLogo;
-  if (asset === "ETH") return ethLogo;
-  if (asset === "SOL") return solLogo;
-  return btcLogo;
-}
 
 const LEVEL_LADDER: { level: number; multiplier: number }[] = [
   { level: 1, multiplier: 1.1 },
@@ -291,10 +254,6 @@ function calculateLevel(depositAmount: number): number {
 
 function calculateMultiplier(level: number): number {
   return 1 + level * 0.25;
-}
-
-function calculateEarnings(depositAmount: number, multiplier: number): number {
-  return depositAmount * (multiplier - 1) * 0.1;
 }
 
 export function LandingPage() {
@@ -319,11 +278,6 @@ export function LandingPage() {
   const [engineDepositTouched, setEngineDepositTouched] = useState(false);
   const [activeLeaderboardTab, setActiveLeaderboardTab] =
     useState<LeaderboardCategory>("topDepositors");
-  const [statsAnimated, setStatsAnimated] = useState(false);
-  const [statTotalDeposits, setStatTotalDeposits] = useState(2_134_820);
-  const [statActiveDepositors, setStatActiveDepositors] = useState(3_491);
-  const [statHighestMultiplier, setStatHighestMultiplier] = useState(1.0);
-  const [communityMembers, setCommunityMembers] = useState(12842);
   const { data: marketData, loading: marketLoading } = useLiveMarket(MARKET_TICKER_SYMBOLS);
   const [marketTrendSeries, setMarketTrendSeries] = useState<number[]>([
     1,
@@ -350,10 +304,6 @@ export function LandingPage() {
 
   const level = useMemo(() => calculateLevel(depositAmount), [depositAmount]);
   const multiplier = useMemo(() => calculateMultiplier(level), [level]);
-  const earnings = useMemo(
-    () => calculateEarnings(depositAmount, multiplier),
-    [depositAmount, multiplier]
-  );
 
   const engineLevel = useMemo(() => {
     if (engineDeposit < 1000) return 1;
@@ -548,76 +498,6 @@ export function LandingPage() {
   }, [mouseX, mouseY]);
 
   useEffect(() => {
-    if (!isLeaderboardSectionInView || statsAnimated) {
-      return;
-    }
-    setStatsAnimated(true);
-    const targetTotalDeposits = 2134820;
-    const targetActiveDepositors = 3491;
-    const targetHighestMultiplier = 2.75;
-    const startTotalDeposits = 0;
-    const startActiveDepositors = 0;
-    const startHighestMultiplier = 1.0;
-    const duration = 900;
-    const startTime = performance.now();
-    let frameId: number;
-
-    const tick = (now: number) => {
-      const elapsed = now - startTime;
-      const tRaw = Math.min(1, elapsed / duration);
-      const t = 1 - Math.pow(1 - tRaw, 3);
-
-      setStatTotalDeposits(
-        Math.max(
-          0,
-          Math.round(startTotalDeposits + (targetTotalDeposits - startTotalDeposits) * t)
-        )
-      );
-      setStatActiveDepositors(
-        Math.max(
-          0,
-          Math.round(
-            startActiveDepositors + (targetActiveDepositors - startActiveDepositors) * t
-          )
-        )
-      );
-      setStatHighestMultiplier(
-        Math.max(
-          1,
-          Number(
-            (
-              startHighestMultiplier +
-              (targetHighestMultiplier - startHighestMultiplier) * t
-            ).toFixed(2)
-          )
-        )
-      );
-
-      if (tRaw < 1) {
-        frameId = requestAnimationFrame(tick);
-      }
-    };
-
-    frameId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frameId);
-  }, [isLeaderboardSectionInView, statsAnimated]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCommunityMembers((prev) => {
-        const increment = Math.floor(Math.random() * 3) + 1;
-        const next = prev + increment;
-        if (next > 99999) {
-          return prev;
-        }
-        return next;
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     const interval = setInterval(() => {
       setMarketTrendSeries((prev) => {
         const previous = prev.length > 0 ? prev[prev.length - 1] : 1;
@@ -680,20 +560,6 @@ export function LandingPage() {
     });
   };
 
-  const safeStatTotalDeposits = Math.max(
-    2_134_820,
-    Number.isFinite(statTotalDeposits) ? statTotalDeposits : 2_134_820
-  );
-  const safeStatActiveDepositors = Math.max(
-    3_491,
-    Number.isFinite(statActiveDepositors) ? statActiveDepositors : 3_491
-  );
-  const safeStatHighestMultiplier = Math.max(1, Number.isFinite(statHighestMultiplier) ? statHighestMultiplier : 4);
-  const safeCommunityMembers = Math.max(0, Number.isFinite(communityMembers) ? communityMembers : 0);
-  const safeActiveToday = Math.max(
-    0,
-    Math.round(Math.min(safeCommunityMembers, Math.max(0, safeStatActiveDepositors * 0.4)))
-  );
   return (
     <div className="landing-page page-responsive relative min-h-screen w-full overflow-x-hidden bg-[#0F0F10] pb-10 sm:pb-12">
       <Seo
@@ -777,16 +643,17 @@ export function LandingPage() {
                 <h1 className="display-font text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight leading-tight">
                   <span className="text-[#F5F5F7]">Grow your </span>
                   <span className="bg-gradient-to-r from-[#C6A15B] via-[#FACC15] to-[#FFFFFF] bg-clip-text display-font text-transparent">
-                    Crypto
+                    crypto
                   </span>
-                  <span className="text-[#F5F5F7]"> with our artificial </span>
+                  <span className="text-[#F5F5F7]"> with a structured </span>
                   <span className="bg-gradient-to-r from-[#16C784] to-[#38BDF8] bg-clip-text display-font text-transparent">
-                    Intelligence 
+                    deposit 
                   </span>
-                  <span className="text-[#F5F5F7]"> trading </span>
+                  <span className="text-[#F5F5F7]"> and </span>
                   <span className="bg-gradient-to-r from-[#16C784] to-[#38BDF8] bg-clip-text display-font text-transparent">
-                    System 
+                    rewards 
                   </span>
+                  <span className="text-[#F5F5F7]"> platform</span>
                 </h1>
                 <p className="text-lg sm:text-xl text-[#9CA3AF] max-w-xl">
                   Deposit assets, track activity, and manage everything from a single, structured dashboard.
@@ -843,11 +710,9 @@ export function LandingPage() {
                     </div>
 
                     <div className="pt-2">
-                      <p className="text-xs text-[#9CA3AF] mb-1">
-                        Projected earnings preview
-                      </p>
-                      <p className="text-xl font-semibold text-[#16C784]">
-                        +{earnings.toFixed(2)} ETH
+                      <p className="text-xs text-[#9CA3AF]">
+                        Illustrative example only — levels and multipliers are not a
+                        guarantee of returns.
                       </p>
                     </div>
                   </div>
@@ -897,6 +762,9 @@ export function LandingPage() {
 </div>
               <div className="relative overflow-hidden rounded-3xl bg-[#17181A]/80 p-6 shadow-[0_18px_45px_rgba(0,0,0,0.75)] backdrop-blur-sm">
                 <div className="space-y-6">
+                  <p className="inline-flex items-center gap-2 rounded-full bg-[#0F0F10] px-2.5 py-1 text-[10px] uppercase tracking-wider text-[#6B7280]">
+                    Illustrative example — sample data
+                  </p>
                   <div className="space-y-2">
                     <p className="text-xs uppercase tracking-wider text-[#9CA3AF]">
                       Portfolio Value
@@ -908,7 +776,7 @@ export function LandingPage() {
 
                   <div className="space-y-2">
                     <p className="text-xs uppercase tracking-wider text-[#9CA3AF]">
-                      Pending Earnings
+                      Rewards pending
                     </p>
                     <p className="text-xl font-semibold text-[#16C784]">
                       1000.00 ETH
@@ -1070,32 +938,6 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/*
-          Temporarily disabled marquee strip to prevent mobile overflow while we finalize responsive tuning.
-          <section className="w-full bg-[#0B0B0D] px-4 py-6 border-t border-[#26272B] sm:px-6 lg:px-8">
-            <div className="mx-auto w-full max-w-6xl overflow-x-auto-mobile">
-              <motion.div
-                className="flex gap-6 whitespace-nowrap sm:flex-wrap-mobile"
-                animate={{ x: [0, -50 * mockActivities.length] }}
-                transition={{ x: { repeat: Infinity, repeatType: "loop", duration: 30, ease: "linear" } }}
-              >
-                {[...mockActivities, ...mockActivities].map((activity, idx) => {
-                  const symbol = activity.asset.toUpperCase();
-                  return (
-                    <div key={`${activity.id}-${idx}`} className="flex items-center gap-2 text-xs sm:text-sm text-[#9CA3AF]">
-                      <img src={getAssetLogo(symbol)} alt={symbol} className="h-3.5 w-3.5 sm:h-4 sm:w-4" loading="lazy" />
-                      <span className="font-medium text-[#F5F5F7]">{activity.amount} {activity.asset}</span>
-                      <span>deposited</span>
-                      <span>•</span>
-                      <span>{activity.timeAgo}</span>
-                    </div>
-                  );
-                })}
-              </motion.div>
-            </div>
-          </section>
-        */}
-
         <section
           id="how-it-works"
           className="w-full bg-[#0F0F10] px-4 py-16 border-t border-[#26272B] sm:px-6 lg:px-8"
@@ -1109,7 +951,8 @@ export function LandingPage() {
                 How the platform works
               </h2>
               <p className="text-sm sm:text-base text-[#9CA3AF]">
-                Deposit assets, unlock multiplier levels, and watch your earnings grow automatically.
+                Deposit supported assets, unlock levels, and see how published reward
+                mechanics apply.
               </p>
             </div>
 
@@ -1219,13 +1062,19 @@ export function LandingPage() {
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-[#F5F5F7]">
-                        Earnings scale automatically
+                        Rewards follow published rules
                       </p>
                       <p className="text-[11px] text-[#9CA3AF]">
-                        Your rewards grow with your multiplier and portfolio value over time.
+                        Your level and multiplier are derived from your confirmed deposits.
                       </p>
                     </div>
                     <div className="mt-2 rounded-xl bg-[#0F0F10] border border-[#26272B] px-3 py-3 space-y-2">
+                      <div className="flex items-center justify-between text-[11px] text-[#9CA3AF]">
+                        <span>Illustrative example</span>
+                        <span className="text-[10px] text-[#6B7280]">
+                          sample only
+                        </span>
+                      </div>
                       <div className="flex items-center justify-between text-[11px] text-[#9CA3AF]">
                         <span>Portfolio value</span>
                         <span className="text-sm font-semibold text-[#F5F5F7]">
@@ -1239,12 +1088,6 @@ export function LandingPage() {
                         <span>Multiplier</span>
                         <span className="text-sm font-semibold text-[#C6A15B]">
                           x1.35
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-[#9CA3AF]">
-                        <span>Projected earnings</span>
-                        <span className="text-sm font-semibold text-[#16C784]">
-                          0.28 ETH
                         </span>
                       </div>
                       <div className="mt-2 h-1.5 rounded-full bg-[#111827] overflow-hidden">
@@ -1353,7 +1196,7 @@ export function LandingPage() {
                 The Multiplier Engine
               </h2>
               <p className="text-sm sm:text-base text-[#9CA3AF] max-w-xl">
-                Unlock higher levels and amplify your earnings as your approved deposits
+                Unlock higher levels and stronger multipliers as your confirmed deposits
                 grow across the platform.
               </p>
       </div>
@@ -1601,7 +1444,7 @@ export function LandingPage() {
                       Your multiplier increases automatically as your approved deposits grow.
                     </p>
                     <p className="text-[11px] text-[#9CA3AF]">
-                      Higher levels unlock stronger earnings amplification across the entire
+                      Higher levels unlock stronger multiplier benefits across the entire
                       platform.
                     </p>
                   </div>
@@ -1653,7 +1496,7 @@ export function LandingPage() {
                   {(
                     [
                       { id: "topDepositors", label: "Top Depositors" },
-                      { id: "weeklyEarners", label: "Weekly Earners" },
+                      { id: "weeklyEarners", label: "Top Earners" },
                       { id: "fastestGrowing", label: "Fastest Growing" }
                     ] as { id: LeaderboardCategory; label: string }[]
                   ).map((tab) => {
@@ -1683,6 +1526,9 @@ export function LandingPage() {
                 </div>
 
                 <div className="space-y-3">
+                  <p className="px-1 text-[10px] uppercase tracking-wider text-[#6B7280]">
+                    Illustrative example — sample data
+                  </p>
                   <div className="flex items-center justify-between text-[11px] text-[#9CA3AF] px-1">
                     <span>Rank</span>
                     <span>User</span>
@@ -1735,7 +1581,7 @@ export function LandingPage() {
                             {activeLeaderboardTab === "fastestGrowing"
                               ? "7-day growth"
                               : activeLeaderboardTab === "weeklyEarners"
-                              ? "Earnings this week"
+                              ? "Confirmed value this week"
                               : "Approved deposits"}
                           </span>
                         </div>
@@ -1751,30 +1597,6 @@ export function LandingPage() {
                     })}
                   </div>
                 </div>
-
-                <div className="grid gap-4 pt-4 sm:grid-cols-3">
-                  <div className="space-y-1">
-                    <p className="text-[11px] text-[#9CA3AF]">Total platform deposits</p>
-                    <p className="text-lg font-semibold text-[#F5F5F7]">
-                      $
-                      {safeStatTotalDeposits.toLocaleString(undefined, {
-                        maximumFractionDigits: 0
-                      })}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] text-[#9CA3AF]">Active depositors</p>
-                    <p className="text-lg font-semibold text-[#F5F5F7]">
-                      {safeStatActiveDepositors.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] text-[#9CA3AF]">Highest multiplier achieved</p>
-                    <p className="text-lg font-semibold text-[#16C784]">
-                      x{safeStatHighestMultiplier.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
               </div>
 
               <div className="space-y-6">
@@ -1783,38 +1605,21 @@ export function LandingPage() {
                     Community activity
                   </p>
                   <p className="text-sm font-medium text-[#F5F5F7]">
-                    Real users progressing through levels, unlocking boosts, and stacking
-                    rewards.
+                    Members progress through levels, unlock boosts, and track rewards inside
+                    the product.
                   </p>
                 </div>
                 <div className="rounded-3xl bg-[#17181A]/60 px-4 py-4 sm:px-5 sm:py-5 backdrop-blur-sm">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-[11px] text-[#9CA3AF]">
-                      <span>Live community feed</span>
+                      <span>Inside the product</span>
                     </div>
-                    <div className="space-y-1">
-                      {COMMUNITY_EVENTS.map((event, index) => (
-                        <motion.div
-                          key={event.id}
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={
-                            isLeaderboardSectionInView
-                              ? { opacity: 1, y: 0 }
-                              : { opacity: 0.6, y: 2 }
-                          }
-                          transition={{ duration: 0.25, delay: 0.1 + index * 0.05 }}
-                          className="flex items-center justify-between rounded-xl px-2.5 py-2 text-[11px] text-[#F5F5F7]"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#16C784]" />
-                            <span>{event.text}</span>
-                          </div>
-                          <span className="text-[10px] text-[#6B7280]">
-                            {event.timeAgo}
-                          </span>
-                        </motion.div>
-                      ))}
-                    </div>
+                    <p className="text-[11px] text-[#9CA3AF]">
+                      Real community activity — confirmed deposits, level unlocks, and
+                      referral progress — is shown inside your dashboard once you sign in.
+                      Leaderboard rankings are based on verified on-chain deposits, not on
+                      figures displayed here.
+                    </p>
                   </div>
                 </div>
 
@@ -2387,7 +2192,7 @@ export function LandingPage() {
                     </div>
                     <div className="space-y-0.5">
                       <p className="text-xs font-medium text-[#F5F5F7]">
-                        Instant referral rewards
+                        Referral rewards
                       </p>
                       <p>
                         Users receive referral bonuses when new members join and participate on
@@ -2551,13 +2356,13 @@ export function LandingPage() {
                     <div className="mt-3 rounded-2xl bg-[#0F0F10] border border-[#26272B] px-3 py-3 flex items-center justify-between gap-3">
                       <div className="space-y-1">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-[#9CA3AF]">
-                          Community members
+                          Referral network
                         </p>
-                        <p className="text-xl font-semibold text-[#F5F5F7]">
-                          {safeCommunityMembers.toLocaleString()}
+                        <p className="text-sm font-medium text-[#F5F5F7]">
+                          Track your referrals from your dashboard.
                         </p>
                         <p className="text-[11px] text-[#6B7280]">
-                          Users growing the network with live referrals.
+                          Invite links are tied to your account and shown in the app.
                         </p>
                       </div>
                       <div className="flex items-center justify-center rounded-full bg-[#17181A] border border-[#26272B] px-3 py-2">
@@ -2848,10 +2653,10 @@ export function LandingPage() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-[#9CA3AF]">
-                          Testimonials
+                          Sample testimonials
                         </p>
                         <p className="text-sm font-medium text-[#F5F5F7]">
-                          Real progression stories from depositors.
+                          Illustrative example — sample data, not real accounts or balances.
                         </p>
                       </div>
                     </div>
@@ -2977,47 +2782,13 @@ export function LandingPage() {
                 <div className="rounded-3xl bg-[#17181A]/60 px-4 py-5 sm:px-6 sm:py-6 backdrop-blur-sm">
                   <div className="space-y-3">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-[#9CA3AF]">
-                      Community stats
+                      Community
                     </p>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-1 rounded-2xl bg-[#0F0F10]/90 px-3 py-3 transition-colors">
-                        <div className="flex items-center justify-between text-[11px] text-[#9CA3AF]">
-                          <span>Total depositors</span>
-                          <Users className="h-3.5 w-3.5 text-[#C6A15B]" />
-                        </div>
-                        <p className="text-lg font-semibold text-[#F5F5F7]">
-                          {safeCommunityMembers.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="space-y-1 rounded-2xl bg-[#0F0F10]/90 px-3 py-3 transition-colors">
-                        <div className="flex items-center justify-between text-[11px] text-[#9CA3AF]">
-                          <span>Total deposits processed</span>
-                          <Wallet className="h-3.5 w-3.5 text-[#16C784]" />
-                        </div>
-                        <p className="text-lg font-semibold text-[#F5F5F7]">
-                          $
-                          {safeStatTotalDeposits.toLocaleString(undefined, {
-                            maximumFractionDigits: 0
-                          })}
-                        </p>
-                      </div>
-                      <div className="space-y-1 rounded-2xl bg-[#0F0F10]/90 px-3 py-3 transition-colors">
-                        <div className="flex items-center justify-between text-[11px] text-[#9CA3AF]">
-                          <span>Top level reached</span>
-                          <Trophy className="h-3.5 w-3.5 text-[#FACC15]" />
-                        </div>
-                        <p className="text-lg font-semibold text-[#F5F5F7]">Level 10</p>
-                      </div>
-                      <div className="space-y-1 rounded-2xl bg-[#0F0F10]/90 px-3 py-3 transition-colors">
-                        <div className="flex items-center justify-between text-[11px] text-[#9CA3AF]">
-                          <span>Active today</span>
-                          <Sparkles className="h-3.5 w-3.5 text-[#C6A15B]" />
-                        </div>
-                        <p className="text-lg font-semibold text-[#F5F5F7]">
-                          {safeActiveToday.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
+                    <p className="text-sm text-[#9CA3AF]">
+                      Platform activity — confirmed deposits, levels reached, and reward
+                      progress — is shown to you inside your dashboard, based on verified
+                      on-chain activity. We don&apos;t publish unverified totals here.
+                    </p>
                   </div>
                 </div>
               </div>

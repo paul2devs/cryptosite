@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>beacon</title></head>
+  <body>
+    <pre id="o">idle</pre>
+    <script>
+      const out = document.getElementById("o");
+      out.textContent = "fetching";
+      fetch("http://localhost:9999/result", {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({ stage: "beacon_test", href: location.href })
+      })
+        .then(() => { out.textContent = "sent"; document.title = "SENT"; })
+        .catch((e) => { out.textContent = "error " + e.message; document.title = "ERR"; });
+    </script>
+  </body>
+</html>

@@ -24,6 +24,7 @@ import { ensureDefaultInvestmentLevelBenefits, ensureDefaultInvestmentLevels } f
 import { ensureDefaultLevels } from "./services/gamificationService";
 import { ensureAdminAccount } from "./services/adminBootstrapService";
 import { ensureDefaultBonusCampaign } from "./services/bonusEngineService";
+import { ensureDefaultRewards } from "./services/rewardService";
 import { ensurePlatformSettings } from "./services/platformSettingsService";
 import "./models";
 
@@ -125,6 +126,7 @@ export async function startApp(): Promise<void> {
   await ensureDefaultInvestmentLevelBenefits();
   await ensurePlatformSettings();
   await ensureDefaultBonusCampaign();
+  await ensureDefaultRewards();
   await ensureAdminAccount();
 }
 

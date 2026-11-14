@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>view</title>
+    <style>
+      html, body { margin: 0; padding: 0; background: #000; }
+      iframe { display: block; border: 0; }
+    </style>
+  </head>
+  <body>
+    <script>
+      const ACCESS = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJhMmUwOWRjNy0yY2YyLTRkYzUtYjgzMy1mOTc3Mzk5NjdlOTEiLCJpc0FkbWluIjpmYWxzZSwiaWF0IjoxNzk0NjYzNTkwLCJleHAiOjE3OTQ2NjQ0OTB9.G2riCaa8DLG8ggsIqwxH4PkiZpd-_uw9euu1QeuYStk";
+      const REFRESH = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJhMmUwOWRjNy0yY2YyLTRkYzUtYjgzMy1mOTc3Mzk5NjdlOTEiLCJpc0FkbWluIjpmYWxzZSwiaWF0IjoxNzk0NjYzNTkwLCJleHAiOjE3OTUyNjgzOTB9.my-o6fvy1mi1-256C_sPbCamwSRgdeOAvoItelGDGsY";
+      localStorage.setItem(
+        "authTokens",
+        JSON.stringify({ accessToken: ACCESS, refreshToken: REFRESH, issuedAt: Date.now() })
+      );
+      const params = new URLSearchParams(location.search);
+      const w = params.get("w") || "390";
+      const h = params.get("h") || "3200";
+      const path = params.get("p") || "/membership";
+      const frame = document.createElement("iframe");
+      frame.style.width = w + "px";
+      frame.style.height = h + "px";
+      frame.src = path;
+      document.body.appendChild(frame);
+      const out = document.createElement("pre");
+      out.id = "out";
+      out.textContent = "loading";
+      document.body.appendChild(out);
+      frame.onload = () => {
+        setTimeout(() => {
+          try {
+            const doc = frame.contentDocument;
+            const de = doc.documentElement;
+            const offenders = [];
+            for (const el of doc.querySelectorAll("body *")) {
+              const r = el.getBoundingClientRect();
+              if (r.width === 0 && r.height === 0) continue;
+              const cs = frame.contentWindow.getComputedStyle(el);
+              if (cs.position === "fixed") continue;
+              if (r.right > de.clientWidth + 0.5 || r.left < -0.5) {
+                offenders.push({
+                  tag: el.tagName.toLowerCase(),
+                  cls: (el.getAttribute("class") || "").slice(0, 180),
+                  left: Math.round(r.left),
+                  right: Math.round(r.right),
+                  width: Math.round(r.width),
+                  text: (el.textContent || "").trim().slice(0, 60)
+                });
+              }
+            }
+            out.textContent =
+              "VIEWPORT=" + de.clientWidth +
+              " SCROLLW=" + de.scrollWidth +
+              " H=" + de.scrollHeight +
+              " PATH=" + (frame.contentWindow.location.pathname + frame.contentWindow.location.hash) +
+              " H1=" + ((doc.querySelector("h1") || {}).textContent || "") +
+              "\n" + JSON.stringify(offenders, null, 2) +
+              "\n===TEXT===\n" + (doc.body.innerText || "");
+            document.title = "VIEW_DONE";
+          } catch (e) {
+            out.textContent = "ERR " + String(e);
+            document.title = "VIEW_DONE";
+          }
+        }, 6000);
+      };
+    </script>
+  </body>
+</html>

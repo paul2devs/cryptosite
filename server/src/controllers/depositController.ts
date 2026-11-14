@@ -16,10 +16,15 @@ import { getPlatformWallets } from "../services/walletService";
 import { verifyDepositOnChain } from "../services/blockchainVerificationService";
 import { recordConfirmedDeposit } from "../services/financialOperationsService";
 import {
+  DepositCryptoType,
   isSupportedDepositCryptoType,
   resolveDepositNetwork,
   validateDepositSubmission
 } from "../domain/depositRules";
+import {
+  buildDepositQuote,
+  validateDepositConversion
+} from "../services/depositQuoteService";
 import QRCode from "qrcode";
 import { sendDepositStatusEmail } from "../services/email/emailService";
 
@@ -38,10 +43,11 @@ export async function createDeposit(
     return;
   }
 
-  const { crypto_type, amount, tx_hash } = req.body as {
+  const { crypto_type, amount, tx_hash, usd_amount } = req.body as {
     crypto_type: string;
     amount: number;
     tx_hash?: string | null;
+    usd_amount?: number | null;
   };
 
   try {
@@ -70,6 +76,18 @@ export async function createDeposit(
 
     const normalizedHash = submission.normalizedTxHash;
     const numericAmount = submission.numericAmount;
+
+    // Re-derive the USD→crypto conversion from the backend pricing service so a
+    // client-computed amount cannot diverge from the displayed quote.
+    const conversion = await validateDepositConversion({
+      cryptoType: crypto_type as DepositCryptoType,
+      cryptoAmount: numericAmount,
+      usdAmount: typeof usd_amount === "number" ? usd_amount : null
+    });
+    if (!conversion.valid) {
+      res.status(400).json({ message: conversion.errors[0] });
+      return;
+    }
 
     const existing = await Deposit.findOne({
       where: { tx_hash: normalizedHash }
@@ -169,7 +187,39 @@ export async function createDeposit(
 
     res.status(201).json(deposit);
   } catch (error) {
-    res.status(500).json({ message: "Failed to create deposit" });
+    res
+      .status(500)
+      .json({ message: "We could not create your deposit right now. Please try again." });
+  }
+}
+
+export async function getDepositQuote(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const cryptoType = String(req.query.crypto_type || "").trim().toUpperCase();
+
+  if (!isSupportedDepositCryptoType(cryptoType)) {
+    res.status(400).json({
+      message: "Select a supported asset and network to see a conversion."
+    });
+    return;
+  }
+
+  const rawUsd = req.query.usd_amount;
+  const usdAmount =
+    typeof rawUsd === "string" && rawUsd.trim().length > 0 ? Number(rawUsd) : null;
+
+  try {
+    const quote = await buildDepositQuote({
+      cryptoType,
+      usdAmount: usdAmount !== null && Number.isFinite(usdAmount) ? usdAmount : null
+    });
+    res.status(200).json(quote);
+  } catch {
+    res.status(500).json({
+      message: "We could not calculate a conversion right now. Please try again shortly."
+    });
   }
 }
 

@@ -30,6 +30,7 @@ const investmentLevelService_1 = require("./services/investmentLevelService");
 const gamificationService_1 = require("./services/gamificationService");
 const adminBootstrapService_1 = require("./services/adminBootstrapService");
 const bonusEngineService_1 = require("./services/bonusEngineService");
+const rewardService_1 = require("./services/rewardService");
 const platformSettingsService_1 = require("./services/platformSettingsService");
 require("./models");
 const app = (0, express_1.default)();
@@ -118,6 +119,7 @@ async function startApp() {
     await (0, investmentLevelService_1.ensureDefaultInvestmentLevelBenefits)();
     await (0, platformSettingsService_1.ensurePlatformSettings)();
     await (0, bonusEngineService_1.ensureDefaultBonusCampaign)();
+    await (0, rewardService_1.ensureDefaultRewards)();
     await (0, adminBootstrapService_1.ensureAdminAccount)();
 }
 exports.default = app;

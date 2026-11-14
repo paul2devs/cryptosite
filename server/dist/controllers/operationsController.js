@@ -59,6 +59,16 @@ exports.adminPerformanceSummary = adminPerformanceSummary;
 exports.adminRunPerformanceCycle = adminRunPerformanceCycle;
 exports.adminReconcilePerformanceLedger = adminReconcilePerformanceLedger;
 exports.adminProfitDistribution = adminProfitDistribution;
+exports.currentRewards = currentRewards;
+exports.redeemUserReward = redeemUserReward;
+exports.adminRewards = adminRewards;
+exports.adminRewardCatalog = adminRewardCatalog;
+exports.adminSaveReward = adminSaveReward;
+exports.adminDeactivateReward = adminDeactivateReward;
+exports.adminDeleteReward = adminDeleteReward;
+exports.adminGrantReward = adminGrantReward;
+exports.adminRevokeReward = adminRevokeReward;
+exports.adminUserRewards = adminUserRewards;
 const express_validator_1 = require("express-validator");
 const financialOperationsService_1 = require("../services/financialOperationsService");
 const membershipService_1 = require("../services/membershipService");
@@ -66,6 +76,7 @@ const investmentLevelService_1 = require("../services/investmentLevelService");
 const bonusEngineService_1 = require("../services/bonusEngineService");
 const performanceEngineService_1 = require("../services/performanceEngineService");
 const platformSettingsService_1 = require("../services/platformSettingsService");
+const rewardService_1 = require("../services/rewardService");
 const performanceService_1 = require("../services/performanceService");
 const transactionService_1 = require("../services/transactionService");
 function fail(res, error, status = 400) {
@@ -758,5 +769,117 @@ async function adminProfitDistribution(req, res) {
     }
     catch (error) {
         fail(res, error);
+    }
+}
+async function currentRewards(req, res) {
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        res.status(200).json(await (0, rewardService_1.getRewardDashboard)(req.user.userId));
+    }
+    catch (error) {
+        fail(res, error, 500);
+    }
+}
+async function redeemUserReward(req, res) {
+    if (rejected(req, res))
+        return;
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        res.status(200).json(await (0, rewardService_1.redeemReward)(req.user.userId, req.params.userRewardId));
+    }
+    catch (error) {
+        fail(res, error);
+    }
+}
+async function adminRewards(_req, res) {
+    try {
+        res.status(200).json(await (0, rewardService_1.rewardAdminSummary)());
+    }
+    catch (error) {
+        fail(res, error, 500);
+    }
+}
+async function adminRewardCatalog(_req, res) {
+    try {
+        res.status(200).json({ rewards: await (0, rewardService_1.listRewardCatalog)() });
+    }
+    catch (error) {
+        fail(res, error, 500);
+    }
+}
+async function adminSaveReward(req, res) {
+    if (rejected(req, res))
+        return;
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const body = req.body;
+        res.status(200).json(await (0, rewardService_1.saveRewardForAdmin)(req.user.userId, body));
+    }
+    catch (error) {
+        fail(res, error);
+    }
+}
+async function adminDeactivateReward(req, res) {
+    if (rejected(req, res))
+        return;
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        res
+            .status(200)
+            .json(await (0, rewardService_1.deactivateReward)(req.user.userId, req.params.rewardId, String(req.body.reason || "")));
+    }
+    catch (error) {
+        fail(res, error);
+    }
+}
+async function adminDeleteReward(req, res) {
+    if (rejected(req, res))
+        return;
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        res.status(200).json(await (0, rewardService_1.deleteReward)(req.user.userId, req.params.rewardId, String(req.body.reason || "")));
+    }
+    catch (error) {
+        fail(res, error);
+    }
+}
+async function adminGrantReward(req, res) {
+    if (rejected(req, res))
+        return;
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const body = req.body;
+        res.status(201).json(await (0, rewardService_1.grantRewardToUser)(req.user.userId, body));
+    }
+    catch (error) {
+        fail(res, error);
+    }
+}
+async function adminRevokeReward(req, res) {
+    if (rejected(req, res))
+        return;
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        res
+            .status(200)
+            .json(await (0, rewardService_1.revokeUserReward)(req.user.userId, req.params.userRewardId, String(req.body.reason || "")));
+    }
+    catch (error) {
+        fail(res, error);
+    }
+}
+async function adminUserRewards(req, res) {
+    try {
+        res.status(200).json(await (0, rewardService_1.listUserRewardsForAdmin)(req.query));
+    }
+    catch (error) {
+        fail(res, error, 500);
     }
 }

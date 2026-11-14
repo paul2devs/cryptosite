@@ -10,9 +10,11 @@ router.post("/", auth_1.authenticate, [
         .isString()
         .isIn(["BTC", "ETH", "SOL", "ERC20", "TRC20"]),
     (0, express_validator_1.body)("amount").isFloat({ gt: 0 }),
-    (0, express_validator_1.body)("tx_hash").isString().isLength({ min: 8, max: 200 })
+    (0, express_validator_1.body)("tx_hash").isString().isLength({ min: 8, max: 200 }),
+    (0, express_validator_1.body)("usd_amount").optional().isFloat({ gt: 0 })
 ], depositController_1.createDeposit);
 router.get("/addresses", depositController_1.getDepositAddresses);
+router.get("/quote", depositController_1.getDepositQuote);
 router.get("/me", auth_1.authenticate, depositController_1.getUserDeposits);
 router.get("/", auth_1.authenticate, auth_1.requireAdmin, depositController_1.getAllDeposits);
 router.patch("/:id/status", auth_1.authenticate, auth_1.requireAdmin, depositController_1.updateDepositStatus);

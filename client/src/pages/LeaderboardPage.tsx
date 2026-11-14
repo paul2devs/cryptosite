@@ -12,11 +12,6 @@ import {
   SkeletonBlock,
   StatStrip
 } from "../components/dashboard/primitives";
-import {
-  getSeedDataForCategory,
-  mergeLeaderboardData,
-  type LeaderboardSeedEntry
-} from "../data/leaderboardSeed";
 
 type LeaderboardKind = "depositors" | "earnings" | "streaks" | "growth";
 
@@ -30,12 +25,12 @@ const tabs: { id: LeaderboardKind; label: string; description: string }[] = [
   {
     id: "depositors",
     label: "Top Depositors",
-    description: "Largest all-time approved deposits."
+    description: "Largest all-time confirmed deposits."
   },
   {
     id: "earnings",
-    label: "Weekly Earners",
-    description: "Highest pending earnings unlocked this week."
+    label: "Top Earners",
+    description: "Highest confirmed value recorded this week."
   },
   {
     id: "streaks",
@@ -45,7 +40,7 @@ const tabs: { id: LeaderboardKind; label: string; description: string }[] = [
   {
     id: "growth",
     label: "Fastest Growing",
-    description: "Accounts with the strongest recent growth."
+    description: "Accounts with the strongest recent deposit growth."
   }
 ];
 
@@ -87,6 +82,23 @@ function formatValue(value: number, category: LeaderboardKind): string {
   return `$${value.toFixed(2)}`;
 }
 
+function formatUsdStat(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) {
+    return "—";
+  }
+  return `$${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+}
+
+function formatCountStat(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) {
+    return "—";
+  }
+  return value.toLocaleString();
+}
+
 function AvatarCircle({ name, size = 10 }: { name: string; size?: number }) {
   const initials = generateInitials(name);
   const color = getAvatarColor(name);
@@ -111,10 +123,14 @@ export function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [communityStats, setCommunityStats] = useState({
-    totalDeposits: 6_842_750,
-    activeDepositors: 428,
-    highestDeposit: 248_500
+  const [communityStats, setCommunityStats] = useState<{
+    totalDeposits: number | null;
+    activeDepositors: number | null;
+    highestDeposit: number | null;
+  }>({
+    totalDeposits: null,
+    activeDepositors: null,
+    highestDeposit: null
   });
   const navigate = useNavigate();
 
@@ -123,13 +139,10 @@ export function LeaderboardPage() {
     setError(null);
     try {
       const res = await api.get<LeaderboardEntry[]>(`/leaderboard/${kind}`);
-      const realData = res.data || [];
-      const seedData = getSeedDataForCategory(kind);
-      const merged = mergeLeaderboardData(realData, seedData);
-      setEntries(merged);
+      setEntries(Array.isArray(res.data) ? res.data : []);
     } catch {
-      const seedData = getSeedDataForCategory(kind);
-      setEntries(seedData);
+      setEntries([]);
+      setError("The leaderboard is unavailable right now. Please try again shortly.");
     } finally {
       setLoading(false);
     }
@@ -142,36 +155,20 @@ export function LeaderboardPage() {
   useEffect(() => {
     const loadStats = async () => {
       try {
-        const [portfolioRes] = await Promise.all([
-          api.get<{ totalPlatformBalance: number }>("/portfolio/summary").catch(() => null)
-        ]);
-        if (portfolioRes?.data) {
-          const calculatedTotal = Number(portfolioRes.data.totalPlatformBalance) || 0;
-          const fallbackFromEntries = entries.reduce((sum, entry) => sum + Math.max(0, entry.value), 0);
-          const safeTotalDeposits = Math.max(calculatedTotal, fallbackFromEntries, 6_842_750);
-          const safeActiveDepositors = Math.max(entries.length, 428);
-          const safeHighestDeposit = Math.max(entries.length > 0 ? entries[0].value : 0, 248_500);
-          setCommunityStats({
-            totalDeposits: safeTotalDeposits,
-            activeDepositors: safeActiveDepositors,
-            highestDeposit: safeHighestDeposit
-          });
-          return;
-        }
-        const fallbackFromEntries = entries.reduce((sum, entry) => sum + Math.max(0, entry.value), 0);
+        const portfolioRes = await api
+          .get<{ totalPlatformBalance: number }>("/portfolio/summary")
+          .catch(() => null);
+        const total = portfolioRes?.data ? Number(portfolioRes.data.totalPlatformBalance) : NaN;
         setCommunityStats({
-          totalDeposits: Math.max(fallbackFromEntries, 6_842_750),
-          activeDepositors: Math.max(entries.length, 428),
-          highestDeposit: Math.max(entries.length > 0 ? entries[0].value : 0, 248_500)
+          totalDeposits: Number.isFinite(total) && total > 0 ? total : null,
+          activeDepositors: entries.length > 0 ? entries.length : null,
+          highestDeposit: entries.length > 0 ? entries[0].value : null
         });
       } catch {
         setCommunityStats({
-          totalDeposits: Math.max(
-            entries.reduce((sum, entry) => sum + Math.max(0, entry.value), 0),
-            6_842_750
-          ),
-          activeDepositors: Math.max(entries.length, 428),
-          highestDeposit: Math.max(entries.length > 0 ? entries[0].value : 0, 248_500)
+          totalDeposits: null,
+          activeDepositors: entries.length > 0 ? entries.length : null,
+          highestDeposit: entries.length > 0 ? entries[0].value : null
         });
       }
     };
@@ -188,8 +185,8 @@ export function LeaderboardPage() {
   return (
     <div className="page-responsive borderless-ui min-w-0 space-y-8 overflow-x-hidden">
       <Seo
-        title="Leaderboards – social proof and top performers"
-        description="Explore top depositors, weekly earners, highest streaks and fastest growing accounts across NexaCrypto."
+        title="Leaderboards – platform activity"
+        description="Explore confirmed deposit activity across NexaCrypto: top depositors, top earners, highest streaks and fastest growing accounts."
         path="/leaderboards"
       />
       <section className="space-y-2">
@@ -197,8 +194,8 @@ export function LeaderboardPage() {
           Leaderboards
         </h1>
         <p className="max-w-2xl text-sm text-[#9CA3AF]">
-          See who is depositing the most, earning the fastest, and maintaining the
-          strongest streaks across the platform.
+          See which accounts hold the largest confirmed deposits, the strongest streaks
+          and the fastest recent growth across the platform.
         </p>
       </section>
 
@@ -244,10 +241,10 @@ export function LeaderboardPage() {
           </div>
         )}
 
-        {!loading && entries.length === 0 && (
+        {!loading && !error && entries.length === 0 && (
           <EmptyState
-            title="The leaderboard is waiting for its first champions."
-            description="Start depositing and you could be the first top performer on the platform."
+            title="No leaderboard entries yet"
+            description="Rankings appear here once accounts have confirmed platform activity. Make a deposit to get started."
             action={
               <button
                 type="button"
@@ -342,21 +339,9 @@ export function LeaderboardPage() {
       <section className="rounded-3xl bg-[#17181A]/60 px-4 py-5 backdrop-blur-sm sm:px-6 sm:py-6">
         <h2 className="display-font mb-4 text-lg font-semibold text-[#F5F5F7]">Community stats</h2>
         <StatStrip>
-          <Metric
-            label="Total platform deposits"
-            value={`$${communityStats.totalDeposits.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            })}`}
-          />
-          <Metric label="Active depositors" value={communityStats.activeDepositors.toLocaleString()} />
-          <Metric
-            label="Highest deposit"
-            value={`$${communityStats.highestDeposit.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            })}`}
-          />
+          <Metric label="Total platform deposits" value={formatUsdStat(communityStats.totalDeposits)} />
+          <Metric label="Active depositors" value={formatCountStat(communityStats.activeDepositors)} />
+          <Metric label="Highest deposit" value={formatUsdStat(communityStats.highestDeposit)} />
         </StatStrip>
       </section>
     </div>

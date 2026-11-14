@@ -3,6 +3,7 @@ import { formatDecimal, parseDecimal } from "./money";
 export type TransactionCategory =
   | "deposit"
   | "bonus"
+  | "reward"
   | "withdrawal"
   | "investment"
   | "distribution"
@@ -142,6 +143,8 @@ export function withdrawalStatusLabel(status: string, detailedStatus?: string | 
 const LEDGER_TYPE_MAP: Record<string, { category: TransactionCategory; label: string; direction: TransactionDirection; external: boolean }> = {
   deposit_confirmed: { category: "deposit", label: "Deposit confirmed", direction: "in", external: true },
   promotional_bonus_credited: { category: "bonus", label: "Promotional bonus credited", direction: "in", external: false },
+  reward_granted: { category: "reward", label: "Reward granted", direction: "in", external: false },
+  reward_redeemed: { category: "reward", label: "Reward redeemed", direction: "in", external: false },
   withdrawal_reserved: { category: "withdrawal", label: "Withdrawal reserved", direction: "internal", external: false },
   withdrawal_completed: { category: "withdrawal", label: "Withdrawal completed", direction: "out", external: true },
   withdrawal_released: { category: "withdrawal", label: "Withdrawal released", direction: "internal", external: false },

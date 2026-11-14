@@ -3,6 +3,7 @@ import { body } from "express-validator";
 import {
   createDeposit,
   getDepositAddresses,
+  getDepositQuote,
   getAllDeposits,
   getUserDeposits,
   updateDepositStatus
@@ -19,12 +20,15 @@ router.post(
       .isString()
       .isIn(["BTC", "ETH", "SOL", "ERC20", "TRC20"]),
     body("amount").isFloat({ gt: 0 }),
-    body("tx_hash").isString().isLength({ min: 8, max: 200 })
+    body("tx_hash").isString().isLength({ min: 8, max: 200 }),
+    body("usd_amount").optional().isFloat({ gt: 0 })
   ],
   createDeposit
 );
 
 router.get("/addresses", getDepositAddresses);
+
+router.get("/quote", getDepositQuote);
 
 router.get("/me", authenticate, getUserDeposits);
 

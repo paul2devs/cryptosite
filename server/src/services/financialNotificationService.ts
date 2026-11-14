@@ -5,6 +5,8 @@ import { getNotificationTemplates } from "./platformSettingsService";
 export type FinancialNotificationType =
   | "deposit_confirmed"
   | "promotional_bonus_credited"
+  | "reward_granted"
+  | "reward_redeemed"
   | "investment_allocation"
   | "verified_trading_activity"
   | "daily_performance"
@@ -15,6 +17,8 @@ export type FinancialNotificationType =
 const NOTIFICATION_FLAG: Record<FinancialNotificationType, string> = {
   deposit_confirmed: "deposit_updates",
   promotional_bonus_credited: "rewards_bonuses",
+  reward_granted: "rewards_bonuses",
+  reward_redeemed: "rewards_bonuses",
   investment_allocation: "investment_updates",
   verified_trading_activity: "investment_updates",
   daily_performance: "performance_updates",
@@ -49,6 +53,8 @@ export async function notifyFinancialEvent(input: {
   templateKey:
     | "depositConfirmation"
     | "promotionalBonusCredited"
+    | "rewardGranted"
+    | "rewardRedeemed"
     | "investmentAllocation"
     | "verifiedTradingActivity"
     | "dailyPerformance"

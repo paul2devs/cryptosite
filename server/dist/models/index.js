@@ -36,4 +36,6 @@ require("./UserInvestmentLevelBenefit");
 require("./InvestmentLevelHistory");
 require("./BonusCampaign");
 require("./BonusCredit");
+require("./Reward");
+require("./UserReward");
 require("./PlatformSetting");

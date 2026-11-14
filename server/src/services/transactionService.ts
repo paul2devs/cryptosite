@@ -27,6 +27,8 @@ import { Withdrawal } from "../models/Withdrawal";
 
 const LEDGER_PRIMARY_CODE: Record<string, LedgerAccountCode> = {
   promotional_bonus_credited: "promotional_credits",
+  reward_granted: "promotional_credits",
+  reward_redeemed: "available_balance",
   investment_allocation: "invested_principal",
   investment_redemption: "invested_principal",
   profit_distribution: "realized_earnings",
@@ -58,9 +60,10 @@ export interface TransactionQuery {
 }
 
 const CATEGORY_FILTER: Record<string, TransactionCategory[]> = {
-  all: ["deposit", "bonus", "withdrawal", "investment", "distribution", "fee", "adjustment", "other"],
+  all: ["deposit", "bonus", "reward", "withdrawal", "investment", "distribution", "fee", "adjustment", "other"],
   deposits: ["deposit"],
   bonuses: ["bonus"],
+  rewards: ["reward"],
   withdrawals: ["withdrawal"],
   investments: ["investment"],
   returns: ["distribution"],
@@ -162,6 +165,7 @@ function withdrawalToView(withdrawal: Withdrawal): TransactionView {
 function relatedReferenceFor(sourceType: string, sourceId: string): string | null {
   if (sourceType === "deposit") return generateReference("deposit", sourceId);
   if (sourceType.startsWith("withdrawal")) return generateReference("withdrawal", sourceId);
+  if (sourceType === "redeem") return generateReference("reward", sourceId);
   return null;
 }
 

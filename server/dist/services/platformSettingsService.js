@@ -35,6 +35,8 @@ exports.DEFAULT_RECONCILIATION_SETTINGS = {
 exports.DEFAULT_NOTIFICATION_TEMPLATES = {
     depositConfirmation: "Deposit {amount} {asset} confirmed. Reference {reference}.",
     promotionalBonusCredited: "Promotional bonus of {amount} {asset} credited from campaign {campaign}. Reference {reference}.",
+    rewardGranted: "Reward {reward} of {amount} {asset} granted to your account. Reference {reference}.",
+    rewardRedeemed: "Reward {reward} of {amount} {asset} redeemed into your available balance. Reference {reference}.",
     investmentAllocation: "Investment allocation of {amount} {asset} recorded against verified position {position}. Reference {reference}.",
     verifiedTradingActivity: "Verified trading activity recorded for {asset}: {detail}. Reference {reference}.",
     dailyPerformance: "Daily performance for {date}: {detail}. Source {source}. Reference {reference}.",
@@ -113,6 +115,8 @@ async function getNotificationTemplates() {
     return {
         depositConfirmation: asString(raw.depositConfirmation, exports.DEFAULT_NOTIFICATION_TEMPLATES.depositConfirmation),
         promotionalBonusCredited: asString(raw.promotionalBonusCredited, exports.DEFAULT_NOTIFICATION_TEMPLATES.promotionalBonusCredited),
+        rewardGranted: asString(raw.rewardGranted, exports.DEFAULT_NOTIFICATION_TEMPLATES.rewardGranted),
+        rewardRedeemed: asString(raw.rewardRedeemed, exports.DEFAULT_NOTIFICATION_TEMPLATES.rewardRedeemed),
         investmentAllocation: asString(raw.investmentAllocation, exports.DEFAULT_NOTIFICATION_TEMPLATES.investmentAllocation),
         verifiedTradingActivity: asString(raw.verifiedTradingActivity, exports.DEFAULT_NOTIFICATION_TEMPLATES.verifiedTradingActivity),
         dailyPerformance: asString(raw.dailyPerformance, exports.DEFAULT_NOTIFICATION_TEMPLATES.dailyPerformance),

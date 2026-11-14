@@ -340,3 +340,22 @@ small {
   background: linear-gradient(150deg, #1B1C1F 0%, #2A2C31 100%);
   color: #5A5D63;
 }
+
+/* Reward emblem finishes. Loyalty and promotional use dark surfaces so the
+   monogram reads, while referral and special use light metallic surfaces. */
+.emblem-reward-loyalty {
+  background: linear-gradient(150deg, #3E3418 0%, #C6A15B 52%, #2C2410 100%);
+}
+.emblem-reward-promotional {
+  background: linear-gradient(150deg, #0F2A22 0%, #16C784 52%, #0B1F19 100%);
+}
+.emblem-reward-referral {
+  background: linear-gradient(150deg, #22303A 0%, #7FA8C9 50%, #18242C 100%);
+}
+.emblem-reward-special {
+  background: linear-gradient(150deg, #2A2440 0%, #9B86E0 50%, #1D1930 100%);
+}
+.emblem-reward-locked {
+  background: linear-gradient(150deg, #17181A 0%, #232428 100%);
+  color: #55585E;
+}

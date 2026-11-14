@@ -1,13 +1,14 @@
 import { AlertTriangle } from "lucide-react";
 import { Panel, SectionHeader, SkeletonBlock, ErrorRow } from "../dashboard/primitives";
-import { formatNumber } from "../../utils/format";
+import { formatUsd } from "../../utils/format";
+import { DISCLOSURES } from "../../constants/copy";
 import type { DepositAddress } from "../../hooks/useDepositData";
+import type { DepositQuote } from "../../hooks/useDepositQuote";
 import type { DepositNetworkOption } from "../../utils/deposit";
 import { DepositQRCode } from "./DepositQRCode";
 import { DepositAddressDisplay } from "./DepositAddressDisplay";
 
-const SAFETY_WARNING =
-  "Only send the selected asset using the selected network. Sending funds through an unsupported network or to an incorrect address may result in permanent loss.";
+const SAFETY_WARNING = DISCLOSURES.wrongNetworkRisk;
 
 function DetailRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -22,23 +23,25 @@ function DetailRow({ label, value, hint }: { label: string; value: string; hint?
 export function DepositInstructions({
   option,
   address,
-  amount,
+  quote,
   loading,
   error,
   onRetry
 }: {
   option: DepositNetworkOption;
   address: DepositAddress | null;
-  amount: string;
+  quote: DepositQuote | null;
   loading: boolean;
   error: string | null;
   onRetry: () => void;
 }) {
-  const parsedAmount = Number(amount.trim());
-  const hasAmount = amount.trim().length > 0 && Number.isFinite(parsedAmount) && parsedAmount > 0;
-  const amountLabel = hasAmount
-    ? `${formatNumber(parsedAmount, option.decimals)} ${option.symbolLabel}`
-    : "—";
+  const hasAmount = quote?.available === true && quote.cryptoAmountLabel !== null;
+  const amountLabel = hasAmount ? quote!.cryptoAmountLabel! : "—";
+  const amountHint = hasAmount
+    ? quote!.usdAmount !== null
+      ? `≈ ${formatUsd(quote!.usdAmount!)} · send exactly this amount on this network`
+      : "Send exactly this amount on this network"
+    : "Return to the amount step to set the deposit value";
 
   return (
     <Panel className="space-y-5">
@@ -75,15 +78,7 @@ export function DepositInstructions({
           </div>
 
           <div className="rounded-xl bg-[#0F0F10] px-3 py-3">
-            <DetailRow
-              label="Amount to send"
-              value={amountLabel}
-              hint={
-                hasAmount
-                  ? "Send exactly this amount on this network"
-                  : "Set this on the amount step"
-              }
-            />
+            <DetailRow label="Amount to send" value={amountLabel} hint={amountHint} />
           </div>
 
           <DepositAddressDisplay address={address.address} networkLabel={option.networkLabel} />

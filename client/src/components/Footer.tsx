@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { FaTelegramPlane, FaTwitter, FaDiscord } from "react-icons/fa";
+import { DISCLOSURES } from "../constants/copy";
 
 export function Footer() {
   return (
@@ -18,10 +19,11 @@ export function Footer() {
               </span>
             </div>
             <p className="max-w-sm break-words text-xs leading-5 text-[#9CA3AF]">
-              Centralized custodial crypto platform built for secure deposits, transparent progression, and controlled reward mechanics.
+              Custodial crypto platform for deposits, transparent level progression, and
+              clearly defined reward mechanics.
             </p>
             <p className="break-words text-[11px] leading-5 text-[#6B7280]">
-              Enterprise-grade monitoring, strict controls, and clear platform governance.
+              {DISCLOSURES.custodial}
             </p>
           </div>
 
@@ -65,7 +67,7 @@ export function Footer() {
         </div>
         <div className="flex flex-col-reverse items-start justify-between gap-3 pt-6 text-[10px] text-[#6B7280] sm:flex-row sm:items-center">
           <p className="break-words">© {new Date().getFullYear()} NexaCrypto. All rights reserved.</p>
-          <p className="break-words sm:text-right">Centralized custodial platform. Investment advice. Participate responsibly.</p>
+          <p className="break-words sm:text-right">Custodial platform. Nothing here is investment advice. Participate responsibly.</p>
         </div>
       </div>
     </footer>

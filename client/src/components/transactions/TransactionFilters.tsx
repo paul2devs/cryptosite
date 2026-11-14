@@ -7,6 +7,7 @@ const CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "all", label: "All" },
   { value: "deposits", label: "Deposits" },
   { value: "bonuses", label: "Bonuses" },
+  { value: "rewards", label: "Rewards" },
   { value: "withdrawals", label: "Withdrawals" },
   { value: "investments", label: "Investments" },
   { value: "returns", label: "Returns" },

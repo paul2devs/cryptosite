@@ -68,7 +68,7 @@ export function TermsPage() {
             </section>
             <section>
               <h2 className="mb-1 text-sm font-semibold text-slate-100">
-                5.Financial Responsibility
+                5. Financial Responsibility
               </h2>
               <p>
                 All content on NexaCrypto, including dashboards, analytics, performance indicators, and leaderboard

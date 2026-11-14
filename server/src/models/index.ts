@@ -34,5 +34,7 @@ import "./UserInvestmentLevelBenefit";
 import "./InvestmentLevelHistory";
 import "./BonusCampaign";
 import "./BonusCredit";
+import "./Reward";
+import "./UserReward";
 import "./PlatformSetting";
 

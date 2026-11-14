@@ -31,7 +31,9 @@ const TEMPLATE_FIELDS: Array<{ key: keyof NotificationTemplates; label: string }
   { key: "dailyPerformance", label: "Daily performance" },
   { key: "profitRealised", label: "Profit / loss realised" },
   { key: "withdrawalProcessing", label: "Withdrawal processing" },
-  { key: "withdrawalCompleted", label: "Withdrawal completed" }
+  { key: "withdrawalCompleted", label: "Withdrawal completed" },
+  { key: "rewardGranted", label: "Reward granted" },
+  { key: "rewardRedeemed", label: "Reward redeemed" }
 ];
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

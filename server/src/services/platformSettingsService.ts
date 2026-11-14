@@ -26,6 +26,8 @@ export interface ReconciliationSettings {
 export interface NotificationTemplates {
   depositConfirmation: string;
   promotionalBonusCredited: string;
+  rewardGranted: string;
+  rewardRedeemed: string;
   investmentAllocation: string;
   verifiedTradingActivity: string;
   dailyPerformance: string;
@@ -62,6 +64,8 @@ export const DEFAULT_RECONCILIATION_SETTINGS: ReconciliationSettings = {
 export const DEFAULT_NOTIFICATION_TEMPLATES: NotificationTemplates = {
   depositConfirmation: "Deposit {amount} {asset} confirmed. Reference {reference}.",
   promotionalBonusCredited: "Promotional bonus of {amount} {asset} credited from campaign {campaign}. Reference {reference}.",
+  rewardGranted: "Reward {reward} of {amount} {asset} granted to your account. Reference {reference}.",
+  rewardRedeemed: "Reward {reward} of {amount} {asset} redeemed into your available balance. Reference {reference}.",
   investmentAllocation: "Investment allocation of {amount} {asset} recorded against verified position {position}. Reference {reference}.",
   verifiedTradingActivity: "Verified trading activity recorded for {asset}: {detail}. Reference {reference}.",
   dailyPerformance: "Daily performance for {date}: {detail}. Source {source}. Reference {reference}.",
@@ -149,6 +153,8 @@ export async function getNotificationTemplates(): Promise<NotificationTemplates>
   return {
     depositConfirmation: asString(raw.depositConfirmation, DEFAULT_NOTIFICATION_TEMPLATES.depositConfirmation),
     promotionalBonusCredited: asString(raw.promotionalBonusCredited, DEFAULT_NOTIFICATION_TEMPLATES.promotionalBonusCredited),
+    rewardGranted: asString(raw.rewardGranted, DEFAULT_NOTIFICATION_TEMPLATES.rewardGranted),
+    rewardRedeemed: asString(raw.rewardRedeemed, DEFAULT_NOTIFICATION_TEMPLATES.rewardRedeemed),
     investmentAllocation: asString(raw.investmentAllocation, DEFAULT_NOTIFICATION_TEMPLATES.investmentAllocation),
     verifiedTradingActivity: asString(raw.verifiedTradingActivity, DEFAULT_NOTIFICATION_TEMPLATES.verifiedTradingActivity),
     dailyPerformance: asString(raw.dailyPerformance, DEFAULT_NOTIFICATION_TEMPLATES.dailyPerformance),

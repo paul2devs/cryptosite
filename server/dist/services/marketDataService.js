@@ -78,6 +78,9 @@ async function fetchFromCoinGecko() {
             lastUpdated: now
         },
     };
+    for (const point of Object.values(result)) {
+        point.source = "coingecko";
+    }
     return result;
 }
 async function fetchFromBinance() {
@@ -118,6 +121,9 @@ async function fetchFromBinance() {
         BNB: entries.find(([s]) => s === "BNB")[1],
         XRP: entries.find(([s]) => s === "XRP")[1],
     };
+    for (const point of Object.values(result)) {
+        point.source = "binance";
+    }
     return result;
 }
 async function refreshMarketData() {

@@ -15,6 +15,7 @@ import { api } from "../utils/api";
 import { logout } from "../store/authSlice";
 import type { AppDispatch } from "../store";
 import { LANGUAGE_OPTIONS, UI_LANGUAGE_STORAGE_KEY, useI18n } from "../i18n/I18nProvider";
+import { BRAND } from "../constants/copy";
 import btcLogo from "../assets/crypto/btc.svg";
 import ethLogo from "../assets/crypto/eth.svg";
 import usdtLogo from "../assets/crypto/usdt.svg";
@@ -520,9 +521,7 @@ export function SettingsPage() {
         <SectionHeader title={t("settings_support")} />
         <Panel>
           <a
-            href="https://t.me"
-            target="_blank"
-            rel="noreferrer"
+            href={`mailto:${BRAND.supportEmail}`}
             className="btn btn-secondary btn-md"
           >
             {t("settings_contact_support")}

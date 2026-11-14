@@ -30,12 +30,6 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export const DASHBOARD_SECTIONS = {
-  membership: "#membership",
-  investmentLevels: "#investment-levels",
-  rewards: "#rewards"
-} as const;
-
 export const NAV_GROUPS: NavGroup[] = [
   {
     id: "main",
@@ -107,8 +101,7 @@ export const NAV_GROUPS: NavGroup[] = [
         id: "rewards",
         labelKey: "nav_rewards",
         fallbackLabel: "Rewards",
-        path: "/",
-        hash: DASHBOARD_SECTIONS.rewards,
+        path: "/rewards",
         icon: Gift
       }
     ]
@@ -166,6 +159,7 @@ export const PAGE_TITLES: Array<{ match: (pathname: string) => boolean; title: s
   { match: (pathname) => pathname.startsWith("/performance"), title: "Performance" },
   { match: (pathname) => pathname.startsWith("/membership"), title: "Membership" },
   { match: (pathname) => pathname.startsWith("/investment-levels"), title: "Investment Levels" },
+  { match: (pathname) => pathname.startsWith("/rewards"), title: "Rewards" },
   { match: (pathname) => pathname.startsWith("/deposit"), title: "Deposit" },
   { match: (pathname) => pathname.startsWith("/withdraw"), title: "Withdraw" },
   { match: (pathname) => pathname.startsWith("/transactions"), title: "Transactions" },

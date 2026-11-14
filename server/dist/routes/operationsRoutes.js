@@ -14,6 +14,8 @@ router.post("/investment-level/benefits/:benefitId/activate", auth_1.authenticat
 router.get("/performance", auth_1.authenticate, operationsController_1.currentPerformance);
 router.get("/performance/daily/:date", auth_1.authenticate, operationsController_1.performanceDaily);
 router.get("/bonuses", auth_1.authenticate, operationsController_1.myBonuses);
+router.get("/rewards", auth_1.authenticate, operationsController_1.currentRewards);
+router.post("/rewards/:userRewardId/redeem", auth_1.authenticate, [(0, express_validator_1.param)("userRewardId").isUUID()], operationsController_1.redeemUserReward);
 router.get("/transactions", auth_1.authenticate, operationsController_1.transactions);
 router.get("/transactions/:reference", auth_1.authenticate, operationsController_1.transactionDetail);
 router.get("/admin/overview", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.overview);
@@ -123,6 +125,39 @@ router.post("/admin/bonus/campaigns/:campaignId/deactivate", auth_1.authenticate
 router.delete("/admin/bonus/campaigns/:campaignId", auth_1.authenticate, auth_1.requireAdmin, [(0, express_validator_1.param)("campaignId").isUUID()], operationsController_1.adminDeleteBonusCampaign);
 router.get("/admin/bonus/credits", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.adminBonusCredits);
 router.post("/admin/bonus/reconcile", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.adminReconcileBonuses);
+router.get("/admin/rewards", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.adminRewards);
+router.get("/admin/rewards/catalog", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.adminRewardCatalog);
+router.post("/admin/rewards/catalog", auth_1.authenticate, auth_1.requireAdmin, [
+    (0, express_validator_1.body)("rewardId").optional({ nullable: true }).isUUID(),
+    (0, express_validator_1.body)("name").isString().isLength({ min: 2 }),
+    (0, express_validator_1.body)("description").optional({ nullable: true }).isString(),
+    (0, express_validator_1.body)("category").isIn(["loyalty", "promotional", "referral", "special"]),
+    (0, express_validator_1.body)("amount").isString(),
+    (0, express_validator_1.body)("asset").isString().isLength({ min: 2 }),
+    (0, express_validator_1.body)("requirementType").isIn(["manual", "deposit_total", "invest_total", "membership_tier", "referral_count"]),
+    (0, express_validator_1.body)("requirementAmount").optional({ nullable: true }).isString(),
+    (0, express_validator_1.body)("requirementCount").optional({ nullable: true }).isInt({ min: 0 }),
+    (0, express_validator_1.body)("requirementTierId").optional({ nullable: true }).isUUID(),
+    (0, express_validator_1.body)("maxRedemptions").optional({ nullable: true }).isInt({ min: 1 }),
+    (0, express_validator_1.body)("active").optional({ nullable: true }).isBoolean(),
+    (0, express_validator_1.body)("priority").optional({ nullable: true }).isInt(),
+    (0, express_validator_1.body)("expiresAt").optional({ nullable: true }).isISO8601(),
+    (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })
+], operationsController_1.adminSaveReward);
+router.post("/admin/rewards/catalog/:rewardId/deactivate", auth_1.authenticate, auth_1.requireAdmin, [(0, express_validator_1.param)("rewardId").isUUID(), (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })], operationsController_1.adminDeactivateReward);
+router.delete("/admin/rewards/catalog/:rewardId", auth_1.authenticate, auth_1.requireAdmin, [(0, express_validator_1.param)("rewardId").isUUID(), (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })], operationsController_1.adminDeleteReward);
+router.get("/admin/rewards/grants", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.adminUserRewards);
+router.post("/admin/rewards/grants", auth_1.authenticate, auth_1.requireAdmin, [
+    (0, express_validator_1.body)("userId").isUUID(),
+    (0, express_validator_1.body)("rewardId").optional({ nullable: true }).isUUID(),
+    (0, express_validator_1.body)("name").optional({ nullable: true }).isString(),
+    (0, express_validator_1.body)("category").optional({ nullable: true }).isIn(["loyalty", "promotional", "referral", "special"]),
+    (0, express_validator_1.body)("amount").optional({ nullable: true }).isString(),
+    (0, express_validator_1.body)("asset").optional({ nullable: true }).isString(),
+    (0, express_validator_1.body)("expiresAt").optional({ nullable: true }).isISO8601(),
+    (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })
+], operationsController_1.adminGrantReward);
+router.post("/admin/rewards/grants/:userRewardId/revoke", auth_1.authenticate, auth_1.requireAdmin, [(0, express_validator_1.param)("userRewardId").isUUID(), (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })], operationsController_1.adminRevokeReward);
 router.get("/admin/settings", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.adminSettings);
 router.post("/admin/settings", auth_1.authenticate, auth_1.requireAdmin, [
     (0, express_validator_1.body)("category").isIn(["bonus", "performance", "reconciliation", "notifications", "reporting"]),

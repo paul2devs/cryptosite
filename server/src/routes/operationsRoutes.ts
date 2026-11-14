@@ -11,6 +11,9 @@ import {
   adminBonusCredits,
   adminDeleteBonusCampaign,
   adminDeactivateBonusCampaign,
+  adminDeactivateReward,
+  adminDeleteReward,
+  adminGrantReward,
   adminInvestmentLevelUsers,
   adminMembershipUsers,
   adminPerformanceSummary,
@@ -18,16 +21,22 @@ import {
   adminReconcileBonuses,
   adminReconcilePerformanceLedger,
   adminResetSettings,
+  adminRevokeReward,
+  adminRewardCatalog,
+  adminRewards,
   adminRunPerformanceCycle,
   adminSaveBonusCampaign,
+  adminSaveReward,
   adminSaveSetting,
   adminSettings,
   adminTransactions,
+  adminUserRewards,
   clearInvestmentOverride,
   clearOverride,
   currentInvestmentLevel,
   currentMembership,
   currentPerformance,
+  currentRewards,
   deposits,
   disableInvestmentLevel,
   disableTier,
@@ -45,6 +54,7 @@ import {
   reconcilePerformanceSnapshots,
   reconcileTransactionLedger,
   reconciliationLog,
+  redeemUserReward,
   removeBenefit,
   removeInvestmentBenefit,
   removeInvestmentLevel,
@@ -79,6 +89,13 @@ router.post(
 router.get("/performance", authenticate, currentPerformance);
 router.get("/performance/daily/:date", authenticate, performanceDaily);
 router.get("/bonuses", authenticate, myBonuses);
+router.get("/rewards", authenticate, currentRewards);
+router.post(
+  "/rewards/:userRewardId/redeem",
+  authenticate,
+  [param("userRewardId").isUUID()],
+  redeemUserReward
+);
 router.get("/transactions", authenticate, transactions);
 router.get("/transactions/:reference", authenticate, transactionDetail);
 
@@ -298,6 +315,70 @@ router.delete(
 );
 router.get("/admin/bonus/credits", authenticate, requireAdmin, adminBonusCredits);
 router.post("/admin/bonus/reconcile", authenticate, requireAdmin, adminReconcileBonuses);
+
+router.get("/admin/rewards", authenticate, requireAdmin, adminRewards);
+router.get("/admin/rewards/catalog", authenticate, requireAdmin, adminRewardCatalog);
+router.post(
+  "/admin/rewards/catalog",
+  authenticate,
+  requireAdmin,
+  [
+    body("rewardId").optional({ nullable: true }).isUUID(),
+    body("name").isString().isLength({ min: 2 }),
+    body("description").optional({ nullable: true }).isString(),
+    body("category").isIn(["loyalty", "promotional", "referral", "special"]),
+    body("amount").isString(),
+    body("asset").isString().isLength({ min: 2 }),
+    body("requirementType").isIn(["manual", "deposit_total", "invest_total", "membership_tier", "referral_count"]),
+    body("requirementAmount").optional({ nullable: true }).isString(),
+    body("requirementCount").optional({ nullable: true }).isInt({ min: 0 }),
+    body("requirementTierId").optional({ nullable: true }).isUUID(),
+    body("maxRedemptions").optional({ nullable: true }).isInt({ min: 1 }),
+    body("active").optional({ nullable: true }).isBoolean(),
+    body("priority").optional({ nullable: true }).isInt(),
+    body("expiresAt").optional({ nullable: true }).isISO8601(),
+    body("reason").isString().isLength({ min: 3 })
+  ],
+  adminSaveReward
+);
+router.post(
+  "/admin/rewards/catalog/:rewardId/deactivate",
+  authenticate,
+  requireAdmin,
+  [param("rewardId").isUUID(), body("reason").isString().isLength({ min: 3 })],
+  adminDeactivateReward
+);
+router.delete(
+  "/admin/rewards/catalog/:rewardId",
+  authenticate,
+  requireAdmin,
+  [param("rewardId").isUUID(), body("reason").isString().isLength({ min: 3 })],
+  adminDeleteReward
+);
+router.get("/admin/rewards/grants", authenticate, requireAdmin, adminUserRewards);
+router.post(
+  "/admin/rewards/grants",
+  authenticate,
+  requireAdmin,
+  [
+    body("userId").isUUID(),
+    body("rewardId").optional({ nullable: true }).isUUID(),
+    body("name").optional({ nullable: true }).isString(),
+    body("category").optional({ nullable: true }).isIn(["loyalty", "promotional", "referral", "special"]),
+    body("amount").optional({ nullable: true }).isString(),
+    body("asset").optional({ nullable: true }).isString(),
+    body("expiresAt").optional({ nullable: true }).isISO8601(),
+    body("reason").isString().isLength({ min: 3 })
+  ],
+  adminGrantReward
+);
+router.post(
+  "/admin/rewards/grants/:userRewardId/revoke",
+  authenticate,
+  requireAdmin,
+  [param("userRewardId").isUUID(), body("reason").isString().isLength({ min: 3 })],
+  adminRevokeReward
+);
 
 router.get("/admin/settings", authenticate, requireAdmin, adminSettings);
 router.post(

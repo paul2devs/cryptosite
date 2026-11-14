@@ -18,6 +18,9 @@ export type UserActivityType =
   | "performance_unavailable"
   | "investment_allocation"
   | "promotional_bonus"
+  | "reward_granted"
+  | "reward_redeemed"
+  | "reward_revoked"
   | "admin_action";
 
 export interface UserActivityEventAttributes {

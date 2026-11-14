@@ -9,6 +9,8 @@ const platformSettingsService_1 = require("./platformSettingsService");
 const NOTIFICATION_FLAG = {
     deposit_confirmed: "deposit_updates",
     promotional_bonus_credited: "rewards_bonuses",
+    reward_granted: "rewards_bonuses",
+    reward_redeemed: "rewards_bonuses",
     investment_allocation: "investment_updates",
     verified_trading_activity: "investment_updates",
     daily_performance: "performance_updates",

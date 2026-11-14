@@ -7,6 +7,7 @@ import { AdminInvestmentLevelPanel } from "../components/admin/AdminInvestmentLe
 import { AdminTransactionsPanel } from "../components/admin/AdminTransactionsPanel";
 import { AdminReconciliationPanel } from "../components/admin/AdminReconciliationPanel";
 import { AdminBonusPanel } from "../components/admin/AdminBonusPanel";
+import { AdminRewardsPanel } from "../components/admin/AdminRewardsPanel";
 import { AdminFinancialSettingsPanel } from "../components/admin/AdminFinancialSettingsPanel";
 
 type Tab =
@@ -19,6 +20,7 @@ type Tab =
   | "membership"
   | "investment-levels"
   | "bonus"
+  | "rewards"
   | "settings"
   | "activity"
   | "performance"
@@ -40,6 +42,7 @@ const TABS: Tab[] = [
   "membership",
   "investment-levels",
   "bonus",
+  "rewards",
   "settings",
   "activity",
   "performance",
@@ -93,6 +96,7 @@ export function AdminOperationsPage() {
       membership: "/operations/admin/memberships",
       "investment-levels": "/operations/admin/investment-levels",
       bonus: "/operations/admin/bonus",
+      rewards: "/operations/admin/rewards",
       settings: "/operations/admin/settings",
       activity: `/operations/admin/activity?${params.toString()}`,
       performance: "/operations/admin/performance",
@@ -121,6 +125,7 @@ export function AdminOperationsPage() {
       tab === "investment-levels" ||
       tab === "transactions" ||
       tab === "bonus" ||
+      tab === "rewards" ||
       tab === "settings" ||
       tab === "reconciliation"
     ) {
@@ -340,6 +345,8 @@ export function AdminOperationsPage() {
       {tab === "investment-levels" && <AdminInvestmentLevelPanel />}
 
       {tab === "bonus" && <AdminBonusPanel />}
+
+      {tab === "rewards" && <AdminRewardsPanel />}
 
       {tab === "settings" && <AdminFinancialSettingsPanel />}
 

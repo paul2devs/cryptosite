@@ -88,43 +88,6 @@ export interface BonusCampaignInput {
   reason: string;
 }
 
-export const DEFAULT_BONUS_SETTINGS: BonusSettings = {
-  active: true,
-  percentage: "5.000000",
-  minDeposit: "0.00000000",
-  maxBonus: null,
-  eligibleAssets: null,
-  campaignDescription: "Standard 5% promotional bonus on independently verified deposits."
-};
-
-export const DEFAULT_PERFORMANCE_SETTINGS: PerformanceSettings = {
-  automaticDailyCalculation: true,
-  illustrativeDailyRatePercent: "3.000000",
-  illustrativeDisclaimer:
-    "Illustrative projection only. A daily percentage applied to invested principal is not a guaranteed or manufactured return and is never credited. Only independently verified valuations produce reportable performance.",
-  requireVerifiedValuation: true
-};
-
-export const DEFAULT_RECONCILIATION_SETTINGS: ReconciliationSettings = {
-  reconcileBonusesDaily: true,
-  reconcilePerformanceDaily: true,
-  toleranceAmount: "0.00000000"
-};
-
-export const DEFAULT_NOTIFICATION_TEMPLATES: NotificationTemplates = {
-  depositConfirmation: "Deposit {amount} {asset} confirmed. Reference {reference}.",
-  promotionalBonusCredited:
-    "Promotional bonus of {amount} {asset} credited from campaign {campaign}. Reference {reference}.",
-  investmentAllocation:
-    "Investment allocation of {amount} {asset} recorded against verified position {position}. Reference {reference}.",
-  verifiedTradingActivity: "Verified trading activity recorded for {asset}: {detail}. Reference {reference}.",
-  dailyPerformance: "Daily performance for {date}: {detail}. Source {source}. Reference {reference}.",
-  profitRealised:
-    "Realised earnings of {amount} {asset} credited to your withdrawable balance. Reference {reference}.",
-  withdrawalProcessing: "Withdrawal {amount} {asset} is processing. Reference {reference}.",
-  withdrawalCompleted: "Withdrawal {amount} {asset} completed. Reference {reference}."
-};
-
 export interface BonusSettings {
   active: boolean;
   percentage: string;
@@ -156,6 +119,8 @@ export interface NotificationTemplates {
   profitRealised: string;
   withdrawalProcessing: string;
   withdrawalCompleted: string;
+  rewardGranted: string;
+  rewardRedeemed: string;
 }
 
 export interface PlatformFinancialSettings {

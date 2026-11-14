@@ -1,0 +1,221 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>audit</title>
+  </head>
+  <body>
+    <pre id="out">running</pre>
+    <script>
+      const API = "http://localhost:4000/api";
+      const params = new URLSearchParams(location.search);
+      const probeEmail = params.get("e") || "mobile.probe.20261114@example.com";
+      const probePassword = params.get("pw") || "ProbePass123!";
+      async function login() {
+        const res = await fetch(API + "/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: probeEmail,
+            password: probePassword
+          })
+        });
+        const data = await res.json();
+        if (!data.accessToken) throw new Error("login failed: " + JSON.stringify(data).slice(0, 160));
+        localStorage.setItem(
+          "authTokens",
+          JSON.stringify({
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken,
+            issuedAt: Date.now()
+          })
+        );
+      }
+
+      const targetPath = params.get("p") || "/membership";
+      const marker = params.get("m") || "#membership-overview";
+      const textMarker = params.get("t") || "";
+      const clickText = params.get("c") || "";
+      const widths = (params.get("w") || "320,360,390,414,768,1024").split(",").map(Number);
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      async function navigate(win, path) {
+        win.history.pushState({}, "", path);
+        win.dispatchEvent(new win.PopStateEvent("popstate", { state: {} }));
+      }
+
+      function inScrollContainer(el, win) {
+        let p = el.parentElement;
+        while (p) {
+          const ov = win.getComputedStyle(p).overflowX;
+          if (ov === "auto" || ov === "scroll") return true;
+          p = p.parentElement;
+        }
+        return false;
+      }
+
+      function audit(doc, win) {
+        const de = doc.documentElement;
+        const vw = de.clientWidth;
+        const clipped = [];
+        let scrollable = 0;
+        for (const el of doc.querySelectorAll("body *")) {
+          const cs = win.getComputedStyle(el);
+          if (cs.position === "fixed") continue;
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 && r.height === 0) continue;
+          if (r.right > vw + 0.5 || r.left < -0.5) {
+            if (inScrollContainer(el, win)) {
+              scrollable += 1;
+            } else {
+              clipped.push({
+                tag: el.tagName.toLowerCase(),
+                cls: (el.getAttribute("class") || "").slice(0, 150),
+                l: Math.round(r.left),
+                r: Math.round(r.right),
+                w: Math.round(r.width),
+                text: (el.textContent || "").trim().slice(0, 44)
+              });
+            }
+          }
+        }
+        return {
+          viewport: vw,
+          docScrollWidth: de.scrollWidth,
+          scrollHeight: de.scrollHeight,
+          clippedCount: clipped.length,
+          scrollableCount: scrollable,
+          clipped: clipped.slice(0, 20)
+        };
+      }
+
+      function culpritTrail(doc) {
+        const shell = doc.querySelector("main") ? doc.querySelector("main").parentElement : null;
+        if (!shell) return { base: null, trail: [] };
+        const viewport = doc.documentElement.clientWidth;
+        const base = shell.clientWidth;
+        const trail = [];
+        let current = shell;
+        const isOver = () => shell.clientWidth > viewport + 0.5;
+        if (!isOver()) return { base, viewport, trail: [] };
+        for (let d = 0; d < 30; d += 1) {
+          let found = null;
+          for (const kid of Array.from(current.children)) {
+            const prev = kid.style.display;
+            kid.style.display = "none";
+            void shell.offsetWidth;
+            const over = isOver();
+            kid.style.display = prev;
+            if (!over) {
+              found = kid;
+              break;
+            }
+          }
+          if (!found) break;
+          trail.push((found.tagName.toLowerCase() + "." + (found.getAttribute("class") || "")).slice(0, 130));
+          current = found;
+        }
+        return { base, viewport, trail };
+      }
+
+      async function run(width) {
+        const frame = document.createElement("iframe");
+        frame.style.cssText = `width:${width}px;height:1000px;border:0;position:fixed;left:-99999px;top:0;`;
+        frame.src = "/";
+        document.body.appendChild(frame);
+        await new Promise((resolve) => (frame.onload = resolve));
+        const win = frame.contentWindow;
+        const doc = frame.contentDocument;
+
+        for (let i = 0; i < 16 && !doc.querySelector("main"); i += 1) await wait(300);
+
+        let reached = false;
+        let clickTargetFound = null;
+        const isReached = () =>
+          Boolean(doc.querySelector(marker)) ||
+          (textMarker.length > 0 && (doc.body.textContent || "").includes(textMarker));
+        for (let i = 0; i < 40; i += 1) {
+          if (win.location.pathname === targetPath && isReached()) {
+            reached = true;
+            break;
+          }
+          if (doc.querySelector(".landing-page") && i === 0) {
+            await navigate(win, "/");
+            await wait(900);
+          }
+          await navigate(win, targetPath);
+          await wait(600);
+        }
+        if (clickText.length > 0) {
+          const buttons = Array.from(doc.querySelectorAll("button, [role=button]"));
+          const target = buttons.find(
+            (b) => (b.textContent || "").trim() === clickText
+          );
+          clickTargetFound = Boolean(target);
+          if (target) {
+            target.click();
+            await wait(3200);
+            reached = isReached() || reached;
+          }
+        }
+        await wait(1200);
+        const result = {
+          width,
+          reached,
+          clickTargetFound,
+          textFound: textMarker ? (doc.body.textContent || "").includes(textMarker) : null,
+          path: win.location.pathname,
+          h1: (doc.querySelector("h1") || {}).textContent || "",
+          ...audit(doc, win),
+          culprit: culpritTrail(doc)
+        };
+        frame.remove();
+        return result;
+      }
+
+      function report(stage, detail) {
+        return fetch("http://localhost:9999/result", {
+          method: "POST",
+          mode: "no-cors",
+          body: JSON.stringify({ stage, detail: String(detail || "") })
+        }).catch(() => {});
+      }
+      window.addEventListener("error", (e) => {
+        report("window_error", (e.message || "") + " @ " + (e.filename || ""));
+      });
+
+      (async () => {
+        await report("boot", location.href);
+        await login();
+        await report("logged_in", "ok");
+        const results = [];
+        for (const w of widths) {
+          const r = await run(w);
+          results.push(r);
+          await report(
+            "width_done",
+            "w=" + w +
+              " vp=" + r.viewport +
+              " scrollW=" + r.docScrollWidth +
+              " clipped=" + r.clippedCount +
+              " scrollable=" + r.scrollableCount +
+              " clickFound=" + r.clickTargetFound +
+              " panelText=" + r.textFound +
+              " path=" + r.path +
+              " h1=" + r.h1
+          );
+        }
+        const payload = JSON.stringify({ targetPath, marker, textMarker, clickText, results }, null, 2);
+        document.getElementById("out").textContent = payload;
+        document.title = "AUDIT_DONE";
+        try {
+          await fetch("http://localhost:9999/result", {
+            method: "POST",
+            mode: "no-cors",
+            body: payload
+          });
+        } catch (err) {}
+      })().catch((err) => report("fatal", err && err.message ? err.message : err));
+    </script>
+  </body>
+</html>

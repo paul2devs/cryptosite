@@ -21,6 +21,7 @@ const CATEGORY_ICON: Record<TransactionCategory, SolidIcon> = {
   deposit: SolidDeposit,
   withdrawal: SolidWithdraw,
   bonus: SolidCheck,
+  reward: SolidCheck,
   investment: SolidReceipt,
   distribution: SolidReceipt,
   fee: SolidReceipt,

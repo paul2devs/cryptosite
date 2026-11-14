@@ -105,7 +105,7 @@ export const DEPOSIT_MIN_USD = 100;
 export const DEPOSIT_MAX_USD = 100_000;
 
 /** Quick-select deposit amounts (USD value) offered on the amount step. */
-export const DEPOSIT_QUICK_SELECT_USD: number[] = [100, 250, 500, 1000];
+export const DEPOSIT_QUICK_SELECT_USD: number[] = [100, 250, 500, 1000, 3000, 5000, 10000];
 
 /** Presets that fall inside the platform minimum/maximum band. */
 export function depositQuickSelectUsd(): number[] {
@@ -223,6 +223,46 @@ export function validateAmountInput(value: string, decimals: number): AmountVali
       valid: false,
       empty: false,
       message: `This asset supports at most ${decimals} decimal places.`
+    };
+  }
+  return { valid: true, empty: false, message: null };
+}
+
+/**
+ * Validate a USD deposit amount string. Mirrors the backend rules in
+ * `server/src/domain/depositQuote.ts` so the two never disagree: at most two
+ * decimal places and within the platform minimum/maximum band.
+ */
+export function validateUsdAmountInput(value: string): AmountValidation {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return { valid: false, empty: true, message: null };
+  }
+  if (!/^\d*\.?\d*$/.test(trimmed) || trimmed === ".") {
+    return { valid: false, empty: false, message: "Enter a valid amount." };
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) {
+    return { valid: false, empty: false, message: "Enter a valid amount." };
+  }
+  if (parsed <= 0) {
+    return { valid: false, empty: false, message: "Enter an amount greater than zero." };
+  }
+  if (countDecimalPlaces(trimmed) > 2) {
+    return { valid: false, empty: false, message: "Enter an amount with at most 2 decimal places." };
+  }
+  if (parsed < DEPOSIT_MIN_USD) {
+    return {
+      valid: false,
+      empty: false,
+      message: `The minimum deposit is $${DEPOSIT_MIN_USD.toLocaleString("en-US")}.`
+    };
+  }
+  if (parsed > DEPOSIT_MAX_USD) {
+    return {
+      valid: false,
+      empty: false,
+      message: `The maximum deposit is $${DEPOSIT_MAX_USD.toLocaleString("en-US")}.`
     };
   }
   return { valid: true, empty: false, message: null };
