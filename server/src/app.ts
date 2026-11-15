@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { getDatabaseStatus, initDatabase } from "./config/database";
+import { isOriginAllowed } from "./config/corsOrigins";
 import { validateCoreEnv } from "./config/env";
 import authRoutes from "./routes/authRoutes";
 import depositRoutes from "./routes/depositRoutes";
@@ -30,22 +31,9 @@ import "./models";
 
 const app = express();
 
-const defaultAllowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://cryptosite-seven.vercel.app"
-];
-
-const configuredOrigins = (process.env.CORS_ORIGIN || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter((origin) => origin.length > 0);
-
-const allowedOrigins = new Set<string>([...defaultAllowedOrigins, ...configuredOrigins]);
-
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.has(origin)) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
       return;
     }

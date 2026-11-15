@@ -21,12 +21,12 @@ export function Seo({
     "https://nexacrypto.app";
 
   const url = path ? `${baseUrl}${path}` : baseUrl;
-  const titleTemplate = `${title} | NexaCrypto – Custodial Crypto Growth Platform`;
+  const titleTemplate = `${title} | NexaCrypto`;
 
   const keywordContent =
     keywords && keywords.length > 0
       ? keywords.join(", ")
-      : "crypto rewards, crypto multipliers, bitcoin deposits, ethereum yields, custodial crypto platform, nexacrypto, staking alternative, secure crypto growth";
+      : "nexacrypto, custodial crypto platform, bitcoin deposits, ethereum deposits, solana deposits, usdt deposits, on-chain verification, crypto dashboard";
 
   const imageUrl = `${baseUrl}/social-preview.svg`;
 

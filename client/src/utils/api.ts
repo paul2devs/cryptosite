@@ -1,6 +1,10 @@
 import axios, { AxiosError } from "axios";
+import { resolveApiBaseUrl } from "./apiBase";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+const baseURL = resolveApiBaseUrl();
+
+export const SESSION_EXPIRED_EVENT = "auth:session-expired";
+export const TOKEN_REFRESHED_EVENT = "auth:token-refreshed";
 
 interface StoredTokens {
   accessToken: string | null;
@@ -100,8 +104,15 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const requestUrl = originalRequest?.url || "";
     const isAuthRefreshCall = requestUrl.includes("/auth/refresh");
+    // Login/register rejections mean bad credentials, not an expired session,
+    // so they must never trigger the refresh flow.
+    const isCredentialCall =
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/register") ||
+      requestUrl.includes("/auth/forgot-password") ||
+      requestUrl.includes("/auth/reset-password");
 
-    if (status === 401 && !originalRequest._retry && !isAuthRefreshCall) {
+    if (status === 401 && !originalRequest._retry && !isAuthRefreshCall && !isCredentialCall) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -125,6 +136,7 @@ api.interceptors.response.use(
         isRefreshing = false;
         processQueue(error, null);
         clearStoredTokens();
+        notifySessionExpired();
         return Promise.reject(error);
       }
 
@@ -134,6 +146,7 @@ api.interceptors.response.use(
         });
         const token = refreshResponse.data.accessToken;
         persistAccessToken(token);
+        notifyTokenRefreshed(token);
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${token}`;
         }
@@ -144,6 +157,7 @@ api.interceptors.response.use(
         isRefreshing = false;
         processQueue(refreshError as AxiosError, null);
         clearStoredTokens();
+        notifySessionExpired();
         return Promise.reject(refreshError);
       }
     }
@@ -151,4 +165,18 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+function notifySessionExpired(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+  }
+}
+
+function notifyTokenRefreshed(accessToken: string): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(TOKEN_REFRESHED_EVENT, { detail: { accessToken } })
+    );
+  }
+}
 

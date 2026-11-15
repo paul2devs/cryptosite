@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { useI18n } from "../i18n/I18nProvider";
+import { LANDING_SECTIONS } from "./landing/landingContent";
 
 export function Navbar() {
   const { t } = useI18n();
@@ -14,14 +15,7 @@ export function Navbar() {
   const isLanding = location.pathname === "/landing";
 
   const landingSections = useMemo(
-    () => [
-      { id: "home", label: "Home" },
-      { id: "how-it-works", label: "How It Works" },
-      { id: "multiplier-engine", label: "Multiplier Engine" },
-      { id: "leaderboard", label: "Leaderboard" },
-      { id: "security", label: "Security" },
-      { id: "faq", label: "FAQ" }
-    ],
+    () => LANDING_SECTIONS.map((section) => ({ id: section.id, label: section.label })),
     []
   );
 
@@ -123,7 +117,7 @@ export function Navbar() {
           </span>
         </Link>
         {isLanding && (
-          <div className="hidden items-center gap-5 text-[11px] text-[#9CA3AF] md:flex">
+          <div className="hidden items-center gap-5 text-[11px] text-[#9CA3AF] lg:flex">
             {landingSections.map((item) => {
               const isActive = activeLandingSection === item.id;
               return (
@@ -168,7 +162,7 @@ export function Navbar() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] shadow-[0_0_18px_rgba(0,0,0,0.6)] sm:hidden"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] shadow-[0_0_18px_rgba(0,0,0,0.6)] lg:hidden"
             aria-label="Open navigation"
           >
             <Menu className="h-4 w-4" />
@@ -179,7 +173,7 @@ export function Navbar() {
         portalReady &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9999] bg-[#0F0F10] sm:hidden"
+            className="fixed inset-0 z-[9999] bg-[#0F0F10] lg:hidden"
             role="dialog"
             aria-modal="true"
             onClick={() => setMobileMenuOpen(false)}

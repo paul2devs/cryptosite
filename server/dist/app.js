@@ -9,6 +9,7 @@ const cors_1 = __importDefault(require("cors"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const express_1 = __importDefault(require("express"));
 const database_1 = require("./config/database");
+const corsOrigins_1 = require("./config/corsOrigins");
 const env_1 = require("./config/env");
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const depositRoutes_1 = __importDefault(require("./routes/depositRoutes"));
@@ -34,19 +35,9 @@ const rewardService_1 = require("./services/rewardService");
 const platformSettingsService_1 = require("./services/platformSettingsService");
 require("./models");
 const app = (0, express_1.default)();
-const defaultAllowedOrigins = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://cryptosite-seven.vercel.app"
-];
-const configuredOrigins = (process.env.CORS_ORIGIN || "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-const allowedOrigins = new Set([...defaultAllowedOrigins, ...configuredOrigins]);
 const corsOptions = {
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.has(origin)) {
+        if ((0, corsOrigins_1.isOriginAllowed)(origin)) {
             callback(null, true);
             return;
         }

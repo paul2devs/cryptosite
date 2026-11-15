@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { resolveApiOrigin } from "./apiBase";
 
 export interface SocialProofEvent {
   id: string;
@@ -34,8 +35,7 @@ export function getRealtimeSocket(): Socket | null {
     return socket;
   }
 
-  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
-  const url = apiBase.replace(/\/api$/, "");
+  const url = resolveApiOrigin();
 
   socket = io(url, {
     autoConnect: true,

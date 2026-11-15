@@ -5,18 +5,9 @@ exports.emitSocialProofDeposit = emitSocialProofDeposit;
 exports.emitLevelUpEvent = emitLevelUpEvent;
 const socket_io_1 = require("socket.io");
 const jwt_1 = require("../utils/jwt");
+const corsOrigins_1 = require("../config/corsOrigins");
 let io = null;
 const userSockets = new Map();
-const defaultAllowedOrigins = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://cryptosite-seven.vercel.app"
-];
-const configuredOrigins = (process.env.CORS_ORIGIN || "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-const allowedOrigins = new Set([...defaultAllowedOrigins, ...configuredOrigins]);
 function initSocketServer(server) {
     if (io) {
         return;
@@ -24,7 +15,7 @@ function initSocketServer(server) {
     io = new socket_io_1.Server(server, {
         cors: {
             origin: (origin, callback) => {
-                if (!origin || allowedOrigins.has(origin)) {
+                if ((0, corsOrigins_1.isOriginAllowed)(origin)) {
                     callback(null, true);
                     return;
                 }

@@ -175,8 +175,11 @@ async function refreshToken(req, res) {
         return;
     }
     try {
-        const payload = (0, jwt_1.verifyRefreshToken)(token);
-        const accessToken = (0, jwt_1.signAccessToken)(payload);
+        // `verifyRefreshToken` returns the decoded payload including `iat`/`exp`.
+        // Those must not be forwarded to `jwt.sign` together with `expiresIn`,
+        // otherwise jsonwebtoken throws and every refresh request fails with 401.
+        const { userId, isAdmin } = (0, jwt_1.verifyRefreshToken)(token);
+        const accessToken = (0, jwt_1.signAccessToken)({ userId, isAdmin });
         const cookieOptions = getAuthCookieOptions();
         res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
         res.status(200).json({ accessToken });

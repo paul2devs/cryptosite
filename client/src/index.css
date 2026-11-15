@@ -359,3 +359,331 @@ small {
   background: linear-gradient(150deg, #17181A 0%, #232428 100%);
   color: #55585E;
 }
+
+/* ------------------------------------------------------------------
+   PREMIUM LANDING VISUAL SYSTEM
+   Extends the existing brand palette with tonal gradients, glass
+   surfaces, atmospheric light, layered artwork and controlled motion.
+   Nothing here replaces a brand colour — it layers on top of them.
+   ------------------------------------------------------------------ */
+
+:root {
+  --nx-bg: #0f0f10;
+  --nx-bg-deep: #070708;
+  --nx-card: #141517;
+  --nx-surface: #17181a;
+  --nx-surface-strong: #1f2023;
+  --nx-hairline: #26272b;
+  --nx-gold: #c6a15b;
+  --nx-gold-light: #e0c583;
+  --nx-gold-deep: #8a6a2f;
+  --nx-emerald: #16c784;
+  --nx-emerald-deep: #0b7a52;
+  --nx-negative: #ea3943;
+  --nx-text: #f5f5f7;
+  --nx-muted: #9ca3af;
+  --nx-dim: #6b7280;
+}
+
+/* Deep atmospheric canvas: a single dark stage lit from two corners. */
+.landing-atmosphere {
+  background-color: var(--nx-bg);
+  background-image:
+    radial-gradient(115% 75% at 6% -12%, rgba(198, 161, 91, 0.17), transparent 54%),
+    radial-gradient(85% 65% at 104% -4%, rgba(22, 199, 132, 0.11), transparent 58%),
+    radial-gradient(120% 90% at 50% 118%, rgba(198, 161, 91, 0.06), transparent 62%);
+}
+
+/* Alternating darker band so the page has a visual rhythm between sections. */
+.landing-band-deep {
+  background-image:
+    radial-gradient(90% 60% at 50% 0%, rgba(15, 15, 16, 0) 40%, rgba(5, 5, 6, 0.72) 100%),
+    linear-gradient(180deg, rgba(9, 9, 11, 0.65) 0%, rgba(9, 9, 11, 0.2) 100%);
+}
+
+/* Warm lit band: a complementary rhythm to the deep band above. */
+.landing-band-gold {
+  background-image:
+    radial-gradient(64% 52% at 88% 6%, rgba(198, 161, 91, 0.12), transparent 62%),
+    radial-gradient(56% 46% at 6% 96%, rgba(22, 199, 132, 0.07), transparent 62%);
+}
+
+/* Soft radial lights placed behind artwork. */
+.glow-gold {
+  background-image: radial-gradient(closest-side, rgba(198, 161, 91, 0.34), rgba(198, 161, 91, 0) 72%);
+}
+.glow-emerald {
+  background-image: radial-gradient(closest-side, rgba(22, 199, 132, 0.28), rgba(22, 199, 132, 0) 72%);
+}
+
+/* Architectural grid that dissolves toward the edges. */
+.grid-fade {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 58px 58px;
+  -webkit-mask-image: radial-gradient(78% 62% at 50% 42%, #000 26%, transparent 74%);
+  mask-image: radial-gradient(78% 62% at 50% 42%, #000 26%, transparent 74%);
+}
+
+/* Fine film grain for a premium printed texture. */
+.noise-overlay {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+}
+
+/* Glass panel used for dimensional interface previews. */
+.glass {
+  background-image: linear-gradient(180deg, rgba(26, 27, 30, 0.74) 0%, rgba(15, 16, 18, 0.86) 100%);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 40px 80px -40px rgba(0, 0, 0, 0.95);
+}
+
+.glass-quiet {
+  background-image: linear-gradient(180deg, rgba(23, 24, 26, 0.6) 0%, rgba(15, 16, 18, 0.72) 100%);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* Hairline that brightens slightly for use on gradient surfaces. */
+.hairline-strong {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+/* Gradient text accents. */
+.text-gradient-gold {
+  background-image: linear-gradient(102deg, #f2dcae 0%, #c6a15b 48%, #9a7833 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gradient-plain {
+  background-image: linear-gradient(180deg, #ffffff 0%, #c9ccd3 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Slow rotating aurora used behind hero / artwork. */
+.aurora {
+  background: conic-gradient(
+    from 180deg at 50% 50%,
+    rgba(198, 161, 91, 0.22),
+    rgba(22, 199, 132, 0.16),
+    rgba(198, 161, 91, 0.04),
+    rgba(22, 199, 132, 0.1),
+    rgba(198, 161, 91, 0.22)
+  );
+  filter: blur(90px);
+}
+
+/* Horizontal edge fade for scrollable showcases. */
+.edge-fade-x {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+}
+
+@keyframes nx-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-13px);
+  }
+}
+
+@keyframes nx-float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes nx-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(10px, -14px, 0) rotate(6deg);
+  }
+}
+
+@keyframes nx-shimmer {
+  0% {
+    background-position: 180% 0;
+  }
+  100% {
+    background-position: -180% 0;
+  }
+}
+
+@keyframes nx-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes nx-spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes nx-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.nx-float {
+  animation: nx-float 8s ease-in-out infinite;
+}
+.nx-float-soft {
+  animation: nx-float-soft 6.5s ease-in-out infinite;
+}
+.nx-drift {
+  animation: nx-drift 14s ease-in-out infinite;
+}
+.nx-shimmer {
+  background-image: linear-gradient(100deg, transparent 32%, rgba(255, 255, 255, 0.16) 50%, transparent 68%);
+  background-size: 220% 100%;
+  animation: nx-shimmer 7s linear infinite;
+}
+.nx-pulse {
+  animation: nx-pulse 3.4s ease-in-out infinite;
+}
+.nx-spin-slow {
+  animation: nx-spin-slow 46s linear infinite;
+}
+.nx-draw {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: nx-draw 2.4s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-float,
+  .nx-float-soft,
+  .nx-drift,
+  .nx-shimmer,
+  .nx-pulse,
+  .nx-spin-slow,
+  .nx-draw,
+  .aurora {
+    animation: none !important;
+  }
+  .nx-draw {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ------------------------------------------------------------------
+   AUTHENTICATION FORM SYSTEM
+   One shared control language for login, registration and the two
+   recovery steps. Composes with the premium landing tokens above:
+   charcoal surfaces, a gold focus ring and emerald/negative notices.
+   ------------------------------------------------------------------ */
+
+.auth-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: #c9ccd3;
+}
+
+.auth-input {
+  width: 100%;
+  min-height: 3rem;
+  border-radius: 0.75rem;
+  background-color: #101113;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #f5f5f7;
+  outline: none;
+  box-shadow: inset 0 0 0 1px #26272b;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.auth-input::placeholder {
+  color: #6b7280;
+}
+.auth-input:hover {
+  box-shadow: inset 0 0 0 1px #33353b;
+}
+.auth-input:focus {
+  background-color: #0f1012;
+  box-shadow: inset 0 0 0 1px rgba(198, 161, 91, 0.7), 0 0 0 4px rgba(198, 161, 91, 0.14);
+}
+.auth-input[aria-invalid="true"] {
+  box-shadow: inset 0 0 0 1px rgba(234, 57, 67, 0.7);
+}
+.auth-input[aria-invalid="true"]:focus {
+  box-shadow: inset 0 0 0 1px rgba(234, 57, 67, 0.8), 0 0 0 4px rgba(234, 57, 67, 0.16);
+}
+
+.auth-submit {
+  display: inline-flex;
+  min-height: 3rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background-image: linear-gradient(100deg, #d8b76c 0%, #c6a15b 55%, #a9853f 100%);
+  color: #14100a;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 20px 38px -22px rgba(198, 161, 91, 0.9);
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.auth-submit:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.auth-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.auth-notice {
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.auth-notice-error {
+  background-color: rgba(234, 57, 67, 0.12);
+  color: #f6b6ba;
+  box-shadow: inset 0 0 0 1px rgba(234, 57, 67, 0.28);
+}
+.auth-notice-success {
+  background-color: rgba(22, 199, 132, 0.12);
+  color: #9be7c6;
+  box-shadow: inset 0 0 0 1px rgba(22, 199, 132, 0.28);
+}
+
+.auth-link {
+  color: #d8b76c;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+.auth-link:hover {
+  color: #e8cd90;
+}

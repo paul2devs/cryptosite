@@ -1,9 +1,10 @@
 import { Suspense, useEffect } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "./store";
-import { fetchMe, loadStoredTokens } from "./store/authSlice";
+import { logout, restoreSession, setAccessToken } from "./store/authSlice";
 import { AppDispatch } from "./store";
+import { SESSION_EXPIRED_EVENT, TOKEN_REFRESHED_EVENT } from "./utils/api";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -73,6 +74,20 @@ const PerformancePage = lazy(() =>
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const user = useSelector((state: RootState) => state.auth.user);
   const accessToken = useSelector((state: RootState) => state.auth.accessToken);
+  const initialized = useSelector((state: RootState) => state.auth.initialized);
+  const sessionUnreachable = useSelector(
+    (state: RootState) => state.auth.sessionUnreachable
+  );
+
+  // Never redirect while the stored session is still being restored.
+  if (!initialized) {
+    return <SessionRestorePlaceholder />;
+  }
+  // The API was unreachable during the session check — the stored session may
+  // still be valid, so offer a retry instead of treating the user as logged out.
+  if (!user && sessionUnreachable) {
+    return <SessionUnreachable />;
+  }
   if (!user || !accessToken) {
     return <Navigate to="/landing" replace />;
   }
@@ -82,22 +97,99 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 function AdminRoute({ children }: { children: JSX.Element }) {
   const user = useSelector((state: RootState) => state.auth.user);
   const accessToken = useSelector((state: RootState) => state.auth.accessToken);
+  const initialized = useSelector((state: RootState) => state.auth.initialized);
+  const sessionUnreachable = useSelector(
+    (state: RootState) => state.auth.sessionUnreachable
+  );
+
+  if (!initialized) {
+    return <SessionRestorePlaceholder />;
+  }
+  if (!user && sessionUnreachable) {
+    return <SessionUnreachable />;
+  }
   if (!user || !accessToken || !user.is_admin) {
     return <Navigate to="/" replace />;
   }
   return children;
 }
 
+function SessionUnreachable() {
+  const dispatch = useDispatch<AppDispatch>();
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+      <p className="text-sm text-[#F5F5F7]">
+        We couldn&apos;t reach NexaCrypto to verify your session.
+      </p>
+      <p className="max-w-sm text-xs text-[#9CA3AF]">
+        Your session is still saved. This is usually temporary — check your connection
+        and try again.
+      </p>
+      <button
+        type="button"
+        onClick={() => void dispatch(restoreSession({ force: true }))}
+        className="btn btn-md btn-primary"
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
+function SessionRestorePlaceholder() {
+  return (
+    <div className="flex items-center justify-center py-16 text-sm text-[#9CA3AF]">
+      Restoring your session…
+    </div>
+  );
+}
+
+function AuthBootSplash() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#0F0F10] text-[#F5F5F7]">
+      <div className="flex flex-col items-center gap-4">
+        <img
+          src="/logo.svg"
+          alt="NexaCrypto"
+          className="h-11 w-11 rounded-full object-cover"
+        />
+        <div className="h-1 w-28 overflow-hidden rounded-full bg-[#26272B]">
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-[#C6A15B]" />
+        </div>
+        <p className="text-xs text-[#9CA3AF]">Restoring your session…</p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+  const initialized = useSelector((state: RootState) => state.auth.initialized);
 
   useEffect(() => {
-    dispatch(loadStoredTokens());
-    const stored = localStorage.getItem("authTokens");
-    if (stored) {
-      dispatch(fetchMe());
-    }
+    void dispatch(restoreSession());
   }, [dispatch]);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      dispatch(logout());
+      navigate("/login", { replace: true });
+    };
+    const handleTokenRefreshed = (event: Event) => {
+      const token = (event as CustomEvent<{ accessToken?: string }>).detail?.accessToken;
+      if (typeof token === "string" && token.length > 0) {
+        dispatch(setAccessToken(token));
+      }
+    };
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+    window.addEventListener(TOKEN_REFRESHED_EVENT, handleTokenRefreshed);
+    return () => {
+      window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+      window.removeEventListener(TOKEN_REFRESHED_EVENT, handleTokenRefreshed);
+    };
+  }, [dispatch, navigate]);
 
   useEffect(() => {
     const savedLanguage = localStorage.getItem(UI_LANGUAGE_STORAGE_KEY);
@@ -109,6 +201,12 @@ function App() {
   useEffect(() => {
     primeLiveMarketCache();
   }, []);
+
+  // Hold the whole shell until we know whether a session exists, so neither the
+  // public landing page nor a protected dashboard renders prematurely.
+  if (!initialized) {
+    return <AuthBootSplash />;
+  }
 
   return (
     <I18nProvider>

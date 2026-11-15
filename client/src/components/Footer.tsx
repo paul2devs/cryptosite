@@ -30,8 +30,8 @@ export function Footer() {
           <div className="min-w-0 space-y-3">
             <p className="display-font text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Company</p>
             <nav className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-[#9CA3AF]">
-              <Link to="/landing#how-it-works" className="hover:text-[#F5F5F7] transition-colors">About</Link>
-              <Link to="/landing#security" className="hover:text-[#F5F5F7] transition-colors">Security</Link>
+              <Link to="/landing#opportunity" className="hover:text-[#F5F5F7] transition-colors">About</Link>
+              <Link to="/landing#platform" className="hover:text-[#F5F5F7] transition-colors">Platform</Link>
               <Link to="/landing#faq" className="hover:text-[#F5F5F7] transition-colors">FAQ</Link>
               <a href="mailto:support@nexacrypto.app" className="hover:text-[#F5F5F7] transition-colors">Contact</a>
             </nav>

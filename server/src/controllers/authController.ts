@@ -207,8 +207,11 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
   }
 
   try {
-    const payload = verifyRefreshToken(token);
-    const accessToken = signAccessToken(payload);
+    // `verifyRefreshToken` returns the decoded payload including `iat`/`exp`.
+    // Those must not be forwarded to `jwt.sign` together with `expiresIn`,
+    // otherwise jsonwebtoken throws and every refresh request fails with 401.
+    const { userId, isAdmin } = verifyRefreshToken(token);
+    const accessToken = signAccessToken({ userId, isAdmin });
     const cookieOptions = getAuthCookieOptions();
     res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
     res.status(200).json({ accessToken });
