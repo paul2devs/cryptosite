@@ -11,23 +11,23 @@ function parseDays(req, fallback) {
         return fallback;
     return Math.min(180, Math.max(1, Math.floor(parsed)));
 }
-async function getAdminAnalyticsOverview(req, res) {
+async function getAdminAnalyticsOverview(req, res, next) {
     try {
         const days = parseDays(req, 30);
         const data = await (0, analyticsService_1.getAdminOverview)(days);
         res.status(200).json({ days, ...data });
     }
-    catch {
-        res.status(500).json({ message: "Failed to load analytics overview" });
+    catch (error) {
+        next(error);
     }
 }
-async function getAdminActivityHeatmap(req, res) {
+async function getAdminActivityHeatmap(req, res, next) {
     try {
         const days = parseDays(req, 30);
         const heatmap = await (0, heatmapService_1.getActivityHeatmap)(days);
         res.status(200).json({ days, heatmap });
     }
-    catch {
-        res.status(500).json({ message: "Failed to load heatmap" });
+    catch (error) {
+        next(error);
     }
 }

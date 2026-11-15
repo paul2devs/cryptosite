@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { getAdminOverview } from "../services/analyticsService";
 import { getActivityHeatmap } from "../services/heatmapService";
 
@@ -11,27 +11,28 @@ function parseDays(req: Request, fallback: number): number {
 
 export async function getAdminAnalyticsOverview(
   req: Request,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> {
   try {
     const days = parseDays(req, 30);
     const data = await getAdminOverview(days);
     res.status(200).json({ days, ...data });
-  } catch {
-    res.status(500).json({ message: "Failed to load analytics overview" });
+  } catch (error) {
+    next(error);
   }
 }
 
 export async function getAdminActivityHeatmap(
   req: Request,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> {
   try {
     const days = parseDays(req, 30);
     const heatmap = await getActivityHeatmap(days);
     res.status(200).json({ days, heatmap });
-  } catch {
-    res.status(500).json({ message: "Failed to load heatmap" });
+  } catch (error) {
+    next(error);
   }
 }
-

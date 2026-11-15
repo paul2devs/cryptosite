@@ -247,7 +247,77 @@ npm --workspace server run build
 
 ---
 
-## 9. Troubleshooting
+## 9. Verify the backend (step by step)
+
+Run this after any change to confirm the whole API is healthy. It works against
+local, staging, and production.
+
+**1. Build the server**
+
+```bash
+npm --workspace server run build
+```
+
+**2. Start it** (local example — the `DB_SYNC_ALTER=false` keeps schema changes off)
+
+```bash
+PORT=4112 DB_SYNC_ALTER=false npm --workspace server run start
+```
+
+**3. Check health**
+
+```bash
+curl -s http://localhost:4112/api/health
+```
+
+Expect `server.ok: true` and `database.ok: true`. The `cache` block reports the
+active backend:
+
+```json
+"cache": { "backend": "redis", "redisConfigured": true, "degraded": false }
+```
+
+`"degraded": true` means Redis is configured but unhealthy. The API keeps working
+on the in-process fallback; it is not an outage.
+
+**4. Run the authenticated smoke test**
+
+From the repository root:
+
+```bash
+BASE=http://localhost:4112/api \
+EMAIL=admin@local.dev \
+PASSWORD='ChangeMeNow123!' \
+node server/scripts/smoke-test.mjs
+```
+
+Expect:
+
+```
+SUMMARY: 55 endpoints probed, 0 returned 5xx
+All endpoints healthy.
+```
+
+The script exits with code 1 if any endpoint returns 5xx, so it can gate a deploy.
+Against production:
+
+```bash
+BASE=https://cryptosite-yc00.onrender.com/api \
+EMAIL=admin@local.dev \
+PASSWORD='ChangeMeNow123!' \
+node server/scripts/smoke-test.mjs
+```
+
+**5. Where to look when something fails**
+
+- Response body contains a `correlationId` — search the server logs for it:
+  `[api-error] {"correlationId":"...","method":"...","path":"...","category":"..."}`.
+- `category: "database"` → inspect the logged SQLSTATE `code`.
+- `category: "external_service"` / `"unknown"` → check the upstream provider.
+
+---
+
+## 10. Troubleshooting
 
 | Symptom | Cause / Fix |
 | --- | --- |
@@ -257,3 +327,7 @@ npm --workspace server run build
 | Landing prices show `—` | The public market feed is unreachable or rate-limited. Set `VITE_MARKET_API_URL` / `VITE_MARKET_API_KEY`. |
 | `ESLint couldn't find an eslint.config.(js|mjs|cjs) file` | Pre-existing repo issue: ESLint 9 is installed but the repo still uses the legacy config format. This does not affect running, building, or the tests. |
 | Port already in use | Change `PORT` in `server/.env`, or Vite's `server.port` in `client/vite.config.ts`. |
+| `/api/health` shows `"cache": { "degraded": true }` | Redis is configured but unreachable. The API is running on the in-memory fallback and is fully functional; check `REDIS_URL` to restore caching. |
+| An endpoint returns 500 with a `correlationId` | Search the Render/server logs for `[api-error]` and that `correlationId`. The log line includes the HTTP method, path, error category and SQLSTATE `code`. |
+| Log shows `[cache] Redis ... failed, using in-memory fallback` | Expected when Redis is unhealthy. Informational only — requests are served from the in-process cache. |
+| Log shows `[env] REDIS_URL: ... not set` | Optional. The API uses only the in-memory cache. Set `REDIS_URL` for shared caching across instances. |

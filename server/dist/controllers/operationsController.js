@@ -70,6 +70,7 @@ exports.adminGrantReward = adminGrantReward;
 exports.adminRevokeReward = adminRevokeReward;
 exports.adminUserRewards = adminUserRewards;
 const express_validator_1 = require("express-validator");
+const errorHandler_1 = require("../middleware/errorHandler");
 const financialOperationsService_1 = require("../services/financialOperationsService");
 const membershipService_1 = require("../services/membershipService");
 const investmentLevelService_1 = require("../services/investmentLevelService");
@@ -80,8 +81,26 @@ const rewardService_1 = require("../services/rewardService");
 const performanceService_1 = require("../services/performanceService");
 const transactionService_1 = require("../services/transactionService");
 function fail(res, error, status = 400) {
+    const correlationId = String(res.locals.correlationId || "");
+    if (status >= 500) {
+        const categorized = (0, errorHandler_1.categorizeError)(error);
+        // eslint-disable-next-line no-console
+        console.error(`[api-error] ${JSON.stringify({
+            correlationId,
+            status,
+            category: categorized.category,
+            code: categorized.code,
+            message: categorized.diagnostic.slice(0, 500)
+        })}`);
+        res.status(status).json({
+            message: categorized.publicMessage,
+            correlationId,
+            category: categorized.category
+        });
+        return;
+    }
     const message = error instanceof Error ? error.message : "Request failed";
-    res.status(status).json({ message });
+    res.status(status).json({ message, correlationId });
 }
 function rejected(req, res) {
     const errors = (0, express_validator_1.validationResult)(req);

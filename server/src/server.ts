@@ -1,6 +1,7 @@
 import "./config/env";
 import http from "http";
 import app, { startApp } from "./app";
+import { registerProcessHandlers } from "./middleware/errorHandler";
 import { scheduleStreakReset } from "./cron/streakReset";
 import { scheduleMarketDataRefresh } from "./cron/marketData";
 import { scheduleBonusWatcher } from "./cron/bonusScheduler";
@@ -16,6 +17,8 @@ import { scheduleBonusOptimization } from "./cron/bonusOptimization";
 import { scheduleFraudSweep } from "./cron/fraudSweep";
 
 const port = Number(process.env.PORT || 4000);
+
+registerProcessHandlers();
 
 startApp()
   .then(() => {

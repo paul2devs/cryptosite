@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 require("./config/env");
 const http_1 = __importDefault(require("http"));
 const app_1 = __importStar(require("./app"));
+const errorHandler_1 = require("./middleware/errorHandler");
 const streakReset_1 = require("./cron/streakReset");
 const marketData_1 = require("./cron/marketData");
 const bonusScheduler_1 = require("./cron/bonusScheduler");
@@ -53,6 +54,7 @@ const churnDetection_1 = require("./cron/churnDetection");
 const bonusOptimization_1 = require("./cron/bonusOptimization");
 const fraudSweep_1 = require("./cron/fraudSweep");
 const port = Number(process.env.PORT || 4000);
+(0, errorHandler_1.registerProcessHandlers)();
 (0, app_1.startApp)()
     .then(() => {
     const server = http_1.default.createServer(app_1.default);

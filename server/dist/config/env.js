@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireEnv = requireEnv;
 exports.requireIntEnv = requireIntEnv;
 exports.validateCoreEnv = validateCoreEnv;
+exports.validateRuntimeEnv = validateRuntimeEnv;
+exports.logEnvWarnings = logEnvWarnings;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -66,4 +68,53 @@ function validateCoreEnv() {
     requireEnv("JWT_ACCESS_SECRET");
     requireEnv("JWT_REFRESH_SECRET");
     requireIntEnv("BCRYPT_SALT_ROUNDS", 10);
+}
+function validateRuntimeEnv() {
+    const warnings = [];
+    const accessSecret = process.env.JWT_ACCESS_SECRET || "";
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || "";
+    if (accessSecret.length > 0 && accessSecret.length < 16) {
+        warnings.push({
+            name: "JWT_ACCESS_SECRET",
+            message: "JWT_ACCESS_SECRET is shorter than 16 characters; use a longer secret in production."
+        });
+    }
+    if (refreshSecret.length > 0 && refreshSecret.length < 16) {
+        warnings.push({
+            name: "JWT_REFRESH_SECRET",
+            message: "JWT_REFRESH_SECRET is shorter than 16 characters; use a longer secret in production."
+        });
+    }
+    if (accessSecret.length > 0 && refreshSecret.length > 0 && accessSecret === refreshSecret) {
+        warnings.push({
+            name: "JWT_REFRESH_SECRET",
+            message: "JWT_ACCESS_SECRET and JWT_REFRESH_SECRET are identical; use distinct secrets."
+        });
+    }
+    if (!process.env.REDIS_URL) {
+        warnings.push({
+            name: "REDIS_URL",
+            message: "REDIS_URL is not set; the server will use an in-memory cache (single instance only)."
+        });
+    }
+    if (!process.env.CORS_ORIGIN) {
+        warnings.push({
+            name: "CORS_ORIGIN",
+            message: "CORS_ORIGIN is not set; only the built-in default origins are allowed."
+        });
+    }
+    const nodeEnv = process.env.NODE_ENV || "";
+    if (nodeEnv !== "production") {
+        warnings.push({
+            name: "NODE_ENV",
+            message: `NODE_ENV is "${nodeEnv || "undefined"}"; set it to "production" for deployed environments.`
+        });
+    }
+    return warnings;
+}
+function logEnvWarnings() {
+    for (const warning of validateRuntimeEnv()) {
+        // eslint-disable-next-line no-console
+        console.warn(`[env] ${warning.name}: ${warning.message}`);
+    }
 }

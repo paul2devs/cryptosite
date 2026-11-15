@@ -3,9 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getCacheStatus = getCacheStatus;
 exports.getCachedJson = getCachedJson;
 exports.setCachedJson = setCachedJson;
 const ioredis_1 = __importDefault(require("ioredis"));
+const CACHE_FAILURE_LOG_INTERVAL_MS = 30000;
 class InMemoryCache {
     constructor() {
         this.store = new Map();
@@ -26,8 +28,61 @@ class InMemoryCache {
         this.store.set(key, { value, expiresAt });
     }
 }
+class RedisBackedCache {
+    constructor(client, fallback) {
+        this.client = client;
+        this.fallback = fallback;
+    }
+    async get(key) {
+        try {
+            const value = await this.client.get(key);
+            markRedisHealthy();
+            return value;
+        }
+        catch (error) {
+            markRedisDegraded();
+            logCacheFailure("get", error);
+            return this.fallback.get(key);
+        }
+    }
+    async set(key, value, ttlSeconds) {
+        try {
+            if (ttlSeconds && ttlSeconds > 0) {
+                await this.client.set(key, value, "EX", ttlSeconds);
+            }
+            else {
+                await this.client.set(key, value);
+            }
+            markRedisHealthy();
+        }
+        catch (error) {
+            markRedisDegraded();
+            logCacheFailure("set", error);
+            await this.fallback.set(key, value, ttlSeconds);
+        }
+    }
+}
 let redisClient = null;
 let cacheClient = null;
+let cacheBackend = "memory";
+let lastCacheFailureLogAt = 0;
+let redisDegraded = false;
+function markRedisHealthy() {
+    redisDegraded = false;
+}
+function markRedisDegraded() {
+    redisDegraded = true;
+}
+function logCacheFailure(operation, error) {
+    const now = Date.now();
+    if (now - lastCacheFailureLogAt < CACHE_FAILURE_LOG_INTERVAL_MS) {
+        return;
+    }
+    lastCacheFailureLogAt = now;
+    const message = error instanceof Error ? error.message : String(error);
+    // eslint-disable-next-line no-console
+    console.warn(`[cache] Redis ${operation} failed, using in-memory fallback: ${message}`);
+}
 function createRedisClient() {
     const url = process.env.REDIS_URL;
     if (!url) {
@@ -35,10 +90,11 @@ function createRedisClient() {
     }
     const client = new ioredis_1.default(url, {
         maxRetriesPerRequest: 1,
-        enableOfflineQueue: false
+        enableOfflineQueue: false,
+        lazyConnect: false
     });
-    client.on("error", () => {
-        // silent fallback to in-memory cache
+    client.on("error", (error) => {
+        logCacheFailure("connection", error);
     });
     return client;
 }
@@ -48,25 +104,22 @@ function getCacheClient() {
     }
     redisClient = createRedisClient();
     if (redisClient) {
-        cacheClient = {
-            async get(key) {
-                const value = await redisClient.get(key);
-                return value;
-            },
-            async set(key, value, ttlSeconds) {
-                if (ttlSeconds && ttlSeconds > 0) {
-                    await redisClient.set(key, value, "EX", ttlSeconds);
-                }
-                else {
-                    await redisClient.set(key, value);
-                }
-            }
-        };
+        cacheBackend = "redis";
+        cacheClient = new RedisBackedCache(redisClient, new InMemoryCache());
     }
     else {
+        cacheBackend = "memory";
         cacheClient = new InMemoryCache();
     }
     return cacheClient;
+}
+function getCacheStatus() {
+    getCacheClient();
+    return {
+        backend: cacheBackend,
+        redisConfigured: Boolean(process.env.REDIS_URL),
+        degraded: cacheBackend === "redis" && redisDegraded
+    };
 }
 async function getCachedJson(key) {
     const client = getCacheClient();

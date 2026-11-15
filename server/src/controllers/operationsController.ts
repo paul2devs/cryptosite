@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { validationResult } from "express-validator";
 import { AuthenticatedRequest } from "../middleware/auth";
+import { categorizeError } from "../middleware/errorHandler";
 import {
   adminOverview,
   adminPerformance,
@@ -94,8 +95,30 @@ import {
 } from "../services/transactionService";
 
 function fail(res: Response, error: unknown, status = 400) {
+  const correlationId = String(res.locals.correlationId || "");
+
+  if (status >= 500) {
+    const categorized = categorizeError(error);
+    // eslint-disable-next-line no-console
+    console.error(
+      `[api-error] ${JSON.stringify({
+        correlationId,
+        status,
+        category: categorized.category,
+        code: categorized.code,
+        message: categorized.diagnostic.slice(0, 500)
+      })}`
+    );
+    res.status(status).json({
+      message: categorized.publicMessage,
+      correlationId,
+      category: categorized.category
+    });
+    return;
+  }
+
   const message = error instanceof Error ? error.message : "Request failed";
-  res.status(status).json({ message });
+  res.status(status).json({ message, correlationId });
 }
 
 function rejected(req: AuthenticatedRequest, res: Response): boolean {

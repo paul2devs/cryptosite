@@ -3,8 +3,14 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { getDatabaseStatus, initDatabase } from "./config/database";
+import { getCacheStatus } from "./config/cache";
 import { isOriginAllowed } from "./config/corsOrigins";
-import { validateCoreEnv } from "./config/env";
+import { logEnvWarnings, validateCoreEnv } from "./config/env";
+import {
+  correlationIdMiddleware,
+  errorHandler,
+  notFoundHandler
+} from "./middleware/errorHandler";
 import authRoutes from "./routes/authRoutes";
 import depositRoutes from "./routes/depositRoutes";
 import withdrawalRoutes from "./routes/withdrawalRoutes";
@@ -45,24 +51,29 @@ const corsOptions: cors.CorsOptions = {
   exposedHeaders: ["Content-Type"]
 };
 
+app.use(correlationIdMiddleware);
 app.use(
   cors(corsOptions)
 );
 app.options("*", cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
 app.get("/api/health", (_req, res) => {
   const db = getDatabaseStatus();
-  res.status(200).json({
-    status: "ok",
+  const cache = getCacheStatus();
+  const healthy = db.ok;
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? "ok" : "degraded",
     api: { ok: true },
     server: {
       ok: true,
       uptimeSeconds: Math.floor(process.uptime()),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV || "development"
     },
-    database: db
+    database: db,
+    cache
   });
 });
 
@@ -82,30 +93,13 @@ app.use("/api/referrals", referralRoutes);
 app.use("/api/admin_auth", adminAuthRoutes);
 app.use("/api/operations", operationsRoutes);
 
-app.use((req, res, next) => {
-  if (res.headersSent) {
-    next();
-    return;
-  }
-  res.status(404).json({
-    message: "Endpoint not found",
-    path: req.path
-  });
-});
+app.use(notFoundHandler);
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (res.headersSent) {
-    return;
-  }
-  res.status(500).json({
-    message: "An unexpected error occurred. Please try again later.",
-    error: process.env.NODE_ENV === "production" ? undefined : String(err)
-  });
-});
+app.use(errorHandler);
 
 export async function startApp(): Promise<void> {
   validateCoreEnv();
+  logEnvWarnings();
   await initDatabase();
   await ensureDefaultLevels();
   await ensureDefaultMembershipTiers();
