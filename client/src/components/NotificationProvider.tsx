@@ -16,7 +16,6 @@ import { api } from "../utils/api";
 import { getRealtimeSocket, SocialProofEvent } from "../utils/realtime";
 import {
   DEMO_ACTIVITY,
-  DEMO_ACTIVITY_PREFIX,
   loadSeenDemoActivity,
   markDemoActivitySeen
 } from "../data/demoActivity";
@@ -238,7 +237,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       setSocialEvent({
         id: next.id,
         type: "level_up",
-        message: `${DEMO_ACTIVITY_PREFIX}: ${next.message}`,
+        message: next.message.charAt(0).toUpperCase() + next.message.slice(1),
         createdAt: new Date().toISOString()
       });
     };
@@ -560,7 +559,7 @@ export function NotificationToasts() {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-full bg-[#16C784]/12 px-4 py-2 text-xs text-[#16C784] shadow-lg ring-1 ring-inset ring-[#16C784]/30"
+              className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-full bg-[#141517] px-4 py-2 text-xs text-[#16C784] shadow-lg ring-1 ring-inset ring-[#16C784]/30"
             >
               <span className="min-w-0 flex-1 text-center">{socialEvent.message}</span>
               <button

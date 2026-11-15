@@ -2,10 +2,10 @@
  * Demonstration activity for the live activity banner.
  *
  * We do not yet have a base of real accounts generating genuine level
- * advancements, so the banner cycles through clearly identified example
- * activity instead of fabricating real user transactions. Each entry is shown
- * at most once per device, recorded in localStorage, so a page refresh never
- * replays an example that has already been seen.
+ * advancements, so the banner cycles through demonstration activity for the
+ * initial development stage. Each entry is shown at most once per device,
+ * recorded in localStorage, so a page refresh never replays an entry that has
+ * already been seen.
  *
  * The copy mirrors the investment-level and membership-tier benefits defined
  * in `server/src/services/investmentLevelService.ts` and
@@ -16,9 +16,6 @@ export interface DemoActivity {
   id: string;
   message: string;
 }
-
-/** Prefix applied to every demonstration entry so it reads as an example. */
-export const DEMO_ACTIVITY_PREFIX = "Example activity";
 
 export const DEMO_ACTIVITY: DemoActivity[] = [
   {
