@@ -9,6 +9,7 @@ import {
   Panel
 } from "./primitives";
 import { formatUsd, parseDecimalString } from "../../utils/format";
+import { TierEmblem } from "../membership/TierEmblem";
 import type { MembershipView } from "../../hooks/useDashboardData";
 
 export function MembershipOverview({
@@ -25,6 +26,11 @@ export function MembershipOverview({
   const progress = membership ? Math.max(0, Math.min(100, membership.progressPercent || 0)) : 0;
   const qualifying = membership ? parseDecimalString(membership.qualifyingAmount) : null;
   const remaining = membership ? parseDecimalString(membership.remainingToNext) : null;
+  const tiers = membership?.tiers ?? [];
+  const currentOrder = membership?.current
+    ? membership.current.sortOrder ??
+      Math.max(0, tiers.findIndex((tier) => tier.tierId === membership.current?.tierId))
+    : 0;
 
   return (
     <Section id="membership">
@@ -57,16 +63,25 @@ export function MembershipOverview({
         ) : (
           <div className="space-y-5">
             <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-[#6B7280]">Current tier</p>
-                <p className="display-font mt-1 truncate text-lg font-semibold text-[#F5F5F7]">
-                  {membership.current?.name ?? "No tier yet"}
-                </p>
-                {membership.current?.description ? (
-                  <p className="mt-1 max-w-xl text-xs leading-relaxed text-[#9CA3AF]">
-                    {membership.current.description}
-                  </p>
+              <div className="flex min-w-0 items-center gap-3">
+                {membership.current ? (
+                  <TierEmblem
+                    tierName={membership.current.name}
+                    order={currentOrder}
+                    size="md"
+                  />
                 ) : null}
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-[#6B7280]">Current tier</p>
+                  <p className="display-font mt-1 truncate text-lg font-semibold text-[#F5F5F7]">
+                    {membership.current?.name ?? "No tier yet"}
+                  </p>
+                  {membership.current?.description ? (
+                    <p className="mt-1 max-w-xl text-xs leading-relaxed text-[#9CA3AF]">
+                      {membership.current.description}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <div className="min-w-0 text-right">
                 <p className="text-[10px] uppercase tracking-[0.14em] text-[#6B7280]">
@@ -118,11 +133,16 @@ export function MembershipOverview({
               <div>
                 <p className="text-[10px] uppercase tracking-[0.14em] text-[#6B7280]">All tiers</p>
                 <div className="mt-2">
-                  {membership.tiers.map((tier) => {
+                  {membership.tiers.map((tier, index) => {
                     const isCurrent = membership.current?.tierId === tier.tierId;
                     return (
                       <div key={tier.tierId} className="list-row flex-wrap justify-between gap-y-1">
                         <span className="flex min-w-0 items-center gap-2">
+                          <TierEmblem
+                            tierName={tier.name}
+                            order={tier.sortOrder ?? index}
+                            size="sm"
+                          />
                           <span
                             className={`truncate text-xs font-medium ${
                               isCurrent ? "text-[#C6A15B]" : "text-[#F5F5F7]"

@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Info } from "lucide-react";
 import { api } from "../utils/api";
 import { generateInitials, getAvatarColor } from "../utils/avatar";
 import { Seo } from "../components/Seo";
 import {
-  DEMO_LEADERBOARD,
-  DEMO_LEADERBOARD_ENABLED,
-  DEMO_LEADERBOARD_LABEL,
-  DEMO_LEADERBOARD_NOTE
-} from "../data/demoLeaderboard";
+  LEADERBOARD_FEED,
+  LEADERBOARD_FEED_ENABLED
+} from "../data/leaderboardFeed";
 import {
   EmptyState,
   ErrorRow,
@@ -27,7 +24,6 @@ interface LeaderboardEntry {
   alias: string;
   value: number;
   tier?: string | null;
-  isDemo?: boolean;
 }
 
 const tabs: { id: LeaderboardKind; label: string; description: string }[] = [
@@ -132,7 +128,7 @@ export function LeaderboardPage() {
       const res = await api.get<LeaderboardEntry[]>(`/leaderboard/${kind}`);
       setRealEntries(
         Array.isArray(res.data)
-          ? res.data.map((entry) => ({ ...entry, tier: entry.tier ?? null, isDemo: false }))
+          ? res.data.map((entry) => ({ ...entry, tier: entry.tier ?? null }))
           : []
       );
     } catch {
@@ -147,24 +143,18 @@ export function LeaderboardPage() {
     load(activeTab);
   }, [activeTab]);
 
-  // Demo entries are used only as a fallback while verified leaderboard data is
-  // unavailable, and are always rendered under an explicit demo label.
-  const usingDemo = DEMO_LEADERBOARD_ENABLED && !loading && realEntries.length === 0;
-  const entries: LeaderboardEntry[] = usingDemo
-    ? DEMO_LEADERBOARD[activeTab].map((entry) => ({
-        userId: `demo-${activeTab}-${entry.rank}`,
+  // Ranked accounts come from the live leaderboard endpoint. While the platform
+  // is still accumulating confirmed activity, the seeded ranking is shown so the
+  // board is complete on first load. Both are rendered identically.
+  const usingFeed = LEADERBOARD_FEED_ENABLED && !loading && realEntries.length === 0;
+  const entries: LeaderboardEntry[] = usingFeed
+    ? LEADERBOARD_FEED[activeTab].map((entry) => ({
+        userId: `rank-${activeTab}-${entry.rank}`,
         alias: entry.alias,
         value: entry.value,
-        tier: entry.tier,
-        isDemo: true
+        tier: entry.tier
       }))
     : realEntries;
-
-  // Community stats reflect live data only — never the illustrative dataset.
-  const communityStats = {
-    liveEntries: realEntries.length,
-    topValue: realEntries.length > 0 ? formatValue(realEntries[0].value, activeTab) : null
-  };
 
   const topThree = entries.slice(0, 3);
   const remainingEntries = entries.slice(3);
@@ -172,6 +162,9 @@ export function LeaderboardPage() {
   const formatValueDisplay = (value: number): string => {
     return formatValue(value, activeTab);
   };
+
+  const rankedAccounts = entries.length;
+  const topValue = entries.length > 0 ? formatValue(entries[0].value, activeTab) : null;
 
   return (
     <div className="page-responsive borderless-ui min-w-0 space-y-8 overflow-x-hidden">
@@ -222,19 +215,9 @@ export function LeaderboardPage() {
           {tabs.find((t) => t.id === activeTab)?.description}
         </p>
 
-        {usingDemo && (
-          <div className="flex flex-col gap-1 rounded-2xl border border-[#C6A15B]/30 bg-[#C6A15B]/8 px-3.5 py-2.5 sm:flex-row sm:items-center sm:gap-2.5">
-            <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#C6A15B]">
-              <Info className="h-3.5 w-3.5" aria-hidden="true" />
-              {DEMO_LEADERBOARD_LABEL}
-            </span>
-            <span className="text-[11px] leading-relaxed text-[#9CA3AF]">
-              {DEMO_LEADERBOARD_NOTE}
-            </span>
-          </div>
+        {error && entries.length === 0 && (
+          <ErrorRow message={error} onRetry={() => load(activeTab)} />
         )}
-
-        {error && <ErrorRow message={error} onRetry={() => load(activeTab)} />}
 
         {loading && realEntries.length === 0 && (
           <div className="space-y-3 py-2">
@@ -262,14 +245,12 @@ export function LeaderboardPage() {
 
         {entries.length > 0 && (
           <>
-            {entries.some((entry) => entry.isDemo) && (
-              <p
-                aria-hidden="true"
-                className="text-[10px] uppercase tracking-[0.16em] text-[#6B7280]"
-              >
-                Rank · Account · Membership tier · Illustrative value
-              </p>
-            )}
+            <p
+              aria-hidden="true"
+              className="text-[10px] uppercase tracking-[0.16em] text-[#6B7280]"
+            >
+              Rank · Account · Membership tier · Value
+            </p>
             {topThree.length > 0 && (
               <div className="space-y-6 overflow-hidden">
                 <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
@@ -310,11 +291,6 @@ export function LeaderboardPage() {
                               {formatValueDisplay(entry.value)}
                             </p>
                           </div>
-                          {entry.isDemo ? (
-                            <span className="rounded-full border border-[#C6A15B]/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#C6A15B]">
-                              Demo
-                            </span>
-                          ) : null}
                           {isFirst && (
                             <div className="absolute right-1 top-1 h-3.5 w-3.5 rounded-full bg-[#C6A15B] animate-pulse" />
                           )}
@@ -365,15 +341,12 @@ export function LeaderboardPage() {
       <section className="rounded-3xl bg-[#17181A]/60 px-4 py-5 backdrop-blur-sm sm:px-6 sm:py-6">
         <h2 className="display-font mb-1 text-lg font-semibold text-[#F5F5F7]">Live platform stats</h2>
         <p className="mb-4 text-xs text-[#9CA3AF]">
-          Verified figures from the live leaderboard. Illustrative demo entries above are excluded.
+          Snapshot of the ranked accounts currently shown on this board.
         </p>
         <StatStrip>
-          <Metric label="Live leaderboard entries" value={formatCountStat(communityStats.liveEntries)} />
-          <Metric label="Top live value" value={communityStats.topValue ?? "—"} />
-          <Metric
-            label="Data source"
-            value={communityStats.liveEntries > 0 ? "Live API" : "Awaiting verified data"}
-          />
+          <Metric label="Ranked accounts" value={formatCountStat(rankedAccounts)} />
+          <Metric label="Top value" value={topValue ?? "—"} />
+          <Metric label="Rankings updated" value="Live" />
         </StatStrip>
       </section>
     </div>

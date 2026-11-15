@@ -5,6 +5,7 @@ exports.currentPerformance = currentPerformance;
 exports.overview = overview;
 exports.users = users;
 exports.profile = profile;
+exports.removeUser = removeUser;
 exports.deposits = deposits;
 exports.withdrawals = withdrawals;
 exports.review = review;
@@ -73,6 +74,7 @@ const express_validator_1 = require("express-validator");
 const errorHandler_1 = require("../middleware/errorHandler");
 const financialOperationsService_1 = require("../services/financialOperationsService");
 const membershipService_1 = require("../services/membershipService");
+const userAccountService_1 = require("../services/userAccountService");
 const investmentLevelService_1 = require("../services/investmentLevelService");
 const bonusEngineService_1 = require("../services/bonusEngineService");
 const performanceEngineService_1 = require("../services/performanceEngineService");
@@ -151,6 +153,17 @@ async function profile(req, res) {
     }
     catch (error) {
         fail(res, error, 404);
+    }
+}
+async function removeUser(req, res) {
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const reason = typeof req.body?.reason === "string" ? req.body.reason : "";
+        res.status(200).json(await (0, userAccountService_1.deleteUserAccount)(req.user.userId, req.params.userId, reason));
+    }
+    catch (error) {
+        fail(res, error, 400);
     }
 }
 async function deposits(req, res) {

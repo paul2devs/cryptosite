@@ -30,6 +30,7 @@ import {
   saveMembershipBenefit,
   saveMembershipTier
 } from "../services/membershipService";
+import { deleteUserAccount } from "../services/userAccountService";
 import {
   activateInvestmentLevelBenefit,
   adminAdjustInvestmentLevel,
@@ -167,6 +168,16 @@ export async function profile(req: AuthenticatedRequest, res: Response) {
     res.status(200).json(await userProfile(req.params.userId));
   } catch (error) {
     fail(res, error, 404);
+  }
+}
+
+export async function removeUser(req: AuthenticatedRequest, res: Response) {
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    const reason = typeof req.body?.reason === "string" ? req.body.reason : "";
+    res.status(200).json(await deleteUserAccount(req.user.userId, req.params.userId, reason));
+  } catch (error) {
+    fail(res, error, 400);
   }
 }
 

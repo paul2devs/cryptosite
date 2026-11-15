@@ -21,6 +21,7 @@ router.get("/transactions/:reference", auth_1.authenticate, operationsController
 router.get("/admin/overview", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.overview);
 router.get("/admin/users", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.users);
 router.get("/admin/users/:userId", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.profile);
+router.delete("/admin/users/:userId", auth_1.authenticate, auth_1.requireAdmin, [(0, express_validator_1.param)("userId").isUUID(), (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })], operationsController_1.removeUser);
 router.get("/admin/deposits", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.deposits);
 router.get("/admin/withdrawals", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.withdrawals);
 router.post("/admin/withdrawals/:withdrawalId/review", auth_1.authenticate, auth_1.requireAdmin, [(0, express_validator_1.param)("withdrawalId").isUUID(), (0, express_validator_1.body)("status").isString(), (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })], operationsController_1.review);

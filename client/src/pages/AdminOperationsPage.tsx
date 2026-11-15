@@ -144,6 +144,30 @@ export function AdminOperationsPage() {
     setProfile(response.data);
   };
 
+  const deleteUser = async (userId: string, email: string) => {
+    const entered = window.prompt(
+      `Permanently delete ${email}?\n\nThis removes the account and all of its data. Enter a reason to confirm.`
+    );
+    if (entered === null) return;
+    if (entered.trim().length < 3) {
+      setError("Enter a reason of at least 3 characters to delete a user.");
+      return;
+    }
+    try {
+      await api.delete(`/operations/admin/users/${userId}`, { data: { reason: entered.trim() } });
+      setError(null);
+      if ((profile?.account as { userId?: string } | undefined)?.userId === userId) {
+        setProfile(null);
+      }
+      await load("users");
+    } catch (requestError: unknown) {
+      const message = requestError && typeof requestError === "object" && "response" in requestError
+        ? (requestError as { response?: { data?: { message?: string } } }).response?.data?.message
+        : null;
+      setError(message || "Failed to delete user");
+    }
+  };
+
   const review = async (withdrawalId: string, nextStatus: string) => {
     if (reason.trim().length < 3) {
       setError("Enter a reason before changing a withdrawal.");
@@ -256,7 +280,7 @@ export function AdminOperationsPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left">
               <thead className="text-[11px] uppercase tracking-[0.14em] text-[#9CA3AF]">
-                <tr><th className="py-2">User</th><th>Status</th><th>Confirmed deposits</th><th>Qualifying</th><th>Withdrawable</th></tr>
+                <tr><th className="py-2">User</th><th>Status</th><th>Confirmed deposits</th><th>Qualifying</th><th>Withdrawable</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {rows("users").map((user) => (
@@ -271,6 +295,15 @@ export function AdminOperationsPage() {
                     <td className="financial-figure">{money(user.confirmedDepositTotal)}</td>
                     <td className="financial-figure">{money(user.qualifyingAmount)}</td>
                     <td className="financial-figure">{money(user.withdrawableBalance)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => deleteUser(String(user.userId), String(user.email))}
+                        className="rounded-full border border-[#F6465D]/40 px-2.5 py-1 text-[11px] font-medium text-[#F6465D] transition-colors hover:bg-[#F6465D]/10"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

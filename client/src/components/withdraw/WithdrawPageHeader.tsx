@@ -116,7 +116,6 @@ export function WithdrawPageHeader({
             <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} aria-hidden="true" />
             Refresh
           </button>
-          <BalanceToggle />
         </div>
       </header>
 
@@ -132,9 +131,12 @@ export function WithdrawPageHeader({
               {loading && !summary ? (
                 <SkeletonBlock className="mt-2 h-9 w-44" />
               ) : (
-                <p className="financial-figure mt-1 text-3xl font-semibold tracking-tight text-[#16C784]">
-                  {maskValue(hidden, formatUsd(animatedAvailable))}
-                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="financial-figure text-3xl font-semibold tracking-tight text-[#16C784]">
+                    {maskValue(hidden, formatUsd(animatedAvailable))}
+                  </p>
+                  <BalanceToggle />
+                </div>
               )}
               <p className="mt-1 text-[11px] text-[#9CA3AF]">
                 {summary

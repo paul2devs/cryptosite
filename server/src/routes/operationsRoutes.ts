@@ -59,6 +59,7 @@ import {
   removeInvestmentBenefit,
   removeInvestmentLevel,
   removeTier,
+  removeUser,
   review,
   sweepPerformance,
   transactionDetail,
@@ -102,6 +103,13 @@ router.get("/transactions/:reference", authenticate, transactionDetail);
 router.get("/admin/overview", authenticate, requireAdmin, overview);
 router.get("/admin/users", authenticate, requireAdmin, users);
 router.get("/admin/users/:userId", authenticate, requireAdmin, profile);
+router.delete(
+  "/admin/users/:userId",
+  authenticate,
+  requireAdmin,
+  [param("userId").isUUID(), body("reason").isString().isLength({ min: 3 })],
+  removeUser
+);
 router.get("/admin/deposits", authenticate, requireAdmin, deposits);
 router.get("/admin/withdrawals", authenticate, requireAdmin, withdrawals);
 router.post(
