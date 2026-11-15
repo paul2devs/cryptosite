@@ -91,11 +91,11 @@ export function UserProfileMenu() {
           {user.is_admin ? (
             <div className="hairline-t py-1.5">
               <p className="px-4 py-1 text-[10px] uppercase tracking-[0.16em] text-[#6B7280]">
-                Administration
+                Platform
               </p>
               <ListRow className="px-4 text-[11px]" onClick={() => go("/admin")}>
                 <Shield className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" />
-                <span>Admin panel</span>
+                <span>Platform panel</span>
               </ListRow>
               <ListRow className="px-4 text-[11px]" onClick={() => go("/admin/operations")}>
                 <Settings className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" />

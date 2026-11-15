@@ -69,7 +69,7 @@ export function InvestmentProgress({
         ) : !hasStarted ? (
           <EmptyState
             title="Your progression starts with your first deposit"
-            description="Approved, verified invested principal counts toward your investment level. Levels unlock platform benefits — never guaranteed returns."
+            description="Approved, verified invested principal counts toward your investment level. Levels unlock platform benefits, never guaranteed returns."
           />
         ) : (
           <div className="space-y-5">
@@ -100,7 +100,7 @@ export function InvestmentProgress({
               <Stat label="Next level" value={isMaxed ? "Highest" : `Level ${nextLevel}`} />
               <Stat
                 label="Remaining"
-                value={isMaxed || remaining === null ? "—" : formatUsd(Math.max(0, remaining))}
+                value={isMaxed || remaining === null ? "N/A" : formatUsd(Math.max(0, remaining))}
                 tone={isMaxed ? "positive" : "gold"}
               />
             </StatStrip>

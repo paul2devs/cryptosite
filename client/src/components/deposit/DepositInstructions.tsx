@@ -36,7 +36,7 @@ export function DepositInstructions({
   onRetry: () => void;
 }) {
   const hasAmount = quote?.available === true && quote.cryptoAmountLabel !== null;
-  const amountLabel = hasAmount ? quote!.cryptoAmountLabel! : "—";
+  const amountLabel = hasAmount ? quote!.cryptoAmountLabel! : "-";
   const amountHint = hasAmount
     ? quote!.usdAmount !== null
       ? `≈ ${formatUsd(quote!.usdAmount!)} · send exactly this amount on this network`

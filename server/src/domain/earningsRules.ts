@@ -1,7 +1,7 @@
 import { formatDecimal, parseDecimal, percentOf } from "./money";
 
 export const PROJECTED_RETURN_DISCLAIMER =
-  "Projected figures apply an illustrative daily rate to invested principal. They are not a guarantee and are not credited. Only verified valuations recorded against real positions produce reportable performance.";
+  "Projected figures apply a modelled daily rate to invested principal. They are not a guarantee and are not credited. Only verified valuations recorded against real positions produce reportable performance.";
 
 export const PERFORMANCE_AMOUNT_SCALE = 8;
 export const PERFORMANCE_PERCENT_SCALE = 6;

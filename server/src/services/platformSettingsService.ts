@@ -37,7 +37,7 @@ export interface NotificationTemplates {
 }
 
 export const PERFORMANCE_ILLUSTRATIVE_DISCLAIMER =
-  "Illustrative projection only. A daily percentage applied to invested principal is not a guaranteed or manufactured return and is never credited. Only independently verified valuations produce reportable performance.";
+  "Projected figures only. A modelled daily percentage applied to invested principal is not a guaranteed or manufactured return and is never credited. Only independently verified valuations produce reportable performance.";
 
 export const DEFAULT_BONUS_SETTINGS: BonusSettings = {
   active: true,

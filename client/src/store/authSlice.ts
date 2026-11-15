@@ -176,7 +176,7 @@ let restorePromise: Promise<RestoreSessionResult> | null = null;
  *
  * Reads the persisted token pair, verifies it with `GET /auth/me` (which will
  * transparently refresh an expired access token through the axios interceptor)
- * and always settles — so routing can wait on a single, well-defined signal
+ * and always settles, so routing can wait on a single, well-defined signal
  * instead of racing an unresolved promise.
  */
 export const restoreSession = createAsyncThunk<

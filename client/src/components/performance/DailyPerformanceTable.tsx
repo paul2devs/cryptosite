@@ -19,7 +19,7 @@ function toneFromValue(value: number | null): Tone {
 
 function money(value: string, signed = false): string {
   const parsed = parseDecimalString(value);
-  if (parsed === null) return "—";
+  if (parsed === null) return "N/A";
   return signed ? formatSignedUsd(parsed) : formatUsd(parsed);
 }
 

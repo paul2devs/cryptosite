@@ -364,7 +364,7 @@ small {
    PREMIUM LANDING VISUAL SYSTEM
    Extends the existing brand palette with tonal gradients, glass
    surfaces, atmospheric light, layered artwork and controlled motion.
-   Nothing here replaces a brand colour — it layers on top of them.
+   Nothing here replaces a brand colour; it layers on top of them.
    ------------------------------------------------------------------ */
 
 :root {
@@ -686,4 +686,82 @@ small {
 }
 .auth-link:hover {
   color: #e8cd90;
+}
+
+/* ------------------------------------------------------------------
+   LANDING HERO: EDITORIAL INVESTMENT OPENING
+   A restrained, wide editorial canvas. Rectangular calls to action with
+   a medium radius (deliberately not pills) and a hairline eyebrow marker
+   beside the label. Motion is defined in the component and fully disabled
+   when the visitor prefers reduced motion.
+   ------------------------------------------------------------------ */
+
+.nx-hero {
+  background-color: var(--nx-bg);
+}
+
+.nx-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #b39b70;
+}
+
+.nx-eyebrow::before {
+  content: "";
+  display: block;
+  height: 1px;
+  width: 1.75rem;
+  background-color: rgba(198, 161, 91, 0.65);
+}
+
+.nx-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.nx-cta-primary {
+  padding: 0.9375rem 1.5rem;
+  background-color: var(--nx-gold);
+  color: #0f0f10;
+}
+
+.nx-cta-primary:hover:not(:disabled) {
+  background-color: #d4b070;
+  transform: translateY(-1px);
+}
+
+.nx-cta-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.nx-cta-secondary {
+  padding: 0.9375rem 1rem;
+  background-color: transparent;
+  color: var(--nx-text);
+}
+
+.nx-cta-secondary:hover:not(:disabled) {
+  color: var(--nx-gold-light);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-cta-primary:hover:not(:disabled) {
+    transform: none;
+  }
 }

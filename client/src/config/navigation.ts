@@ -168,7 +168,7 @@ export const PAGE_TITLES: Array<{ match: (pathname: string) => boolean; title: s
   { match: (pathname) => pathname.startsWith("/settings"), title: "Settings" },
   { match: (pathname) => pathname.startsWith("/admin/operations"), title: "Operations" },
   { match: (pathname) => pathname.startsWith("/admin/analytics"), title: "Analytics" },
-  { match: (pathname) => pathname.startsWith("/admin"), title: "Admin" }
+  { match: (pathname) => pathname.startsWith("/admin"), title: "Platform" }
 ];
 
 export function getPageTitle(pathname: string): string {

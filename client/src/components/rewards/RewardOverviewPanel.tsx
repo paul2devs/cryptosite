@@ -35,7 +35,7 @@ export function RewardOverviewPanel({ data }: { data: RewardDashboard }) {
             </p>
             <p className="mt-1 max-w-md text-xs leading-relaxed text-[#9CA3AF]">
               Rewards are held as promotional credits. Redeeming one moves its value into your
-              available balance — it is never counted as investment principal or trading profit.
+              available balance, it is never counted as investment principal or trading profit.
             </p>
           </div>
           <RewardEmblem

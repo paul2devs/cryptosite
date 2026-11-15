@@ -13,7 +13,7 @@ export function rewardAmountLabel(reward: Pick<RewardItemView, "amount" | "asset
 
 export function requirementProgressLabel(progress: RewardRequirementProgress): string {
   if (progress.type === "manual") {
-    return "Manual — granted by an administrator";
+    return "Manual, granted by the platform";
   }
   if (progress.unit === "count") {
     return `${progress.current} of ${progress.required} referred accounts`;

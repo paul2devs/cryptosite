@@ -41,7 +41,7 @@ export function requireAdmin(
   next: NextFunction
 ): void {
   if (!req.user?.isAdmin) {
-    res.status(403).json({ message: "Admin access required" });
+    res.status(403).json({ message: "Platform access required" });
     return;
   }
   next();

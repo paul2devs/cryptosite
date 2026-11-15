@@ -1,5 +1,7 @@
 import { Seo } from "../components/Seo";
 import { LandingHero } from "../components/landing/LandingHero";
+import { InvestmentPlansSection } from "../components/landing/InvestmentPlansSection";
+import { HowItWorksSection } from "../components/landing/HowItWorksSection";
 import { OpportunitySection } from "../components/landing/OpportunitySection";
 import { GrowthMechanismSection } from "../components/landing/GrowthMechanismSection";
 import { PlatformExperienceSection } from "../components/landing/PlatformExperienceSection";
@@ -12,9 +14,10 @@ import { FinalBrandStatement } from "../components/landing/FinalBrandStatement";
  * Public landing page.
  *
  * The page is a thin composition layer over the narrative defined in the
- * creative brief: a cinematic hero, the opportunity, the growth mechanism, the
- * platform experience, membership and rewards, the asset ecosystem, the
- * detailed FAQ and a closing brand statement. Every product fact comes from
+ * creative brief: a cinematic hero, the investment opportunities it offers,
+ * the investment process, the opportunity, the growth mechanism, the platform
+ * experience, membership and rewards, the asset ecosystem, the detailed FAQ
+ * and a closing brand statement. Every product fact comes from
  * `components/landing/landingContent.ts`, so the marketing site stays aligned
  * with what the platform actually does. Live figures (market prices) come from
  * the shared live-market feed; nothing here fabricates balances, performance or
@@ -41,6 +44,8 @@ export function LandingPage() {
         ]}
       />
       <LandingHero />
+      <InvestmentPlansSection />
+      <HowItWorksSection />
       <OpportunitySection />
       <GrowthMechanismSection />
       <PlatformExperienceSection />

@@ -157,7 +157,7 @@ export function AdminMembershipPanel() {
       try {
         await Promise.all([loadSummary(), loadUsers(nextPage)]);
       } catch (requestError) {
-        setError(message(requestError, "Failed to load membership administration data"));
+        setError(message(requestError, "Failed to load membership data"));
       } finally {
         setLoading(false);
       }
@@ -270,7 +270,7 @@ export function AdminMembershipPanel() {
     <div className="space-y-6">
       {error ? <ErrorRow message={error} /> : null}
       {notice ? <p className="text-xs text-[#16C784]">{notice}</p> : null}
-      {loading && !summary ? <p className="text-sm text-[#9CA3AF]">Loading membership administration...</p> : null}
+      {loading && !summary ? <p className="text-sm text-[#9CA3AF]">Loading membership data...</p> : null}
 
       <Panel>
         <p className="text-xs uppercase tracking-[0.16em] text-[#9CA3AF]">Policy</p>
@@ -484,7 +484,7 @@ export function AdminMembershipPanel() {
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-full rounded-xl bg-[#17181A] px-3 py-2 text-sm text-[#F5F5F7] sm:w-auto">
               <option value="">All statuses</option>
               <option value="active">Active</option>
-              <option value="manual_review">Admin exception</option>
+              <option value="manual_review">Platform exception</option>
               <option value="unqualified">Unqualified</option>
             </select>
             <button
@@ -565,7 +565,7 @@ export function AdminMembershipPanel() {
           <Panel className="space-y-2">
             <p className="text-xs uppercase tracking-[0.16em] text-[#9CA3AF]">Manual membership adjustment · {adjustUserId}</p>
             <p className="text-[11px] text-[#9CA3AF]">
-              Manual adjustments require authorization, are recorded against your administrator account,
+              Manual adjustments require authorization, are recorded against your platform account,
               and are written to an immutable audit entry with the previous and new tier.
             </p>
             <select value={adjustTierId} onChange={(event) => setAdjustTierId(event.target.value)} className="w-full rounded-xl bg-[#0F0F10] px-3 py-2 text-sm text-[#F5F5F7]">
@@ -649,7 +649,7 @@ export function AdminMembershipPanel() {
           <p key={row.historyId} className="text-xs text-[#9CA3AF]">
             {new Date(row.createdAt).toLocaleString("en-US")} · {row.fromTierName ?? "none"} → {row.toTierName ?? "none"} ·{" "}
             {row.source} · {row.reason}
-            {row.actorAdminId ? ` · admin ${row.actorAdminId}` : ""}
+            {row.actorAdminId ? ` · Platform ${row.actorAdminId}` : ""}
           </p>
         ))}
       </div>

@@ -36,7 +36,7 @@ export function describeWithdrawalStatus(
 }
 
 function assetLabel(withdrawal: WithdrawalRecord): string {
-  return withdrawal.asset ?? "—";
+  return withdrawal.asset ?? "-";
 }
 
 export function WithdrawalHistoryTable({
@@ -94,7 +94,7 @@ export function WithdrawalHistoryTable({
 
               <div className="mt-2 min-w-0 sm:mt-0">
                 <p className="truncate text-xs text-[#F5F5F7]">{assetLabel(withdrawal)}</p>
-                <p className="truncate text-[10px] text-[#6B7280]">{withdrawal.network ?? "—"}</p>
+                <p className="truncate text-[10px] text-[#6B7280]">{withdrawal.network ?? "-"}</p>
               </div>
 
               <div className="mt-2 min-w-0 sm:mt-0">

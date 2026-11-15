@@ -5,7 +5,7 @@ import { Eyebrow, landingContainer, Reveal } from "./landingPrimitives";
 import { Atmosphere, GlowOrb, NetworkGraphic } from "./landingArtwork";
 
 /**
- * SECTION G — Final brand statement.
+ * SECTION G. Final brand statement.
  *
  * The closing moment of the narrative: short, confident, and free of fake
  * urgency, countdowns or financial promises. It sets a single obvious next
@@ -30,7 +30,7 @@ export function FinalBrandStatement() {
             <span className="text-gradient-gold">The next chapter is yours.</span>
           </h2>
           <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-[#9CA3AF] sm:text-base">
-            Open an account and move supported crypto into a platform built around clarity —
+            Open an account and move supported crypto into a platform built around clarity:
             membership progression, investment levels, redeemable rewards and performance you can
             actually inspect.
           </p>

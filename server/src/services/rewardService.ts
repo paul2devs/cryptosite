@@ -257,7 +257,7 @@ const DEFAULT_REWARDS: Array<{
   {
     name: "First Confirmed Deposit",
     description:
-      "Platform default loyalty reward issued once your first confirmed, verified deposits reach $500 in total. Amount and threshold are configurable by an administrator.",
+      "Platform default loyalty reward issued once your first confirmed, verified deposits reach $500 in total. Amount and threshold are configurable by the platform.",
     category: "loyalty",
     amount: "25.00000000",
     asset: "USDT",
@@ -312,7 +312,7 @@ const DEFAULT_REWARDS: Array<{
   {
     name: "Welcome Campaign Reward",
     description:
-      "Platform default promotional reward issued by an administrator to eligible accounts. It is never granted automatically.",
+      "Platform default promotional reward issued by the platform to eligible accounts. It is never granted automatically.",
     category: "promotional",
     amount: "10.00000000",
     asset: "USDT",

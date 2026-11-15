@@ -48,7 +48,7 @@ export function CopyButton({
       onClick={handleCopy}
       disabled={!value}
       aria-live="polite"
-      aria-label={state === "copied" ? `${label} — copied` : label}
+      aria-label={state === "copied" ? `${label}, copied` : label}
       className={baseClass}
     >
       {state === "copied" ? (

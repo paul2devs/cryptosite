@@ -4,7 +4,7 @@ import type { MembershipData, MembershipSource } from "../../hooks/useMembership
 import { SolidArrowRight, SolidReceipt } from "../icons/SolidIcons";
 
 function sourceMeta(source: MembershipSource): { label: string; tone: "neutral" | "gold" | "positive" } {
-  if (source === "admin") return { label: "Administrator", tone: "gold" };
+  if (source === "admin") return { label: "Platform", tone: "gold" };
   if (source === "recalculation") return { label: "Recalculation", tone: "neutral" };
   return { label: "Automatic", tone: "positive" };
 }
@@ -51,8 +51,8 @@ export function MembershipHistoryPanel({ data }: { data: MembershipData }) {
                     <p className="text-xs leading-relaxed text-[#9CA3AF]">{entry.reason}</p>
                     <p className="text-[11px] text-[#6B7280]">
                       {formatDateTime(entry.createdAt)} · Qualifying amount{" "}
-                      {amount === null ? "—" : formatUsd(amount)}
-                      {entry.actorAdminId ? ` · Admin ${entry.actorAdminId}` : ""}
+                      {amount === null ? "N/A" : formatUsd(amount)}
+                      {entry.actorAdminId ? ` · Platform ${entry.actorAdminId}` : ""}
                     </p>
                   </div>
                 </ListRow>

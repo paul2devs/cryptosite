@@ -25,7 +25,7 @@ function IssueList({ issues }: { issues: Array<{ code: string; reference: string
     <ul className="space-y-1">
       {issues.map((issue, index) => (
         <li key={`${issue.code}-${issue.reference}-${index}`} className="text-[11px] text-[#EA3943]">
-          <span className="font-mono">{issue.code}</span> · {issue.reference} — {issue.detail}
+          <span className="font-mono">{issue.code}</span> · {issue.reference}: {issue.detail}
         </li>
       ))}
     </ul>

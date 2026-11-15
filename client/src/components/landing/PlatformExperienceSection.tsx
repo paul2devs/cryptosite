@@ -39,12 +39,12 @@ function statusTone(tone: string): string {
 }
 
 /**
- * SECTION D — The platform experience.
+ * SECTION D. The platform experience.
  *
  * Three large interface screens composed as one layered, overlapping scene on
  * desktop (stacked on mobile) rather than a row of feature cards. Live prices
  * are real; allocation and transaction rows are explicitly labelled as
- * illustrative, and no performance figures are invented.
+ * sample data, and no performance figures are invented.
  */
 export function PlatformExperienceSection() {
   const { data, loading } = useLandingMarket();
@@ -56,14 +56,14 @@ export function PlatformExperienceSection() {
       id="platform"
       eyebrow="The platform"
       title="An account built to be understood at a glance."
-      lede="Prices, balances, transactions and progression live in one place — so you always know what you hold, what moved, and where you stand."
+      lede="Prices, balances, transactions and progression live in one place, so you always know what you hold, what moved, and where you stand."
       headerClassName="max-w-2xl"
     >
       <div className="relative lg:min-h-[660px]">
         <GlowOrb tone="gold" className="-left-24 top-0 h-80 w-80 opacity-40" />
         <GlowOrb tone="emerald" className="-right-20 bottom-10 h-72 w-72 opacity-40" />
 
-        {/* Primary screen — portfolio */}
+        {/* Primary screen: portfolio */}
         <Reveal className="relative lg:absolute lg:left-0 lg:top-0 lg:z-10 lg:w-[62%]">
           <div className="glass relative overflow-hidden rounded-3xl p-5 sm:p-7">
             <div className="flex items-center justify-between gap-3">
@@ -75,7 +75,7 @@ export function PlatformExperienceSection() {
                   </p>
                 ) : null}
               </div>
-              <InterfaceTag label="Illustrative allocation" />
+              <InterfaceTag label="Sample allocation" />
             </div>
 
             <div className="mt-6">
@@ -136,13 +136,13 @@ export function PlatformExperienceSection() {
             </div>
 
             <p className="mt-5 border-t border-white/[0.06] pt-3 text-[10px] leading-relaxed text-[#6B7280]">
-              Prices above are live. Allocation is an illustrative layout — your own balances
+              Prices above are live. Allocation is a sample layout. Your own balances
               appear only inside your signed-in account.
             </p>
           </div>
         </Reveal>
 
-        {/* Secondary screen — transactions, overlapping */}
+        {/* Secondary screen: transactions, overlapping */}
         <Reveal
           delay={0.08}
           className="relative mt-6 lg:absolute lg:right-0 lg:top-[30%] lg:z-20 lg:mt-0 lg:w-[47%]"
@@ -195,7 +195,7 @@ export function PlatformExperienceSection() {
           </div>
         </Reveal>
 
-        {/* Tertiary screen — performance, overlapping */}
+        {/* Tertiary screen: performance, overlapping */}
         <Reveal
           delay={0.16}
           className="relative mt-6 lg:absolute lg:bottom-0 lg:left-[10%] lg:z-30 lg:mt-0 lg:w-[42%]"
@@ -203,7 +203,7 @@ export function PlatformExperienceSection() {
           <div className="glass relative overflow-hidden rounded-3xl p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[11px] uppercase tracking-[0.2em] text-[#9CA3AF]">Performance</p>
-              <InterfaceTag label="Illustrative layout" />
+              <InterfaceTag label="Sample layout" />
             </div>
 
             <div className="mt-5 flex h-24 items-center justify-center rounded-2xl bg-[#0F0F10]/45 ring-1 ring-inset ring-white/[0.04]">

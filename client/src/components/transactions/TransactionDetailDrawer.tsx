@@ -56,12 +56,12 @@ function ProtectedValue({ value, mono = true }: { value: string | null; mono?: b
 
 function amount(value: string | null | undefined): string {
   const parsed = parseDecimalString(value ?? null);
-  return parsed === null ? "—" : formatNumber(parsed, 8);
+  return parsed === null ? "N/A" : formatNumber(parsed, 8);
 }
 
 function settleAmount(value: string | null | undefined): string {
   const parsed = parseDecimalString(value ?? null);
-  if (parsed === null) return "—";
+  if (parsed === null) return "N/A";
   return `${parsed < 0 ? "-" : ""}${formatNumber(Math.abs(parsed), 8)}`;
 }
 

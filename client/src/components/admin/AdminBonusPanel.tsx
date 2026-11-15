@@ -214,7 +214,7 @@ export function AdminBonusPanel() {
             <p className="text-xs font-medium text-[#F5F5F7]">Promotional credits</p>
           </div>
           <p className="mt-3 financial-figure text-lg font-medium text-[#C6A15B]">
-            {totals ? totals.totalCredited : "—"}
+            {totals ? totals.totalCredited : "-"}
           </p>
           <p className="mt-1 text-[11px] text-[#9CA3AF]">
             {totals ? `${totals.creditCount} verified bonus credit(s) recorded as promotional credits` : "Loading…"}
@@ -266,7 +266,7 @@ export function AdminBonusPanel() {
                 <ul className="space-y-1">
                   {reconciliation.issues.map((issue, index) => (
                     <li key={`${issue.code}-${issue.reference}-${index}`} className="text-[11px] text-[#EA3943]">
-                      <span className="font-mono">{issue.code}</span> · {issue.reference} — {issue.detail}
+                      <span className="font-mono">{issue.code}</span> · {issue.reference}: {issue.detail}
                     </li>
                   ))}
                 </ul>
@@ -281,7 +281,7 @@ export function AdminBonusPanel() {
             <p className="text-xs font-medium text-[#F5F5F7]">Active campaigns</p>
           </div>
           <p className="mt-3 financial-figure text-lg font-medium text-[#F5F5F7]">
-            {summary ? summary.campaigns.filter((campaign) => campaign.active).length : "—"}
+            {summary ? summary.campaigns.filter((campaign) => campaign.active).length : "-"}
           </p>
           <p className="mt-1 text-[11px] text-[#9CA3AF]">
             {summary ? `${summary.campaigns.length} campaign(s) configured` : "Loading…"}
@@ -336,7 +336,7 @@ export function AdminBonusPanel() {
         <textarea
           value={form.description}
           onChange={(event) => patch({ description: event.target.value })}
-          placeholder="Campaign description shown to administrators"
+          placeholder="Campaign description shown on the platform"
           rows={2}
           className={`${inputClass} mt-2`}
         />

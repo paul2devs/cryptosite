@@ -40,7 +40,7 @@ export function RewardProgression({
           />
           <Stat
             label="Invested principal"
-            value={invested === null ? "—" : formatUsd(invested)}
+            value={invested === null ? "N/A" : formatUsd(invested)}
           />
           <Stat label="Membership tier" value={eligibility.membershipTierName ?? "No tier"} />
           <Stat label="Referred accounts" value={String(eligibility.referralCount)} />
@@ -97,7 +97,7 @@ export function RewardProgression({
                     </div>
                     {reward.progress.type === "manual" ? (
                       <p className="text-[10px] text-[#6B7280]">
-                        Issued by an administrator. No automatic progress applies.
+                        Issued by the platform. No automatic progress applies.
                       </p>
                     ) : (
                       <>

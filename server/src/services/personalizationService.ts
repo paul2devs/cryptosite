@@ -138,7 +138,7 @@ export async function applyPersonalizedIncentives(user: User, profile: UserAIPro
   if (profile.optimal_bonus_type === "timed_nudge") {
     await Notification.create({
       type: "ai_timed_nudge",
-      message: "Your progress is trending upward—depositing during active bonuses stacks well with your multiplier.",
+      message: "Your progress is trending upward. Depositing during active bonuses stacks well with your multiplier.",
       user_id: user.user_id
     });
     return;

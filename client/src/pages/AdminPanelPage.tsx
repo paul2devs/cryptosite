@@ -87,7 +87,7 @@ export function AdminPanelPage() {
       setUsers(uRes.data);
       setRiskFlags(rRes.data);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to load admin data");
+      setError(err.response?.data?.message || "Failed to load platform data");
     }
   };
 
@@ -138,13 +138,13 @@ export function AdminPanelPage() {
   return (
     <div className="page-responsive space-y-6">
       <Seo
-        title="Admin – approvals"
-        description="Admin approvals dashboard for deposits and withdrawals."
+        title="Platform approvals"
+        description="Platform approvals dashboard for deposits and withdrawals."
         path="/admin"
         robots="noindex,nofollow"
       />
       <section className="space-y-2">
-        <h1 className="display-font text-xl font-semibold text-[#F5F5F7]">Admin panel</h1>
+        <h1 className="display-font text-xl font-semibold text-[#F5F5F7]">Platform panel</h1>
         <p className="text-sm text-[#9CA3AF]">
           Review activity, manage user payouts, and send broadcast announcements.
         </p>
@@ -276,7 +276,7 @@ export function AdminPanelPage() {
               onChange={(e) => setBroadcastType(e.target.value)}
               className={inputClass}
             >
-              <option value="admin_announcement">Admin announcement</option>
+              <option value="admin_announcement">Platform announcement</option>
               <option value="promo_multiplier">Promo multiplier</option>
             </select>
             <textarea

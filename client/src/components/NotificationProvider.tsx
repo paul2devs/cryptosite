@@ -14,6 +14,12 @@ import { X } from "lucide-react";
 import type { RootState } from "../store";
 import { api } from "../utils/api";
 import { getRealtimeSocket, SocialProofEvent } from "../utils/realtime";
+import {
+  DEMO_ACTIVITY,
+  DEMO_ACTIVITY_PREFIX,
+  loadSeenDemoActivity,
+  markDemoActivitySeen
+} from "../data/demoActivity";
 
 export interface NotificationItem {
   notification_id: string;
@@ -30,6 +36,8 @@ interface NotificationContextValue {
   panelNotifications: NotificationItem[];
   unreadCount: number;
   markAllRead: () => void;
+  dismissPanelNotification: (notificationId: string) => void;
+  clearPanelNotifications: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(
@@ -201,6 +209,48 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       }
     };
   }, [accessToken, hydrateNotificationState, persistNotificationState, queueNotification]);
+
+  /**
+   * Demonstration activity for the live activity banner.
+   *
+   * There is no base of real accounts generating genuine level advancements
+   * yet, so the banner surfaces clearly identified example activity instead of
+   * fabricating real user transactions. Each entry is labelled as an example,
+   * shown at most once per device, and recorded in localStorage so a refresh
+   * never replays one that has already been seen.
+   */
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+    let cancelled = false;
+
+    const surfaceNextExample = () => {
+      if (cancelled) {
+        return;
+      }
+      const seen = loadSeenDemoActivity();
+      const next = DEMO_ACTIVITY.find((entry) => !seen.has(entry.id));
+      if (!next) {
+        return;
+      }
+      markDemoActivitySeen(next.id);
+      setSocialEvent({
+        id: next.id,
+        type: "level_up",
+        message: `${DEMO_ACTIVITY_PREFIX}: ${next.message}`,
+        createdAt: new Date().toISOString()
+      });
+    };
+
+    const initialDelay = window.setTimeout(surfaceNextExample, 6000);
+    const interval = window.setInterval(surfaceNextExample, 18000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(initialDelay);
+      window.clearInterval(interval);
+    };
+  }, [accessToken]);
 
   useEffect(() => {
     if (!accessToken || !user) {
@@ -381,6 +431,26 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     setUnreadCount(0);
   };
 
+  const dismissPanelNotification = (notificationId: string) => {
+    dismissedIdsRef.current.add(notificationId);
+    setPanelNotifications((prev) =>
+      prev.filter((item) => item.notification_id !== notificationId)
+    );
+    setToastQueue((prev) =>
+      prev.filter((item) => item.notification_id !== notificationId)
+    );
+    persistNotificationState();
+  };
+
+  const clearPanelNotifications = () => {
+    setPanelNotifications((prev) => {
+      prev.forEach((item) => dismissedIdsRef.current.add(item.notification_id));
+      return [];
+    });
+    setToastQueue([]);
+    persistNotificationState();
+  };
+
   const value: NotificationContextValue = useMemo(
     () => ({
       toastQueue,
@@ -389,7 +459,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       setSocialEvent,
       panelNotifications,
       unreadCount,
-      markAllRead
+      markAllRead,
+      dismissPanelNotification,
+      clearPanelNotifications
     }),
     [toastQueue, socialEvent, panelNotifications, unreadCount]
   );
@@ -488,9 +560,17 @@ export function NotificationToasts() {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="pointer-events-none w-full max-w-md rounded-full bg-[#16C784]/12 px-4 py-2 text-center text-xs text-[#16C784] shadow-lg ring-1 ring-inset ring-[#16C784]/30"
+              className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-full bg-[#16C784]/12 px-4 py-2 text-xs text-[#16C784] shadow-lg ring-1 ring-inset ring-[#16C784]/30"
             >
-              {socialEvent.message}
+              <span className="min-w-0 flex-1 text-center">{socialEvent.message}</span>
+              <button
+                type="button"
+                onClick={() => setSocialEvent(null)}
+                className="-mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[#16C784] transition-colors hover:bg-[#16C784]/15"
+                aria-label="Dismiss activity notification"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

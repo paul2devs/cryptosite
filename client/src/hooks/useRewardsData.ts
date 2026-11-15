@@ -56,7 +56,7 @@ export function useRewardsData(): RewardsDataState {
       try {
         const result = await redeemUserReward(userRewardId);
         setRedemptionNotice(
-          `${result.name} redeemed — ${result.amount} ${result.asset} is now in your available balance.`
+          `${result.name} redeemed. ${result.amount} ${result.asset} is now in your available balance.`
         );
         await load();
         return true;

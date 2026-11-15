@@ -18,7 +18,7 @@ export function MembershipOverviewPanel({ data }: { data: MembershipData }) {
     ? current.maxAmount
       ? `$${current.minAmount} – $${current.maxAmount}`
       : `$${current.minAmount}+`
-    : "—";
+    : "N/A";
 
   return (
     <Section id="membership-overview">
@@ -46,9 +46,9 @@ export function MembershipOverviewPanel({ data }: { data: MembershipData }) {
             </p>
             {current ? (
               <p className="text-[11px] text-[#6B7280]">
-                {current.source === "admin" ? "Assigned by administrator" : "Assigned automatically"}
+                {current.source === "admin" ? "Assigned by the platform" : "Assigned automatically"}
                 {" · Attained "}
-                {current.achievedAt ? formatDateTime(current.achievedAt) : "—"}
+                {current.achievedAt ? formatDateTime(current.achievedAt) : "N/A"}
               </p>
             ) : null}
           </div>
@@ -56,7 +56,7 @@ export function MembershipOverviewPanel({ data }: { data: MembershipData }) {
 
         {current?.source === "admin" && current.manualReason ? (
           <p className="rounded-lg bg-[#C6A15B]/10 px-3 py-2 text-[11px] leading-relaxed text-[#C6A15B]">
-            Administrator note: {current.manualReason}
+            Platform note: {current.manualReason}
             {current.manualSetAt ? ` (${formatDateTime(current.manualSetAt)})` : ""}
           </p>
         ) : null}
@@ -68,10 +68,10 @@ export function MembershipOverviewPanel({ data }: { data: MembershipData }) {
             tone={qualifying === null ? "neutral" : "gold"}
           />
           <Stat label="Tier range" value={tierRange} />
-          <Stat label="Next tier" value={current?.isHighestTier ? "Highest" : next?.name ?? "—"} />
+          <Stat label="Next tier" value={current?.isHighestTier ? "Highest" : next?.name ?? "N/A"} />
           <Stat
             label="Remaining"
-            value={remaining === null ? "—" : formatUsd(Math.max(0, remaining))}
+            value={remaining === null ? "N/A" : formatUsd(Math.max(0, remaining))}
             tone={remaining !== null && remaining <= 0 ? "positive" : "neutral"}
           />
         </StatStrip>

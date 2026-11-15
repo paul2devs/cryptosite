@@ -6,7 +6,7 @@ import { LevelEmblem } from "./LevelEmblem";
 
 function thresholdValue(threshold: string): string {
   const parsed = parseDecimalString(threshold);
-  return parsed === null ? "—" : `${formatUsdCompact(parsed)}+`;
+  return parsed === null ? "N/A" : `${formatUsdCompact(parsed)}+`;
 }
 
 export function ProgressToNextLevel({ data }: { data: InvestmentLevelData }) {
@@ -47,11 +47,11 @@ export function ProgressToNextLevel({ data }: { data: InvestmentLevelData }) {
             <StatStrip>
               <Stat
                 label="Qualifying principal"
-                value={qualifying === null ? "—" : formatUsdCompact(qualifying)}
+                value={qualifying === null ? "N/A" : formatUsdCompact(qualifying)}
               />
               <Stat
                 label="Level threshold"
-                value={data.current ? thresholdValue(data.current.threshold) : "—"}
+                value={data.current ? thresholdValue(data.current.threshold) : "N/A"}
               />
               <Stat label="Progress" value="100.0%" tone="positive" />
             </StatStrip>
@@ -89,11 +89,11 @@ export function ProgressToNextLevel({ data }: { data: InvestmentLevelData }) {
           <StatStrip>
             <Stat
               label="Next threshold"
-              value={data.next ? thresholdValue(data.next.threshold) : "—"}
+              value={data.next ? thresholdValue(data.next.threshold) : "N/A"}
             />
             <Stat
               label="Remaining"
-              value={remaining === null ? "—" : formatUsdCompact(Math.max(0, remaining))}
+              value={remaining === null ? "N/A" : formatUsdCompact(Math.max(0, remaining))}
               tone={remaining !== null && remaining <= 0 ? "positive" : "gold"}
             />
             <Stat label="Progress" value={`${progress.toFixed(1)}%`} />

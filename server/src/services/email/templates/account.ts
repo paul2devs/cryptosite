@@ -3,7 +3,7 @@ import { renderEmailLayout } from "./layout";
 
 export function renderWelcomeEmail(args: { name: string }): { subject: string; html: string } {
   const baseUrl = getAppBaseUrl();
-  const subject = "Welcome to NexaCrypto — your account is ready";
+  const subject = "Welcome to NexaCrypto: your account is ready";
   const html = renderEmailLayout({
     title: "Welcome to NexaCrypto",
     preheader: "Your account is ready. Start with a verified deposit to unlock levels and multipliers.",

@@ -23,24 +23,27 @@ import { trackUserActivity } from "./activityService";
 import { getAllMarketPrices } from "./marketDataService";
 
 const DEFAULT_TIERS = [
-  { name: "Bronze", min: "100.00", max: "999.99", sort: 1, icon: "bronze", accent: "#B87333", description: "Entry membership for confirmed deposits from $100.", benefits: ["Membership progress tracking", "Standard deposit review"] },
-  { name: "Silver", min: "1000.00", max: "4999.99", sort: 2, icon: "silver", accent: "#C0C0C0", description: "Membership for confirmed deposits from $1,000.", benefits: ["Membership progress tracking", "Withdrawal status history"] },
-  { name: "Gold", min: "5000.00", max: "19999.99", sort: 3, icon: "gold", accent: "#C6A15B", description: "Membership for confirmed deposits from $5,000.", benefits: ["Priority support queue", "Detailed activity history"] },
-  { name: "Platinum", min: "20000.00", max: "49999.99", sort: 4, icon: "platinum", accent: "#E5E4E2", description: "Membership for confirmed deposits from $20,000.", benefits: ["Priority support queue", "Dedicated account review"] },
-  { name: "Diamond", min: "50000.00", max: "99999.99", sort: 5, icon: "diamond", accent: "#7DD3FC", description: "Membership for confirmed deposits from $50,000.", benefits: ["Priority support queue", "Relationship review"] },
-  { name: "Private Client", min: "100000.00", max: null, sort: 6, icon: "private", accent: "#F5F5F7", description: "Membership for confirmed deposits of $100,000 or more.", benefits: ["Priority support queue", "Private client review"] }
+  { name: "Bronze", min: "100.00", max: "999.99", sort: 1, icon: "bronze", accent: "#B87333", description: "Entry membership, unlocked from $100 in confirmed deposits.", benefits: ["Discounted platform fees", "Welcome promotional credit"] },
+  { name: "Silver", min: "1000.00", max: "4999.99", sort: 2, icon: "silver", accent: "#C0C0C0", description: "Membership for confirmed deposits from $1,000.", benefits: ["Raised withdrawal limits", "Reduced withdrawal fees"] },
+  { name: "Gold", min: "5000.00", max: "19999.99", sort: 3, icon: "gold", accent: "#C6A15B", description: "Membership for confirmed deposits from $5,000.", benefits: ["Elevated rewards multiplier", "Early access to campaigns"] },
+  { name: "Platinum", min: "20000.00", max: "49999.99", sort: 4, icon: "platinum", accent: "#E5E4E2", description: "Membership for confirmed deposits from $20,000.", benefits: ["Dedicated account specialist", "Expedited payouts"] },
+  { name: "Diamond", min: "50000.00", max: "99999.99", sort: 5, icon: "diamond", accent: "#7DD3FC", description: "Membership for confirmed deposits from $50,000.", benefits: ["Higher reward rates", "Increased withdrawal ceilings"] },
+  { name: "Private Client", min: "100000.00", max: null, sort: 6, icon: "private", accent: "#F5F5F7", description: "Membership for confirmed deposits of $100,000 or more.", benefits: ["Private client desk", "Scheduled relationship review"] }
 ];
 
 const DEFAULT_BENEFITS = [
-  { code: "membership_progress_tracking", name: "Membership progress tracking", description: "See your qualifying amount, tier history, and the exact amount remaining to the next membership tier at any time.", tier: "Bronze", requiresActivation: false, available: true, sort: 1 },
-  { code: "deposit_review_standard", name: "Standard deposit review", description: "Every deposit is verified on-chain and independently priced before it is applied to your account.", tier: "Bronze", requiresActivation: false, available: true, sort: 2 },
-  { code: "withdrawal_status_history", name: "Withdrawal status history", description: "Track each withdrawal through requested, under review, approved, processing, and completed states.", tier: "Silver", requiresActivation: false, available: true, sort: 3 },
-  { code: "priority_support_queue", name: "Priority support queue", description: "Your support requests are routed ahead of standard queues while your tier remains assigned.", tier: "Gold", requiresActivation: false, available: true, sort: 4 },
-  { code: "detailed_activity_history", name: "Detailed activity history", description: "Extended account activity history covering deposits, withdrawals, and ledger changes.", tier: "Gold", requiresActivation: false, available: true, sort: 5 },
-  { code: "quarterly_performance_report", name: "Quarterly performance report", description: "A quarterly summary of your verified account activity. Activate it to include your account in the next reporting cycle.", tier: "Gold", requiresActivation: true, available: true, sort: 6 },
-  { code: "dedicated_account_review", name: "Dedicated account review", description: "A scheduled review of your account by the operations team.", tier: "Platinum", requiresActivation: false, available: true, sort: 7 },
-  { code: "relationship_review", name: "Relationship review", description: "A structured review covering your account activity and membership standing.", tier: "Diamond", requiresActivation: false, available: true, sort: 8 },
-  { code: "private_client_review", name: "Private client review", description: "Private client review with the operations team for the highest membership tier.", tier: "Private Client", requiresActivation: false, available: true, sort: 9 }
+  { code: "member_fee_discount", name: "Discounted platform fees", description: "Your account begins on a discounted platform fee schedule for deposits and withdrawals.", tier: "Bronze", requiresActivation: false, available: true, sort: 1 },
+  { code: "welcome_reward_credit", name: "Welcome promotional credit", description: "A welcome promotional credit is added to your rewards balance the moment membership begins. It is a promotional credit, not trading profit.", tier: "Bronze", requiresActivation: false, available: true, sort: 2 },
+  { code: "raised_withdrawal_limits", name: "Raised withdrawal limits", description: "Your daily and per-transaction withdrawal limits increase, giving you more freedom to move funds when you need them.", tier: "Silver", requiresActivation: false, available: true, sort: 3 },
+  { code: "discounted_withdrawal_fees", name: "Reduced withdrawal fees", description: "Withdrawal fees are reduced across every supported network at your tier, so more of each payout reaches your destination address.", tier: "Silver", requiresActivation: false, available: true, sort: 4 },
+  { code: "rewards_multiplier", name: "Elevated rewards multiplier", description: "Qualifying activity earns an elevated reward multiplier, increasing the promotional credits you accumulate.", tier: "Gold", requiresActivation: false, available: true, sort: 5 },
+  { code: "campaign_first_access", name: "Early access to campaigns", description: "New promotional campaigns open to you before general release, so you can capture the strongest available reward conditions first.", tier: "Gold", requiresActivation: false, available: true, sort: 6 },
+  { code: "dedicated_account_specialist", name: "Dedicated account specialist", description: "A dedicated specialist is assigned to guide your account and respond directly to your requests.", tier: "Platinum", requiresActivation: false, available: true, sort: 7 },
+  { code: "expedited_payouts", name: "Expedited payouts", description: "Approved withdrawals are prioritised in the payout queue, shortening the time between your request and the on-chain transaction.", tier: "Platinum", requiresActivation: false, available: true, sort: 8 },
+  { code: "elevated_reward_rate", name: "Higher reward rates", description: "Your reward multiplier and campaign rates are raised further, so your standing in the programme compounds.", tier: "Diamond", requiresActivation: false, available: true, sort: 9 },
+  { code: "higher_withdrawal_ceilings", name: "Increased withdrawal ceilings", description: "Your withdrawal ceilings are raised again, giving high-value accounts more headroom.", tier: "Diamond", requiresActivation: false, available: true, sort: 10 },
+  { code: "private_client_desk", name: "Private client desk", description: "The platform's most exclusive service level, with the highest limits, the lowest fee schedule and a private client desk.", tier: "Private Client", requiresActivation: false, available: true, sort: 11 },
+  { code: "relationship_review", name: "Scheduled relationship review", description: "A structured, scheduled account review with the platform operations team. Activate it to request the next available slot.", tier: "Private Client", requiresActivation: true, available: true, sort: 12 }
 ];
 
 const QUALIFICATION_METRIC = {
@@ -65,10 +68,10 @@ const MEMBERSHIP_RULES = {
   automaticUpgrades: true,
   downgradesSupported: false,
   downgradePolicy:
-    "This platform does not lower a membership tier when the confirmed qualifying amount falls. A tier earned from verified deposits is retained, and an authorized administrator can review an exception when the platform policy requires it.",
+    "This platform does not lower a membership tier when the confirmed qualifying amount falls. A tier earned from verified deposits is retained, and the platform can review an exception when policy requires it.",
   retentionPolicy: "Benefits remain available while the assigned tier stays in place.",
   manualOverridePolicy:
-    "An authorized administrator can assign a membership exception. Every manual change records the administrator, the previous tier, the new tier, and a reason, and it is written to an immutable audit entry.",
+    "The platform can assign a membership exception. Every manual change records the operator, the previous tier, the new tier, and a reason, and it is written to an immutable audit entry.",
   reviewPeriodDays: null,
   gracePeriodDays: null,
   minimumRetentionAmount: null
@@ -428,8 +431,8 @@ export async function getMembershipView(userId: string) {
     ? membership?.manual_tier_id
       ? {
           code: "manual_review",
-          label: "Active · admin exception",
-          description: `This tier was assigned by an authorized administrator. ${membership.manual_reason ?? ""}`.trim()
+          label: "Active · platform exception",
+          description: `This tier was assigned by the platform. ${membership.manual_reason ?? ""}`.trim()
         }
       : {
           code: "active",
@@ -949,7 +952,7 @@ export async function adminAdjustMembership(adminId: string, userId: string, tie
   if (result.changed) {
     await Notification.create({
       type: "membership_status",
-      message: clip(`An authorized administrator reviewed your membership. Your tier is now ${target?.name ?? "unassigned"}. Recorded reason: ${trimmed}`),
+      message: clip(`The platform reviewed your membership. Your tier is now ${target?.name ?? "unassigned"}. Recorded reason: ${trimmed}`),
       user_id: userId
     });
     await trackUserActivity(userId, "membership_upgrade", {
@@ -1000,10 +1003,10 @@ export async function clearMembershipOverride(adminId: string, userId: string, r
   });
 
   if (result.changed) {
-    await syncUserMembership(userId, "Administrator cleared the manual membership exception");
+    await syncUserMembership(userId, "Platform cleared the manual membership exception");
     await Notification.create({
       type: "membership_status",
-      message: clip(`An authorized administrator cleared the manual membership exception on your account. Your tier is now recalculated from confirmed, verified deposits. Reason: ${trimmed}`),
+      message: clip(`The platform cleared the manual membership exception on your account. Your tier is now recalculated from confirmed, verified deposits. Reason: ${trimmed}`),
       user_id: userId
     });
     await trackUserActivity(adminId, "admin_action", { action: "membership_override_cleared", targetUserId: userId });

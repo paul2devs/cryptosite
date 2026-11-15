@@ -23,7 +23,7 @@ function LiveFigure({ loading, price }: { loading: boolean; price: number | unde
     return <span className="inline-block h-6 w-20 animate-pulse rounded bg-white/[0.05]" />;
   }
   if (price === undefined) {
-    return <span className="financial-figure text-xl font-semibold text-[#6B7280]">—</span>;
+    return <span className="financial-figure text-xl font-semibold text-[#6B7280]">-</span>;
   }
   return (
     <span className="financial-figure text-xl font-semibold text-[#F5F5F7]">
@@ -33,12 +33,12 @@ function LiveFigure({ loading, price }: { loading: boolean; price: number | unde
 }
 
 /**
- * SECTION F — The asset ecosystem.
+ * SECTION F. The asset ecosystem.
  *
  * A cinematic presentation of the assets the platform actually accepts: an
  * elegant live ticker over a full-width editorial ledger of assets and their
- * networks. Deliberately not another asset-card grid, and no invented prices —
- * a symbol without a feed simply shows a dash.
+ * networks. Deliberately not another asset-card grid, and no invented prices.
+ * A symbol without a feed simply shows a dash.
  */
 export function AssetEcosystemSection() {
   const { data, loading, error } = useLandingMarket();
@@ -66,7 +66,7 @@ export function AssetEcosystemSection() {
           </p>
         </Reveal>
 
-        {/* Live ticker — an elegant horizontal rail, not a card row */}
+        {/* Live ticker: an elegant horizontal rail, not a card row */}
         <Reveal delay={0.05}>
           <div className="edge-fade-x no-scrollbar mt-10 -mx-5 flex overflow-x-auto border-y border-[#1F2023] sm:mx-0 sm:rounded-2xl sm:border">
             {SUPPORTED_ASSETS.map((asset) => {
@@ -93,7 +93,7 @@ export function AssetEcosystemSection() {
                       </p>
                     ) : (
                       <p className="financial-figure mt-0.5 text-[13px] font-medium text-[#6B7280]">
-                        —
+                        -
                       </p>
                     )}
                   </div>

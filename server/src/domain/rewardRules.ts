@@ -24,13 +24,13 @@ export const REWARD_CATEGORY_LABEL: Record<RewardCategory, string> = {
 
 export const REWARD_CATEGORY_DESCRIPTION: Record<RewardCategory, string> = {
   loyalty: "Earned progressively from your verified activity on the platform.",
-  promotional: "Issued by the platform or by an administrator for a specific campaign.",
+  promotional: "Issued by the platform for a specific campaign.",
   referral: "Earned from the accounts that joined with your referral code.",
   special: "Granted for exceptional account milestones and reviewed individually."
 };
 
 export const REWARD_REQUIREMENT_LABEL: Record<RewardRequirementType, string> = {
-  manual: "Issued by an administrator",
+  manual: "Issued by the platform",
   deposit_total: "Confirmed, verified deposits",
   invest_total: "Verified invested principal",
   membership_tier: "Membership tier",

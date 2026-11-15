@@ -32,7 +32,7 @@ function formatPrice(price: number): string {
 
 function formatMarketCap(value: number): string {
   if (!Number.isFinite(value) || value <= 0) {
-    return "—";
+    return "N/A";
   }
   if (value >= 1_000_000_000_000) {
     return `$${(value / 1_000_000_000_000).toFixed(2)}T`;
@@ -92,7 +92,7 @@ export function MarketOverview() {
                       <SkeletonBlock className="ml-auto h-4 w-16" />
                     ) : (
                       <span className="financial-figure block truncate text-xs text-[#F5F5F7] sm:text-sm">
-                        {item ? formatPrice(item.price) : "—"}
+                        {item ? formatPrice(item.price) : "N/A"}
                       </span>
                     )}
                   </div>
@@ -105,7 +105,7 @@ export function MarketOverview() {
                           item ? (isUp ? "text-[#16C784]" : "text-[#EA3943]") : "text-[#6B7280]"
                         }`}
                       >
-                        {item ? formatPercent(change, { signed: true }) : "—"}
+                        {item ? formatPercent(change, { signed: true }) : "N/A"}
                       </span>
                     )}
                   </div>
@@ -114,7 +114,7 @@ export function MarketOverview() {
                       <SkeletonBlock className="ml-auto h-4 w-14" />
                     ) : (
                       <span className="financial-figure block truncate text-xs text-[#9CA3AF]">
-                        {item ? formatMarketCap(item.marketCap) : "—"}
+                        {item ? formatMarketCap(item.marketCap) : "N/A"}
                       </span>
                     )}
                   </div>

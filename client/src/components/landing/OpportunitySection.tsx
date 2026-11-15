@@ -5,11 +5,11 @@ import { Eyebrow, LandingSection, Reveal } from "./landingPrimitives";
 import { GlowOrb, NetworkGraphic } from "./landingArtwork";
 
 /**
- * SECTION B — The Opportunity.
+ * SECTION B. The Opportunity.
  *
  * The most important content section: it explains how the platform's parts fit
  * together as one system instead of listing features. Laid out as an editorial
- * rail plus large statement blocks separated by hairlines — deliberately not a
+ * rail plus large statement blocks separated by hairlines, deliberately not a
  * grid of feature cards.
  */
 export function OpportunitySection() {
@@ -18,7 +18,7 @@ export function OpportunitySection() {
       id="opportunity"
       eyebrow="The opportunity"
       title="One deposit. Four parts of the platform working together."
-      lede="NexaCrypto is not a single feature. Participation, progression, rewards and oversight depend on each other — and each one is built on records you can inspect."
+      lede="NexaCrypto is not a single feature. Participation, progression, rewards and oversight depend on each other, and each one is built on records you can inspect."
       headerClassName="max-w-2xl"
     >
       <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
@@ -30,7 +30,7 @@ export function OpportunitySection() {
               <div className="relative">
                 <Eyebrow>The system</Eyebrow>
                 <p className="mt-4 max-w-xs text-sm leading-relaxed text-[#9CA3AF]">
-                  Each part builds on the one above it. Nothing here is a market promise — it is
+                  Each part builds on the one above it. Nothing here is a market promise. It is
                   how the platform is structured.
                 </p>
 

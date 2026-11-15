@@ -54,7 +54,7 @@ const inputClass =
   "w-full min-w-0 rounded-xl border border-[#26272B] bg-[#17181A] px-3 py-2 text-sm text-[#F5F5F7] outline-none placeholder:text-[#6B7280] focus:border-[#C6A15B]/60";
 
 function money(value: unknown) {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "-";
   return String(value);
 }
 
@@ -109,7 +109,7 @@ export function AdminOperationsPage() {
       const message = requestError && typeof requestError === "object" && "response" in requestError
         ? (requestError as { response?: { data?: { message?: string } } }).response?.data?.message
         : null;
-      setError(message || "Failed to load admin data");
+      setError(message || "Failed to load platform data");
       setPayload(null);
     } finally {
       setLoading(false);
@@ -208,9 +208,9 @@ export function AdminOperationsPage() {
 
   return (
     <div className="page-responsive space-y-6 pb-16">
-      <Seo title="Operations" description="Admin operational monitoring" path="/admin/operations" />
+      <Seo title="Operations" description="Platform operational monitoring" path="/admin/operations" />
       <div>
-        <p className="text-[11px] uppercase tracking-[0.16em] text-[#9CA3AF]">Administration</p>
+        <p className="text-[11px] uppercase tracking-[0.16em] text-[#9CA3AF]">Platform operations</p>
         <h1 className="display-font text-2xl font-semibold text-[#F5F5F7]">Operations</h1>
       </div>
 

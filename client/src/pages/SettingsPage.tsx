@@ -344,11 +344,11 @@ export function SettingsPage() {
           </div>
           <Divider />
           <StatStrip>
-            <Stat label="Email" value={account?.email ?? "—"} />
-            <Stat label="User ID" value={account?.user_id ?? "—"} />
+            <Stat label="Email" value={account?.email ?? "-"} />
+            <Stat label="User ID" value={account?.user_id ?? "-"} />
             <Stat
               label="Level"
-              value={account ? `Level ${resolvedLevel ?? account.level}` : "—"}
+              value={account ? `Level ${resolvedLevel ?? account.level}` : "-"}
             />
           </StatStrip>
         </Panel>

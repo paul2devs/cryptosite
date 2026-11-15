@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Seo } from "../components/Seo";
@@ -83,6 +83,8 @@ export function DepositPage() {
   const [txHash, setTxHash] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string | null>(null);
+  const stepAnchorRef = useRef<HTMLDivElement | null>(null);
+  const previousStepRef = useRef(step);
 
   const {
     addresses,
@@ -121,7 +123,7 @@ export function DepositPage() {
   } = useDepositQuote(cryptoType, usdAmount);
 
   const conversionReady = quote?.available === true && quote.cryptoAmountLabel !== null;
-  const cryptoAmountLabel = conversionReady ? quote!.cryptoAmountLabel! : "—";
+  const cryptoAmountLabel = conversionReady ? quote!.cryptoAmountLabel! : "-";
 
   const lastSubmittedDeposit = successId
     ? deposits.find((deposit) => deposit.deposit_id === successId) ?? null
@@ -208,6 +210,24 @@ export function DepositPage() {
     setStep((current) => Math.max(0, current - 1));
   };
 
+  // Whenever the step changes, bring the start of the newly displayed section
+  // to the top of the viewport instead of leaving the user at the bottom of the page.
+  useEffect(() => {
+    if (previousStepRef.current === step) {
+      return;
+    }
+    previousStepRef.current = step;
+    const anchor = stepAnchorRef.current;
+    if (!anchor) {
+      return;
+    }
+    const prefersReduced =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const top = window.scrollY + anchor.getBoundingClientRect().top - 72;
+    window.scrollTo({ top: Math.max(0, top), behavior: prefersReduced ? "auto" : "smooth" });
+  }, [step]);
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setFormError(null);
@@ -279,7 +299,7 @@ export function DepositPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start">
           <div className="min-w-0 space-y-6">
-            <div className="min-w-0">
+            <div ref={stepAnchorRef} className="min-w-0">
               <DepositStepper steps={steps} />
             </div>
 
@@ -379,7 +399,7 @@ export function DepositPage() {
                     <ReviewRow label="Network" value={option.networkLabel} />
                     <ReviewRow
                       label="Amount"
-                      value={usdAmount !== null ? formatUsd(usdAmount) : "—"}
+                      value={usdAmount !== null ? formatUsd(usdAmount) : "-"}
                     />
                     <ReviewRow
                       label="You send"
@@ -387,7 +407,7 @@ export function DepositPage() {
                     />
                     <ReviewRow
                       label="Transaction hash"
-                      value={txHash.trim() ? truncateMiddle(txHash.trim(), 14, 10) : "—"}
+                      value={txHash.trim() ? truncateMiddle(txHash.trim(), 14, 10) : "-"}
                       mono
                     />
                   </div>
@@ -458,12 +478,12 @@ export function DepositPage() {
                 <Stat label="Network" value={option.networkLabel} hint={`${option.networkType} network`} />
                 <Stat
                   label="Amount"
-                  value={amountValidation.valid && usdAmount !== null ? formatUsd(usdAmount) : "—"}
+                  value={amountValidation.valid && usdAmount !== null ? formatUsd(usdAmount) : "-"}
                   hint={amountValidation.valid ? "USD you deposit" : "Enter an amount"}
                 />
                 <Stat
                   label="You send"
-                  value={conversionReady ? cryptoAmountLabel : "—"}
+                  value={conversionReady ? cryptoAmountLabel : "-"}
                   hint={conversionReady ? "Equivalent at the verified rate" : "Waiting for a live rate"}
                 />
               </StatStrip>

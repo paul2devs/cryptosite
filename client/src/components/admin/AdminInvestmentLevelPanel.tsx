@@ -195,7 +195,7 @@ export function AdminInvestmentLevelPanel() {
       try {
         await Promise.all([loadSummary(), loadUsers(nextPage)]);
       } catch (requestError) {
-        setError(message(requestError, "Failed to load investment level administration data"));
+        setError(message(requestError, "Failed to load investment level data"));
       } finally {
         setLoading(false);
       }
@@ -354,7 +354,7 @@ export function AdminInvestmentLevelPanel() {
       {error ? <ErrorRow message={error} /> : null}
       {notice ? <p className="text-xs text-[#16C784]">{notice}</p> : null}
       {loading && !summary ? (
-        <p className="text-sm text-[#9CA3AF]">Loading investment level administration...</p>
+        <p className="text-sm text-[#9CA3AF]">Loading investment level data...</p>
       ) : null}
 
       <Panel>
@@ -698,7 +698,7 @@ export function AdminInvestmentLevelPanel() {
             >
               <option value="">All statuses</option>
               <option value="active">Active</option>
-              <option value="manual_review">Admin exception</option>
+              <option value="manual_review">Platform exception</option>
               <option value="unqualified">Unqualified</option>
             </select>
             <button
@@ -792,7 +792,7 @@ export function AdminInvestmentLevelPanel() {
               Manual investment level adjustment · {adjustUserId}
             </p>
             <p className="text-[11px] text-[#9CA3AF]">
-              Manual adjustments require authorization, are recorded against your administrator account,
+              Manual adjustments require authorization, are recorded against your platform account,
               and are written to an immutable audit entry with the previous and new level. Server-side
               validation applies and historical qualification results are never silently rewritten.
             </p>
@@ -887,7 +887,7 @@ export function AdminInvestmentLevelPanel() {
           <p key={row.historyId} className="text-xs text-[#9CA3AF]">
             {new Date(row.createdAt).toLocaleString("en-US")} · {row.fromLevelName ?? "none"} →{" "}
             {row.toLevelName ?? "none"} · {row.source} · {row.reason}
-            {row.actorAdminId ? ` · admin ${row.actorAdminId}` : ""}
+            {row.actorAdminId ? ` · Platform ${row.actorAdminId}` : ""}
           </p>
         ))}
       </div>

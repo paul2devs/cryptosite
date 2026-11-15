@@ -46,7 +46,7 @@ export function AvailableRewards({
         {rewards.length === 0 ? (
           <EmptyState
             title="No rewards are ready to redeem"
-            description="Rewards appear here automatically as you satisfy each reward's requirement, or when an administrator grants one."
+            description="Rewards appear here automatically as you satisfy each reward's requirement, or when the platform grants one."
           />
         ) : (
           <ul>
@@ -73,7 +73,7 @@ export function AvailableRewards({
                         </p>
                       ) : null}
                       <p className="mt-1 text-[10px] text-[#6B7280]">
-                        {reward.grantedByAdmin ? "Granted by administrator" : "Earned automatically"}
+                        {reward.grantedByAdmin ? "Granted by the platform" : "Earned automatically"}
                         {reward.grantedAt ? ` · ${formatDateTime(reward.grantedAt)}` : ""}
                         {reward.reference ? ` · Ref ${reward.reference}` : ""}
                       </p>

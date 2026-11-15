@@ -272,7 +272,7 @@ export function ReferralPage() {
                     </p>
                   </div>
                   <div className="max-w-[45%] shrink-0 truncate rounded-full bg-[#0F0F10]/80 px-3 py-1.5 text-[11px] font-mono text-[#C6A15B]">
-                    {data?.referralCode ?? user.referral_code ?? "—"}
+                    {data?.referralCode ?? user.referral_code ?? "-"}
                   </div>
                 </div>
                 <div className="space-y-2">

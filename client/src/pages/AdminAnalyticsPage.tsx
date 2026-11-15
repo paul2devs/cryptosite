@@ -68,13 +68,13 @@ export function AdminAnalyticsPage() {
   return (
     <div className="page-responsive space-y-6">
       <Seo
-        title="Admin – intelligence"
-        description="Admin analytics and intelligence dashboard."
+        title="Platform intelligence"
+        description="Platform analytics and intelligence dashboard."
         path="/admin/analytics"
         robots="noindex,nofollow"
       />
       <section className="space-y-2">
-        <h1 className="display-font text-xl font-semibold text-[#F5F5F7]">Admin intelligence</h1>
+        <h1 className="display-font text-xl font-semibold text-[#F5F5F7]">Platform intelligence</h1>
         <p className="text-sm text-[#9CA3AF]">
           Growth, retention risk, bonus tuning, and behavioral cycles.
         </p>
@@ -194,7 +194,7 @@ export function AdminAnalyticsPage() {
                       return (
                         <div
                           key={`${d}:${h}`}
-                          title={`${DOW[d]} ${h}:00 — ${v}`}
+                          title={`${DOW[d]} ${h}:00: ${v}`}
                           className="h-4 w-4 rounded-sm border border-[#0F0F10]"
                           style={{ background: bg }}
                         />

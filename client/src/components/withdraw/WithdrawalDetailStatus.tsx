@@ -15,13 +15,13 @@ export function WithdrawalDetailStatus({ withdrawal }: { withdrawal: WithdrawalR
   const rows: Array<{ label: string; value: string }> = [
     { label: "Reference", value: reference },
     { label: "Requested amount", value: formatNumber(Number(withdrawal.amount), 8) },
-    { label: "Asset", value: withdrawal.asset ?? "—" },
-    { label: "Network", value: withdrawal.network ?? "—" },
+    { label: "Asset", value: withdrawal.asset ?? "-" },
+    { label: "Network", value: withdrawal.network ?? "-" },
     {
       label: "Destination",
       value: withdrawal.destination_address
         ? truncateMiddle(withdrawal.destination_address, 10, 8)
-        : "—"
+        : "-"
     },
     { label: "Requested", value: formatDateTime(withdrawal.timestamp) },
     { label: "Last updated", value: formatDateTime(withdrawal.processed_at) },

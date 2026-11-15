@@ -41,12 +41,12 @@ export function RewardHistoryPanel({ history }: { history: RewardHistoryEntry[] 
                     {entry.reference}
                   </p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[#6B7280]">
-                    <span>Earned {entry.dateEarned ? formatDateTime(entry.dateEarned) : "—"}</span>
+                    <span>Earned {entry.dateEarned ? formatDateTime(entry.dateEarned) : "N/A"}</span>
                     <span>
-                      Redeemed {entry.dateRedeemed ? formatDateTime(entry.dateRedeemed) : "—"}
+                      Redeemed {entry.dateRedeemed ? formatDateTime(entry.dateRedeemed) : "N/A"}
                     </span>
                     <span>
-                      {entry.grantSource === "admin" ? "Admin grant" : "Earned automatically"}
+                      {entry.grantSource === "admin" ? "Platform grant" : "Earned automatically"}
                     </span>
                   </div>
                 </div>

@@ -4,7 +4,7 @@ import { CopyButton } from "../deposit/CopyButton";
 import type { WithdrawFeeEstimate, WithdrawNetworkOption } from "../../utils/withdraw";
 
 /**
- * Step 5 — review the fees and the net amount before confirming. This panel is
+ * Step 5: review the fees and the net amount before confirming. This panel is
  * read-only; the acknowledgement that submits the request lives in the final
  * confirmation step.
  */

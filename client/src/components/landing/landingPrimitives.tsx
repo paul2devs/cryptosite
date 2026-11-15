@@ -31,7 +31,7 @@ export function useLandingMarket(): {
 
 export function formatLivePrice(price: number): string {
   if (!Number.isFinite(price) || price <= 0) {
-    return "—";
+    return "-";
   }
   if (price >= 1000) {
     return `$${price.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -50,7 +50,7 @@ export function formatLivePrice(price: number): string {
 
 export function formatChange(change: number): string {
   if (!Number.isFinite(change)) {
-    return "—";
+    return "-";
   }
   const sign = change > 0 ? "+" : change < 0 ? "-" : "";
   return `${sign}${Math.abs(change).toFixed(2)}%`;

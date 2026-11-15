@@ -60,7 +60,7 @@ export async function ensureAdminAccount(): Promise<void> {
     await existingUser.save();
   } else {
     await User.create({
-      name: "Platform Admin",
+      name: "Platform Operator",
       email: bootstrapEmail,
       password: hashed,
       crypto_wallets: [],

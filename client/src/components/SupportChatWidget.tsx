@@ -37,7 +37,7 @@ const MESSAGE_COOLDOWN_MS = 1_200;
 const TOPIC_RESPONSES: Record<Exclude<SupportTopic, "unknown">, TopicResponse> = {
   deposits: {
     title: "Deposits",
-    body: "Go to Deposit, choose a network and copy the generated wallet address. Deposits are credited after network confirmations and admin review."
+    body: "Go to Deposit, choose a network and copy the generated wallet address. Deposits are credited after network confirmations and platform review."
   },
   transaction_hash: {
     title: "Transaction Hash",
@@ -45,7 +45,7 @@ const TOPIC_RESPONSES: Record<Exclude<SupportTopic, "unknown">, TopicResponse> =
   },
   withdrawal: {
     title: "Withdrawals",
-    body: "Withdrawals unlock based on your current level threshold. Requests are security-screened and then approved by admins before payout."
+    body: "Withdrawals unlock based on your current level threshold. Requests are security-screened and then approved by the platform before payout."
   },
   levels: {
     title: "Levels & Multipliers",

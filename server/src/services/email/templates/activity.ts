@@ -8,7 +8,7 @@ export function renderDepositStatusEmail(args: {
   asset: string;
 }): { subject: string; html: string } {
   const baseUrl = getAppBaseUrl();
-  const subject = `Deposit ${args.status} — ${args.asset} ${formatAmount(args.amount)}`;
+  const subject = `Deposit ${args.status}: ${args.asset} ${formatAmount(args.amount)}`;
   const accent = args.status === "Approved" ? "#16C784" : args.status === "Rejected" ? "#EA3943" : "#C6A15B";
   const html = renderEmailLayout({
     title: `Deposit ${args.status}`,
@@ -43,7 +43,7 @@ export function renderWithdrawalStatusEmail(args: {
   amount: number;
 }): { subject: string; html: string } {
   const baseUrl = getAppBaseUrl();
-  const subject = `Withdrawal ${args.status} — ${formatAmount(args.amount)}`;
+  const subject = `Withdrawal ${args.status}: ${formatAmount(args.amount)}`;
   const accent = args.status === "Approved" ? "#16C784" : args.status === "Rejected" ? "#EA3943" : "#C6A15B";
   const html = renderEmailLayout({
     title: `Withdrawal ${args.status}`,
@@ -74,7 +74,7 @@ export function renderReferralRewardEmail(args: {
   durationHours: number;
 }): { subject: string; html: string } {
   const baseUrl = getAppBaseUrl();
-  const subject = `Referral reward unlocked — +${Math.round(args.bonusPercent)}% multiplier`;
+  const subject = `Referral reward unlocked: +${Math.round(args.bonusPercent)}% multiplier`;
   const html = renderEmailLayout({
     title: "Referral reward received",
     preheader: `You unlocked a referral multiplier boost for ${args.durationHours} hours.`,
@@ -102,7 +102,7 @@ export function renderLevelUpEmail(args: {
   multiplierPreview?: number;
 }): { subject: string; html: string } {
   const baseUrl = getAppBaseUrl();
-  const subject = `Level up unlocked — Level ${args.newLevel}`;
+  const subject = `Level up unlocked: Level ${args.newLevel}`;
   const html = renderEmailLayout({
     title: `Level ${args.newLevel} unlocked`,
     preheader: "Your progression just increased. Multipliers and rewards have improved.",

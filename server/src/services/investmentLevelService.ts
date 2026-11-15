@@ -36,16 +36,16 @@ interface LevelSeed {
 }
 
 const DEFAULT_LEVELS: LevelSeed[] = [
-  { number: 1, name: "Level 1", threshold: "1000.00", sort: 1, accent: "#8B7355", description: "The first investment level, reached once invested principal passes $1,000." },
-  { number: 2, name: "Level 2", threshold: "3000.00", sort: 2, accent: "#A98A5C", description: "Reached once invested principal passes $3,000." },
-  { number: 3, name: "Level 3", threshold: "5000.00", sort: 3, accent: "#C6A15B", description: "Reached once invested principal passes $5,000." },
-  { number: 4, name: "Level 4", threshold: "7000.00", sort: 4, accent: "#CDAD6C", description: "Reached once invested principal passes $7,000." },
-  { number: 5, name: "Level 5", threshold: "10000.00", sort: 5, accent: "#D4B87D", description: "Reached once invested principal passes $10,000." },
-  { number: 6, name: "Level 6", threshold: "12000.00", sort: 6, accent: "#DBC38E", description: "Reached once invested principal passes $12,000." },
-  { number: 7, name: "Level 7", threshold: "15000.00", sort: 7, accent: "#E0C9A0", description: "Reached once invested principal passes $15,000." },
-  { number: 8, name: "Level 8", threshold: "18000.00", sort: 8, accent: "#E6D2B1", description: "Reached once invested principal passes $18,000." },
-  { number: 9, name: "Level 9", threshold: "22000.00", sort: 9, accent: "#EBDBBF", description: "Reached once invested principal passes $22,000." },
-  { number: 10, name: "Level 10", threshold: "25000.00", sort: 10, accent: "#F5F5F7", description: "The highest configured investment level, reached once invested principal passes $25,000." }
+  { number: 1, name: "Level 1", threshold: "1000.00", sort: 1, accent: "#8B7355", description: "Unlocked at $1,000 of invested principal: reduced platform fees on deposits and withdrawals." },
+  { number: 2, name: "Level 2", threshold: "3000.00", sort: 2, accent: "#A98A5C", description: "Unlocked at $3,000: priority on-chain verification so your deposits confirm sooner." },
+  { number: 3, name: "Level 3", threshold: "5000.00", sort: 3, accent: "#C6A15B", description: "Unlocked at $5,000: a higher withdrawal allowance for larger payouts." },
+  { number: 4, name: "Level 4", threshold: "7000.00", sort: 4, accent: "#CDAD6C", description: "Unlocked at $7,000: discounted withdrawal fees across supported networks." },
+  { number: 5, name: "Level 5", threshold: "10000.00", sort: 5, accent: "#D4B87D", description: "Unlocked at $10,000: a rewards accelerator on your qualifying deposits." },
+  { number: 6, name: "Level 6", threshold: "12000.00", sort: 6, accent: "#DBC38E", description: "Unlocked at $12,000: early access to new promotional campaigns." },
+  { number: 7, name: "Level 7", threshold: "15000.00", sort: 7, accent: "#E0C9A0", description: "Unlocked at $15,000: a priority payout queue for your approved withdrawals." },
+  { number: 8, name: "Level 8", threshold: "18000.00", sort: 8, accent: "#E6D2B1", description: "Unlocked at $18,000: a dedicated account strategist for your account." },
+  { number: 9, name: "Level 9", threshold: "22000.00", sort: 9, accent: "#EBDBBF", description: "Unlocked at $22,000: elevated referral commissions on the users you invite." },
+  { number: 10, name: "Level 10", threshold: "25000.00", sort: 10, accent: "#F5F5F7", description: "Unlocked at $25,000: the private client desk, with maximum limits and the lowest fee schedule." }
 ];
 
 interface BenefitSeed {
@@ -59,16 +59,16 @@ interface BenefitSeed {
 }
 
 const DEFAULT_BENEFITS: BenefitSeed[] = [
-  { code: "investment_reporting_dashboard", name: "Investment reporting dashboard", description: "A consolidated view of your confirmed deposits, invested principal, and level progress, refreshed from your account records.", category: "reporting", level: 1, requiresActivation: false, sort: 1 },
-  { code: "extended_investment_history", name: "Extended investment history", description: "Access to your full investment progression history, including the date, qualifying amount, and reason for every recorded level change.", category: "reporting", level: 2, requiresActivation: false, sort: 2 },
-  { code: "portfolio_analytics", name: "Portfolio analytics", description: "Allocation and principal analytics across the assets held on your account.", category: "analytics", level: 3, requiresActivation: false, sort: 3 },
-  { code: "education_library", name: "Educational resources library", description: "Curated educational material covering custody, allocation, and risk concepts.", category: "education", level: 4, requiresActivation: false, sort: 4 },
-  { code: "quarterly_investment_report", name: "Quarterly investment report", description: "A quarterly summary of your account activity and invested principal. Activate it to be included in the next reporting cycle.", category: "reporting", level: 5, requiresActivation: true, sort: 5 },
-  { code: "advanced_allocation_analytics", name: "Advanced allocation analytics", description: "Deeper allocation breakdowns across assets and strategies held on your account.", category: "analytics", level: 6, requiresActivation: false, sort: 6 },
-  { code: "priority_investment_support", name: "Priority investment support queue", description: "Your support requests are routed ahead of standard queues while your level remains assigned.", category: "service", level: 7, requiresActivation: false, sort: 7 },
-  { code: "dedicated_investment_review", name: "Dedicated investment review", description: "A scheduled review of your account records with the operations team. Activate it to request the next available review.", category: "service", level: 8, requiresActivation: true, sort: 8 },
-  { code: "enhanced_reporting_exports", name: "Enhanced reporting exports", description: "Exportable reporting of your account records for your own records.", category: "tools", level: 9, requiresActivation: false, sort: 9 },
-  { code: "investment_strategy_review", name: "Investment strategy review", description: "A structured review of your allocation records with the operations team at the highest investment level.", category: "service", level: 10, requiresActivation: false, sort: 10 }
+  { code: "reduced_platform_fees", name: "Fee-advantaged account", description: "Your deposits and withdrawals are processed on a reduced fee schedule, so a smaller share of every movement is consumed by platform charges.", category: "pricing", level: 1, requiresActivation: false, sort: 1 },
+  { code: "priority_deposit_verification", name: "Priority deposit verification", description: "Your deposits are queued ahead of standard on-chain verification, so confirmed funds and updated invested principal reach your account faster.", category: "service", level: 2, requiresActivation: false, sort: 2 },
+  { code: "higher_withdrawal_allowance", name: "Higher withdrawal allowance", description: "Your daily and per-transaction withdrawal limits are raised, giving you more headroom to move funds whenever you need them.", category: "limits", level: 3, requiresActivation: false, sort: 3 },
+  { code: "reduced_withdrawal_fees", name: "Reduced withdrawal fees", description: "Network and platform fees on withdrawals are discounted at your level, so more of each payout arrives at your destination address.", category: "pricing", level: 4, requiresActivation: false, sort: 4 },
+  { code: "rewards_accelerator", name: "Rewards accelerator", description: "Qualifying deposits earn an elevated promotional reward rate, accelerating the credits added to your rewards balance. Activate it to enroll in the acceleration programme.", category: "rewards", level: 5, requiresActivation: true, sort: 5 },
+  { code: "early_campaign_access", name: "Early access to bonus campaigns", description: "New promotional campaigns open to you before general release, so you can capture the strongest available reward conditions first.", category: "rewards", level: 6, requiresActivation: false, sort: 6 },
+  { code: "priority_payout_queue", name: "Priority payout queue", description: "Approved withdrawals are placed at the front of the broadcast queue, shortening the wait between your request and the on-chain transaction.", category: "service", level: 7, requiresActivation: false, sort: 7 },
+  { code: "dedicated_account_strategist", name: "Dedicated account strategist", description: "A named specialist is assigned to your account for allocation guidance and account planning. Activate it to book your first strategy session.", category: "service", level: 8, requiresActivation: true, sort: 8 },
+  { code: "elevated_referral_commissions", name: "Elevated referral commissions", description: "Referrals you invite are rewarded at an increased commission rate, so your network contributes more to your rewards balance.", category: "rewards", level: 9, requiresActivation: false, sort: 9 },
+  { code: "private_client_desk", name: "Private client desk", description: "Maximum limits, the lowest available fee schedule and a private client desk for direct, priority assistance.", category: "service", level: 10, requiresActivation: false, sort: 10 }
 ];
 
 const QUALIFICATION_METRIC = {
@@ -94,11 +94,11 @@ const INVESTMENT_LEVEL_RULES = {
   automaticUpgrades: true,
   downgradesSupported: false,
   downgradePolicy:
-    "The platform does not automatically lower an investment level when invested principal falls. A level earned from verified deposits is retained, and an authorized administrator can review an exception when platform policy requires it.",
+    "The platform does not automatically lower an investment level when invested principal falls. A level earned from verified deposits is retained, and the platform can review an exception when policy requires it.",
   retentionPolicy:
     "Benefits remain available while the assigned investment level stays in place. Levels are independent from membership tiers and from verified investment performance.",
   manualOverridePolicy:
-    "An authorized administrator can assign an investment level exception. Every manual change records the administrator, the previous level, the new level, and a reason, and it is written to an immutable audit entry.",
+    "The platform can assign an investment level exception. Every manual change records the operator, the previous level, the new level, and a reason, and it is written to an immutable audit entry.",
   reviewPeriodDays: null as number | null,
   gracePeriodDays: null as number | null,
   minimumRetentionAmount: null as string | null
@@ -506,8 +506,8 @@ export async function getInvestmentLevelView(userId: string) {
     ? userLevel?.manual_level_id
       ? {
           code: "manual_review",
-          label: "Active · admin exception",
-          description: `This level was assigned by an authorized administrator. ${userLevel.manual_reason ?? ""}`.trim()
+          label: "Active · platform exception",
+          description: `This level was assigned by the platform. ${userLevel.manual_reason ?? ""}`.trim()
         }
       : {
           code: "active",
@@ -1113,7 +1113,7 @@ export async function adminAdjustInvestmentLevel(
     await Notification.create({
       type: "investment_level_status",
       message: clip(
-        `An authorized administrator reviewed your investment level. Your level is now ${target?.name ?? "unassigned"}. Recorded reason: ${trimmed}`
+        `The platform reviewed your investment level. Your level is now ${target?.name ?? "unassigned"}. Recorded reason: ${trimmed}`
       ),
       user_id: userId
     });
@@ -1169,11 +1169,11 @@ export async function clearInvestmentLevelOverride(adminId: string, userId: stri
   });
 
   if (result.changed) {
-    await syncUserInvestmentLevel(userId, "Administrator cleared the manual investment level exception");
+    await syncUserInvestmentLevel(userId, "Platform cleared the manual investment level exception");
     await Notification.create({
       type: "investment_level_status",
       message: clip(
-        `An authorized administrator cleared the manual investment level exception on your account. Your level is now recalculated from approved, verified invested principal. Reason: ${trimmed}`
+        `The platform cleared the manual investment level exception on your account. Your level is now recalculated from approved, verified invested principal. Reason: ${trimmed}`
       ),
       user_id: userId
     });
@@ -1192,7 +1192,7 @@ export async function recalculateUserInvestmentLevel(adminId: string, userId: st
   const before = await UserInvestmentLevel.findByPk(userId);
   const beforeLevelId = before?.level_config_id ?? null;
   const beforeAmount = before ? String(before.qualifying_amount) : "0.00";
-  await syncUserInvestmentLevel(userId, `Recalculated by an administrator: ${trimmed}`);
+  await syncUserInvestmentLevel(userId, `Recalculated by the platform: ${trimmed}`);
   const after = await UserInvestmentLevel.findByPk(userId);
   const afterLevelId = after?.level_config_id ?? null;
   const afterAmount = after ? String(after.qualifying_amount) : "0.00";

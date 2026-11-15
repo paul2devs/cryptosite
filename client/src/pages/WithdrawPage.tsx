@@ -1,8 +1,8 @@
-import { FormEvent, useMemo, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Seo } from "../components/Seo";
 import { Panel, SectionHeader, ErrorRow } from "../components/dashboard/primitives";
-import { SolidArrowRight, SolidCheck } from "../components/icons/SolidIcons";
+import { SolidCheck } from "../components/icons/SolidIcons";
 import { useWithdrawData } from "../hooks/useWithdrawData";
 import { useBalanceVisibility } from "../components/BalanceVisibilityProvider";
 import { maskValue } from "../components/portfolio/utils";
@@ -83,6 +83,8 @@ export function WithdrawPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [lastSubmitted, setLastSubmitted] = useState<WithdrawalRecord | null>(null);
   const idempotencyRef = useRef<string | null>(null);
+  const stepAnchorRef = useRef<HTMLDivElement | null>(null);
+  const previousStepRef = useRef(step);
 
   const resetIdempotency = () => {
     idempotencyRef.current = null;
@@ -216,6 +218,25 @@ export function WithdrawPage() {
     setStep((current) => Math.max(0, current - 1));
   };
 
+  // Match the deposit flow: whenever the step changes, bring the start of the
+  // newly displayed section to the top of the viewport instead of leaving the
+  // user at the bottom of the page.
+  useEffect(() => {
+    if (previousStepRef.current === step) {
+      return;
+    }
+    previousStepRef.current = step;
+    const anchor = stepAnchorRef.current;
+    if (!anchor) {
+      return;
+    }
+    const prefersReduced =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const top = window.scrollY + anchor.getBoundingClientRect().top - 72;
+    window.scrollTo({ top: Math.max(0, top), behavior: prefersReduced ? "auto" : "smooth" });
+  }, [step]);
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setFormError(null);
@@ -286,11 +307,13 @@ export function WithdrawPage() {
     ? `Reviewed for security, then broadcast to ${option.networkLabel}. Completion is confirmed after ${confirmations} network confirmation${confirmations === 1 ? "" : "s"}.`
     : "";
 
-  const actionBarClass =
-    "fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-40 bg-[#0F0F10]/95 shadow-[0_-1px_0_0_#26272B] backdrop-blur-md lg:static lg:inset-auto lg:z-auto lg:bg-transparent lg:py-0 lg:shadow-none lg:backdrop-blur-none";
+  const navButtonClass =
+    "inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0F0F10] px-4 py-3 text-sm font-medium text-[#9CA3AF] transition-colors hover:text-[#F5F5F7] disabled:opacity-40";
+  const primaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl bg-[#C6A15B] px-4 py-3 text-sm font-medium text-[#0F0F10] transition-colors hover:bg-[#D4B070] disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
-    <div className="page-responsive borderless-ui min-w-0 space-y-8 pb-16 sm:space-y-10 lg:pb-0">
+    <div className="page-responsive borderless-ui min-w-0 space-y-8 sm:space-y-10">
       <Seo
         title="Withdraw funds – secure payouts on supported networks"
         description="Request withdrawals from your matured balance on supported crypto assets and networks, with transparent maturity terms, fees, and on-chain verification."
@@ -314,7 +337,7 @@ export function WithdrawPage() {
           <div className="min-w-0 space-y-6">
             <WithdrawEligibilityPanel summary={summary} loading={loading} />
 
-            <div className="min-w-0">
+            <div ref={stepAnchorRef} className="min-w-0">
               <WithdrawStepper steps={steps} />
             </div>
 
@@ -470,43 +493,37 @@ export function WithdrawPage() {
                 </div>
               ) : null}
 
-              <div className={actionBarClass}>
-                <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:px-0 lg:py-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={goBack}
-                      disabled={step === 0 || submitting}
-                      className="btn btn-secondary btn-md"
-                    >
-                      Back
-                    </button>
-                    <span className="text-[11px] text-[#6B7280]">
-                      Step {step + 1} of {steps.length}
-                    </span>
-                  </div>
+              <div className="buttons-row sm:flex sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  disabled={step === 0 || submitting}
+                  className={navButtonClass}
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  Back
+                </button>
 
-                  {step < LAST_STEP ? (
-                    <button
-                      type="button"
-                      onClick={goNext}
-                      disabled={!canContinue || submitting}
-                      className="btn btn-primary btn-md"
-                    >
-                      Continue
-                      <SolidArrowRight className="h-3.5 w-3.5" />
-                    </button>
-                  ) : (
-                    <button type="submit" disabled={!canSubmit} className="btn btn-primary btn-md">
-                      {submitting ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <SolidCheck className="h-3.5 w-3.5" />
-                      )}
-                      {submitting ? "Submitting…" : "Confirm withdrawal"}
-                    </button>
-                  )}
-                </div>
+                {step < LAST_STEP ? (
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    disabled={!canContinue || submitting}
+                    className={primaryButtonClass}
+                  >
+                    Continue
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                ) : (
+                  <button type="submit" disabled={!canSubmit} className={primaryButtonClass}>
+                    {submitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <SolidCheck className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    <span>{submitting ? "Submitting…" : "Confirm withdrawal"}</span>
+                  </button>
+                )}
               </div>
             </form>
           </div>

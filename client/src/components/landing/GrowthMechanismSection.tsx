@@ -11,11 +11,11 @@ const NOT_CLAIMED = [
 ];
 
 /**
- * SECTION C — Understand the growth mechanism.
+ * SECTION C. Understand the growth mechanism.
  *
  * Explains how the platform separates principal, allocated capital, recorded
  * performance, promotional credits and withdrawable funds. It deliberately
- * publishes no performance numbers, because none can be verified here — and
+ * publishes no performance numbers, because none can be verified here, and
  * states that openly rather than inventing a chart.
  */
 export function GrowthMechanismSection() {
@@ -24,7 +24,7 @@ export function GrowthMechanismSection() {
       id="growth"
       eyebrow="Growth, explained"
       title="Know exactly what every number means."
-      lede="Principal, allocated capital, recorded performance, promotional credits and withdrawable funds are tracked as separate values — so a deposit is never mistaken for a gain, and a credit is never mistaken for a return."
+      lede="Principal, allocated capital, recorded performance, promotional credits and withdrawable funds are tracked as separate values, so a deposit is never mistaken for a gain, and a credit is never mistaken for a return."
       className="landing-band-deep"
       headerClassName="max-w-2xl"
     >

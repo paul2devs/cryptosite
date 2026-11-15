@@ -163,7 +163,7 @@ export function DepositAmountInput({
           <>
             <ConversionRow
               label="Amount to send"
-              value={cryptoAmountLabel ?? "—"}
+              value={cryptoAmountLabel ?? "-"}
               hint={
                 cryptoAmountLabel
                   ? undefined
@@ -172,12 +172,12 @@ export function DepositAmountInput({
             />
             <ConversionRow
               label="Exchange rate"
-              value={quote?.rate !== null && quote?.rate !== undefined ? `1 ${option.symbolLabel} = ${formatUsd(quote.rate)}` : "—"}
+              value={quote?.rate !== null && quote?.rate !== undefined ? `1 ${option.symbolLabel} = ${formatUsd(quote.rate)}` : "-"}
               hint={`${option.symbolLabel}/USD`}
             />
             <ConversionRow
               label="Rate source"
-              value={quote?.rateSource ?? "—"}
+              value={quote?.rateSource ?? "-"}
               hint={
                 quote?.rateUpdatedAt
                   ? `Updated ${formatDateTime(quote.rateUpdatedAt)}`
@@ -193,7 +193,7 @@ export function DepositAmountInput({
             <div className="border-t border-[#26272B] pt-1.5">
               <ConversionRow
                 label="Estimated amount received"
-                value={quote?.estimatedReceivedLabel ?? "—"}
+                value={quote?.estimatedReceivedLabel ?? "-"}
                 emphasise
               />
             </div>

@@ -30,7 +30,7 @@ const inputClass =
   "w-full rounded-xl border border-[#26272B] bg-[#0F0F10] px-3 py-1.5 text-xs text-[#F5F5F7] outline-none placeholder:text-[#6B7280] focus:border-[#C6A15B]/60";
 
 const REQUIREMENT_OPTIONS: Array<{ value: RewardRequirementType; label: string }> = [
-  { value: "manual", label: "Manual — issued by an administrator" },
+  { value: "manual", label: "Manual, issued by the platform" },
   { value: "deposit_total", label: "Confirmed verified deposits" },
   { value: "invest_total", label: "Verified invested principal" },
   { value: "membership_tier", label: "Membership tier" },
@@ -321,11 +321,11 @@ export function AdminRewardsPanel() {
 
       <Panel className="min-w-0">
         <StatStrip>
-          <Stat label="Catalog" value={summary ? String(summary.catalogCount) : "—"} />
-          <Stat label="Active" value={summary ? String(summary.activeCount) : "—"} tone="positive" />
-          <Stat label="Recipients" value={summary ? String(summary.userCount) : "—"} />
-          <Stat label="Grants" value={summary ? String(summary.grantCount) : "—"} />
-          <Stat label="Redemptions" value={summary ? String(summary.redemptionCount) : "—"} />
+          <Stat label="Catalog" value={summary ? String(summary.catalogCount) : "-"} />
+          <Stat label="Active" value={summary ? String(summary.activeCount) : "-"} tone="positive" />
+          <Stat label="Recipients" value={summary ? String(summary.userCount) : "-"} />
+          <Stat label="Grants" value={summary ? String(summary.grantCount) : "-"} />
+          <Stat label="Redemptions" value={summary ? String(summary.redemptionCount) : "-"} />
         </StatStrip>
       </Panel>
 
@@ -342,7 +342,7 @@ export function AdminRewardsPanel() {
                     : "Redeemed"}
             </p>
             <p className="financial-figure mt-1 text-base font-medium text-[#F5F5F7]">
-              {totals ? totals[key] : "—"}
+              {totals ? totals[key] : "-"}
             </p>
           </Panel>
         ))}
@@ -592,13 +592,13 @@ export function AdminRewardsPanel() {
         </div>
         <p className="mt-1 text-[11px] leading-relaxed text-[#9CA3AF]">
           Every grant posts a balanced ledger entry to the user's promotional credits, is recorded in
-          the admin audit log, and notifies the user. Rewards are never counted as investment
+          the platform audit log, and notifies the user. Rewards are never counted as investment
           principal or trading profit.
         </p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <input value={grantForm.userId} onChange={(event) => patchGrant({ userId: event.target.value })} placeholder="User id (UUID)" className={inputClass} />
           <select value={grantForm.rewardId} onChange={(event) => patchGrant({ rewardId: event.target.value })} className={inputClass}>
-            <option value="">No catalogue reward — manual grant</option>
+            <option value="">No catalogue reward, manual grant</option>
             {(summary?.catalog ?? []).map((entry) => (
               <option key={entry.rewardId} value={entry.rewardId}>
                 {entry.name} ({entry.amount} {entry.asset})
@@ -654,7 +654,7 @@ export function AdminRewardsPanel() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-medium text-[#F5F5F7]">{row.name}</span>
-                    <StatusBadge tone={row.grantSource === "admin" ? "gold" : "neutral"} label={row.grantSource === "admin" ? "Admin grant" : "Automatic"} />
+                    <StatusBadge tone={row.grantSource === "admin" ? "gold" : "neutral"} label={row.grantSource === "admin" ? "Platform grant" : "Automatic"} />
                     <StatusBadge tone={row.status === "available" ? "positive" : row.status === "redeemed" ? "neutral" : "negative"} label={row.statusLabel} />
                   </div>
                   <p className="mt-1 break-words text-[11px] text-[#9CA3AF]">

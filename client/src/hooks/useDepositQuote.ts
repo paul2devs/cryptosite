@@ -5,7 +5,7 @@ import type { CryptoType } from "../utils/deposit";
 
 /**
  * Snapshot returned by `GET /api/deposits/quote`. Every field is derived from
- * the backend pricing service — the client never computes or hardcodes rates.
+ * the backend pricing service; the client never computes or hardcodes rates.
  */
 export interface DepositQuote {
   available: boolean;

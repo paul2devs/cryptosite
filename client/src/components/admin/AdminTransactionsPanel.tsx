@@ -128,7 +128,7 @@ export function AdminTransactionsPanel() {
       setPayload(response);
     } catch (requestError) {
       setPayload(null);
-      setError(extractMessage(requestError, "Failed to load admin transactions"));
+      setError(extractMessage(requestError, "Failed to load platform transactions"));
     } finally {
       setLoading(false);
     }
@@ -152,7 +152,7 @@ export function AdminTransactionsPanel() {
             <div className="no-scrollbar min-w-0 flex-1 overflow-x-auto">
               <div className="min-w-max">
                 <SegmentedControl
-                  ariaLabel="Admin transaction type filter"
+                  ariaLabel="Transaction type filter"
                   options={CATEGORY_OPTIONS}
                   value={category}
                   onChange={(value) => {
@@ -168,7 +168,7 @@ export function AdminTransactionsPanel() {
             <div className="no-scrollbar min-w-0 flex-1 overflow-x-auto">
               <div className="min-w-max">
                 <SegmentedControl
-                  ariaLabel="Admin transaction status filter"
+                  ariaLabel="Transaction status filter"
                   options={STATUS_OPTIONS}
                   value={status}
                   onChange={(value) => {
@@ -184,7 +184,7 @@ export function AdminTransactionsPanel() {
             <div className="no-scrollbar min-w-0 flex-1 overflow-x-auto">
               <div className="min-w-max">
                 <SegmentedControl
-                  ariaLabel="Admin transaction period filter"
+                  ariaLabel="Transaction period filter"
                   options={RANGE_OPTIONS}
                   value={range}
                   onChange={(value) => {

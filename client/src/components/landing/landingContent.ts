@@ -22,8 +22,8 @@ import usdtLogo from "../../assets/crypto/usdt.svg";
  */
 
 /**
- * Navigation targets for the public site. The list is intentionally short —
- * it mirrors the narrative sections rather than every feature.
+ * Navigation targets for the public site. The list is intentionally short,
+ * mirroring the narrative sections rather than every feature.
  */
 export const LANDING_SECTIONS = [
   { id: "opportunity", label: "How it works" },
@@ -108,7 +108,7 @@ export const OPPORTUNITY_PILLARS: OpportunityPillar[] = [
     label: "Rewards",
     title: "Promotional and referral credits you can redeem.",
     detail:
-      "Campaign bonuses, activity streaks and referral rewards are earned under their published conditions, credited to a separate rewards balance and redeemed into your account on request. They are promotional credits — never trading profit."
+      "Campaign bonuses, activity streaks and referral rewards are earned under their published conditions, credited to a separate rewards balance and redeemed into your account on request. They are promotional credits, never trading profit."
   },
   {
     index: "04",
@@ -194,7 +194,7 @@ export const PLATFORM_VIEWS: PlatformView[] = [
     label: "Transactions",
     title: "Every movement, with its status.",
     body:
-      "Deposits and withdrawals pass through named stages — requested, verifying or processing, then credited or completed — and each item can be opened to inspect its record."
+      "Deposits and withdrawals pass through named stages, from requested or verifying through to processing, credited or completed, and each item can be opened to inspect its record."
   },
   {
     id: "performance",
@@ -224,45 +224,197 @@ export const MEMBERSHIP_TIERS: MembershipTier[] = [
     name: "Bronze",
     thresholdLabel: "From $100",
     emblemClass: "emblem-bronze",
-    summary: "Membership progress tracking and standard on-chain deposit review."
+    summary: "Discounted platform fees and a welcome promotional credit the moment membership begins."
   },
   {
     name: "Silver",
     thresholdLabel: "From $1,000",
     emblemClass: "emblem-silver",
-    summary: "Adds withdrawal status history across every processing stage."
+    summary: "Raised withdrawal limits and reduced withdrawal fees across every supported network."
   },
   {
     name: "Gold",
     thresholdLabel: "From $5,000",
     emblemClass: "emblem-gold",
-    summary: "Priority support queue and a detailed account activity history."
+    summary: "An elevated rewards multiplier plus first access to new promotional campaigns."
   },
   {
     name: "Platinum",
     thresholdLabel: "From $20,000",
     emblemClass: "emblem-platinum",
-    summary: "Scheduled account review with the operations team."
+    summary: "A dedicated account specialist and expedited payouts on approved withdrawals."
   },
   {
     name: "Diamond",
     thresholdLabel: "From $50,000",
     emblemClass: "emblem-diamond",
-    summary: "Structured relationship review covering account activity and standing."
+    summary: "Higher reward rates and increased withdrawal ceilings for high-value accounts."
   },
   {
     name: "Private Client",
     thresholdLabel: "From $100,000",
     emblemClass: "emblem-private",
-    summary: "Private client review for the highest membership tier."
+    summary: "The private client desk, with the highest limits, the lowest fee schedule and a scheduled relationship review."
   }
 ];
 
 export const INVESTMENT_LEVEL_FACTS = [
   { label: "Levels", value: "1 – 10" },
-  { label: "Qualification", value: "Confirmed deposits" },
+  { label: "Qualification", value: "Invested principal" },
   { label: "Level 1 from", value: "$1,000 invested principal" },
   { label: "Level 10 from", value: "$25,000 invested principal" }
+];
+
+/**
+ * The platform's investment options.
+ *
+ * NexaCrypto does not sell fixed-return "plans". Investable capital is
+ * structured into ten investment levels, each reached once approved,
+ * on-chain verified invested principal passes its threshold, and each
+ * unlocking an account benefit that grows in value as you climb. The values
+ * below mirror the live configuration in
+ * `server/src/services/investmentLevelService.ts` (DEFAULT_LEVELS and
+ * DEFAULT_BENEFITS) so the public site cannot drift from the product.
+ *
+ * The benefits are platform privileges: fee schedules, limits, processing
+ * priority, reward rates and service access. Nothing here is a return, a
+ * rate or a duration. The levels unlock account benefits; investment value
+ * is derived from the market price of the assets held and can rise or fall
+ * (see `server/src/domain/performanceRules.ts`).
+ */
+export interface InvestmentLevelOption {
+  levelNumber: number;
+  name: string;
+  description: string;
+  thresholdUsd: number;
+  unlock: {
+    name: string;
+    description: string;
+    requiresActivation: boolean;
+  };
+}
+
+export const INVESTMENT_LEVELS: InvestmentLevelOption[] = [
+  {
+    levelNumber: 1,
+    name: "Level 1",
+    description: "Entry level. Reduced platform fees on everything you deposit and withdraw.",
+    thresholdUsd: 1_000,
+    unlock: {
+      name: "Fee-advantaged account",
+      description:
+        "Your deposits and withdrawals are processed on a reduced fee schedule, so a smaller share of every movement is consumed by platform charges.",
+      requiresActivation: false
+    }
+  },
+  {
+    levelNumber: 2,
+    name: "Level 2",
+    description: "Priority handling as your deposits verify on-chain, so funds land sooner.",
+    thresholdUsd: 3_000,
+    unlock: {
+      name: "Priority deposit verification",
+      description:
+        "Your deposits are queued ahead of standard on-chain verification, so confirmed funds and updated invested principal reach your account faster.",
+      requiresActivation: false
+    }
+  },
+  {
+    levelNumber: 3,
+    name: "Level 3",
+    description: "A higher withdrawal allowance for larger and more frequent payouts.",
+    thresholdUsd: 5_000,
+    unlock: {
+      name: "Higher withdrawal allowance",
+      description:
+        "Your daily and per-transaction withdrawal limits are raised, giving you more headroom to move funds whenever you need them.",
+      requiresActivation: false
+    }
+  },
+  {
+    levelNumber: 4,
+    name: "Level 4",
+    description: "Discounted withdrawal fees across every supported network.",
+    thresholdUsd: 7_000,
+    unlock: {
+      name: "Reduced withdrawal fees",
+      description:
+        "Network and platform fees on withdrawals are discounted at your level, so more of each payout arrives at your destination address.",
+      requiresActivation: false
+    }
+  },
+  {
+    levelNumber: 5,
+    name: "Level 5",
+    description: "An accelerated rewards rate on the deposits that qualify.",
+    thresholdUsd: 10_000,
+    unlock: {
+      name: "Rewards accelerator",
+      description:
+        "Qualifying deposits earn an elevated promotional reward rate, accelerating the credits added to your rewards balance. Activate it to enroll in the acceleration programme.",
+      requiresActivation: true
+    }
+  },
+  {
+    levelNumber: 6,
+    name: "Level 6",
+    description: "First access to every new promotional campaign before general release.",
+    thresholdUsd: 12_000,
+    unlock: {
+      name: "Early access to bonus campaigns",
+      description:
+        "New campaigns open to you before general release, so you can capture the strongest available reward conditions first.",
+      requiresActivation: false
+    }
+  },
+  {
+    levelNumber: 7,
+    name: "Level 7",
+    description: "Your approved withdrawals move to the front of the broadcast queue.",
+    thresholdUsd: 15_000,
+    unlock: {
+      name: "Priority payout queue",
+      description:
+        "Approved withdrawals are placed at the front of the broadcast queue, shortening the wait between your request and the on-chain transaction.",
+      requiresActivation: false
+    }
+  },
+  {
+    levelNumber: 8,
+    name: "Level 8",
+    description: "A named specialist assigned to guide your allocation and account planning.",
+    thresholdUsd: 18_000,
+    unlock: {
+      name: "Dedicated account strategist",
+      description:
+        "A named specialist is assigned to your account for allocation guidance and account planning. Activate it to book your first strategy session.",
+      requiresActivation: true
+    }
+  },
+  {
+    levelNumber: 9,
+    name: "Level 9",
+    description: "Increased commissions on every referral you invite to the platform.",
+    thresholdUsd: 22_000,
+    unlock: {
+      name: "Elevated referral commissions",
+      description:
+        "Referrals you invite are rewarded at an increased commission rate, so your network contributes more to your rewards balance.",
+      requiresActivation: false
+    }
+  },
+  {
+    levelNumber: 10,
+    name: "Level 10",
+    description: "The platform's most complete service tier, with maximum limits and the lowest fees.",
+    thresholdUsd: 25_000,
+    unlock: {
+      name: "Private client desk",
+      description:
+        "Maximum limits, the lowest available fee schedule and a private client desk for direct, priority assistance.",
+      requiresActivation: false
+    }
+  }
 ];
 
 export interface FaqItem {
@@ -312,7 +464,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "investment-levels",
     question: "What are investment levels?",
     answer:
-      "Investment levels are a separate progression track from membership. There are ten levels, and they are determined by invested principal rather than by total deposits — Level 1 begins from $1,000 of invested principal and Level 10 from $25,000. Your current level and progress to the next are shown in your account."
+      "Investment levels are a separate progression track from membership. There are ten levels, and they are determined by invested principal rather than by total deposits. Level 1 begins from $1,000 of invested principal and Level 10 from $25,000. Your current level and progress to the next are shown in your account."
   },
   {
     id: "membership",
@@ -336,7 +488,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "performance",
     question: "How is investment performance calculated?",
     answer:
-      "Where performance is recorded, it is calculated from your account records against the market price of the assets held, and it is displayed separately from your deposited capital. Performance can be positive or negative — it is not guaranteed."
+      "Where performance is recorded, it is calculated from your account records against the market price of the assets held, and it is displayed separately from your deposited capital. Performance can rise or fall and is not guaranteed."
   },
   {
     id: "withdrawals",
@@ -354,7 +506,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "security",
     question: "How are deposits and accounts secured?",
     answer:
-      "Deposit addresses are issued from platform-operated wallets and bound to a specific asset and network, and the deposit flow states which network to use. Deposits are verified against the relevant blockchain before credit — a transaction hash alone never credits a balance. Sign-in uses short-lived access tokens with rotating refresh tokens, and passwords are stored as salted hashes. Account movements are written to a ledger so balances can be reconciled against the underlying activity."
+      "Deposit addresses are issued from platform-operated wallets and bound to a specific asset and network, and the deposit flow states which network to use. Deposits are verified against the relevant blockchain before credit, and a transaction hash alone never credits a balance. Sign-in uses short-lived access tokens with rotating refresh tokens, and passwords are stored as salted hashes. Account movements are written to a ledger so balances can be reconciled against the underlying activity."
   },
   {
     id: "leaderboards",

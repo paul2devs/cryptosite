@@ -5,7 +5,7 @@ import { LandingSection } from "./landingPrimitives";
 /**
  * The FAQ carries the technical detail that no longer belongs on the landing
  * narrative: deposit steps, on-chain verification, levels, rewards, maturity
- * and withdrawals. It is the right place for that precision — the marketing
+ * and withdrawals. It is the right place for that precision, and the marketing
  * sections stay focused on what the platform offers.
  */
 export function LandingFaq() {

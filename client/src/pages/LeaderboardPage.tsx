@@ -89,7 +89,7 @@ function formatValue(value: number, category: LeaderboardKind): string {
 
 function formatCountStat(value: number | null): string {
   if (value === null || !Number.isFinite(value)) {
-    return "—";
+    return "-";
   }
   return value.toLocaleString();
 }
@@ -345,7 +345,7 @@ export function LeaderboardPage() {
         </p>
         <StatStrip>
           <Metric label="Ranked accounts" value={formatCountStat(rankedAccounts)} />
-          <Metric label="Top value" value={topValue ?? "—"} />
+          <Metric label="Top value" value={topValue ?? "-"} />
           <Metric label="Rankings updated" value="Live" />
         </StatStrip>
       </section>

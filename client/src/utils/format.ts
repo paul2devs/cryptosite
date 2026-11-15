@@ -65,11 +65,11 @@ export function parseDecimalString(value: string | null | undefined): number | n
 
 export function formatDateTime(value: string | number | Date | null | undefined): string {
   if (!value) {
-    return "—";
+    return "-";
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "—";
+    return "-";
   }
   return date.toLocaleString("en-US", {
     year: "numeric",
@@ -82,23 +82,23 @@ export function formatDateTime(value: string | number | Date | null | undefined)
 
 export function formatShortDate(value: string | number | Date | null | undefined): string {
   if (!value) {
-    return "—";
+    return "-";
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "—";
+    return "-";
   }
   return date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
 }
 
 export function formatRelativeTime(value: string | number | Date | null | undefined): string {
   if (!value) {
-    return "—";
+    return "-";
   }
   const date = new Date(value);
   const timestamp = date.getTime();
   if (Number.isNaN(timestamp)) {
-    return "—";
+    return "-";
   }
   const diffSeconds = Math.round((Date.now() - timestamp) / 1000);
   if (diffSeconds < 60) {

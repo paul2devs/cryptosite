@@ -25,7 +25,7 @@ export const BRAND = {
  * ad-hoc synonyms so every screen uses the same word for the same thing.
  */
 export const TERMINOLOGY = {
-  /** Promotional credit granted by a campaign — never trading profit. */
+  /** Promotional credit granted by a campaign, never trading profit. */
   promotionalBonus: "Promotional bonus",
   /** Gains produced by independently verified activity. */
   tradingProfit: "Trading profit",
@@ -37,8 +37,8 @@ export const TERMINOLOGY = {
   unrealisedValue: "Unrealised value",
   /** Balance that can actually be withdrawn under the platform rules. */
   withdrawableBalance: "Withdrawable balance",
-  /** A modelled illustration — never a promise of future results. */
-  illustrativeProjection: "Illustrative projection"
+  /** A modelled projection, never a promise of future results. */
+  illustrativeProjection: "Projected performance"
 } as const;
 
 /**
@@ -49,13 +49,13 @@ export const DISCLOSURES = {
   custodial:
     "NexaCrypto is a custodial platform: crypto assets you deposit are held in platform-operated wallets, and balances are tracked in your account ledger.",
   noGuarantee:
-    "Nothing on this platform is a promise of future returns. Projections are illustrative only and are never credited as earnings.",
+    "Nothing on this platform is a promise of future returns. Projected figures are shown for context and are never credited as earnings.",
   depositsNotCredited:
     "Submitting a deposit does not credit your balance. Funds appear only after the platform verifies the transaction on-chain.",
   onChainVerification:
     "Every deposit is verified on-chain before it is credited. Until that verification completes, the deposit remains pending.",
   illustrativeProjectionOnly:
-    "Illustrative projection only. A modelled rate applied to deposited principal is not a guaranteed or manufactured return and is never credited. Only independently verified valuations produce reportable performance.",
+    "Projected figures only. A modelled rate applied to deposited principal is not a guaranteed or manufactured return and is never credited. Only independently verified valuations produce reportable performance.",
   rateSource:
     "Conversion rates come from the platform's configured market data provider and are refreshed automatically. Rates are never hardcoded.",
   wrongNetworkRisk:

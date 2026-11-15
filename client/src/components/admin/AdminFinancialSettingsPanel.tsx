@@ -194,8 +194,8 @@ export function AdminFinancialSettingsPanel() {
           <p className="text-xs font-medium text-[#F5F5F7]">Audit reason</p>
         </div>
         <p className="mt-1 text-[11px] leading-relaxed text-[#9CA3AF]">
-          Every financial configuration change is written to the immutable admin audit log with the acting
-          administrator, reason, and timestamp.
+          Every financial configuration change is written to the immutable platform audit log with the acting
+          platform operator, reason, and timestamp.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason for the change (required)" className={`${inputClass} min-w-0 sm:flex-1`} />
@@ -254,11 +254,11 @@ export function AdminFinancialSettingsPanel() {
         <Panel>
           <p className="text-xs font-medium text-[#F5F5F7]">Daily performance engine</p>
           <p className="mt-1 text-[11px] leading-relaxed text-[#9CA3AF]">
-            Controls the scheduled daily calculation. The illustrative daily rate is displayed to users as a
-            projection only — it is never credited and is not a guaranteed return.
+            Controls the scheduled daily calculation. The projected daily rate is displayed to users as a
+            projection only, it is never credited and is not a guaranteed return.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <Field label="Illustrative daily rate %">
+            <Field label="Projected daily rate %">
               <input value={performance.illustrativeDailyRatePercent} onChange={(event) => setPerformance({ ...performance, illustrativeDailyRatePercent: event.target.value })} className={inputClass} />
             </Field>
             <Field label="Require verified valuation">
@@ -269,7 +269,7 @@ export function AdminFinancialSettingsPanel() {
             </Field>
           </div>
           <div className="mt-2">
-            <Field label="Illustrative disclaimer">
+            <Field label="Projection disclaimer">
               <textarea value={performance.illustrativeDisclaimer} onChange={(event) => setPerformance({ ...performance, illustrativeDisclaimer: event.target.value })} rows={3} className={inputClass} />
             </Field>
           </div>

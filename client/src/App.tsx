@@ -83,7 +83,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
   if (!initialized) {
     return <SessionRestorePlaceholder />;
   }
-  // The API was unreachable during the session check — the stored session may
+  // The API was unreachable during the session check. The stored session may
   // still be valid, so offer a retry instead of treating the user as logged out.
   if (!user && sessionUnreachable) {
     return <SessionUnreachable />;
@@ -122,7 +122,7 @@ function SessionUnreachable() {
         We couldn&apos;t reach NexaCrypto to verify your session.
       </p>
       <p className="max-w-sm text-xs text-[#9CA3AF]">
-        Your session is still saved. This is usually temporary — check your connection
+        Your session is still saved. This is usually temporary. Check your connection
         and try again.
       </p>
       <button

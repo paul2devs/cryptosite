@@ -5,7 +5,7 @@ import { SolidCheck } from "../icons/SolidIcons";
 
 function thresholdValue(threshold: string): string {
   const parsed = parseDecimalString(threshold);
-  return parsed === null ? "—" : `${formatUsdCompact(parsed)}+`;
+  return parsed === null ? "N/A" : `${formatUsdCompact(parsed)}+`;
 }
 
 export function LevelComparison({ data }: { data: InvestmentLevelData }) {
@@ -40,7 +40,7 @@ export function LevelComparison({ data }: { data: InvestmentLevelData }) {
           />
           <Stat
             label={highest ? "Highest level" : "Next level"}
-            value={highest ? data.current?.name ?? "—" : data.next?.name ?? "—"}
+            value={highest ? data.current?.name ?? "N/A" : data.next?.name ?? "N/A"}
             hint={nextHint}
             tone={highest ? "positive" : "neutral"}
           />

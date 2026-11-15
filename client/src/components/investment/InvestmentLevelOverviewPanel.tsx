@@ -15,7 +15,7 @@ import { levelAccent } from "./investmentLevelUtils";
 
 function thresholdValue(threshold: string): string {
   const parsed = parseDecimalString(threshold);
-  return parsed === null ? "—" : `${formatUsdCompact(parsed)}+`;
+  return parsed === null ? "N/A" : `${formatUsdCompact(parsed)}+`;
 }
 
 export function InvestmentLevelOverviewPanel({ data }: { data: InvestmentLevelData }) {
@@ -35,7 +35,7 @@ export function InvestmentLevelOverviewPanel({ data }: { data: InvestmentLevelDa
         <SectionHeader
           eyebrow="Investment level"
           title="Your investment level"
-          description="Levels are earned from approved, verified invested principal only — never from membership, portfolio value, or daily performance."
+          description="Levels are earned from approved, verified invested principal only, never from membership, portfolio value, or daily performance."
           action={
             <StatusBadge
               tone={current ? (current.source === "admin" ? "gold" : "positive") : "neutral"}
@@ -62,15 +62,15 @@ export function InvestmentLevelOverviewPanel({ data }: { data: InvestmentLevelDa
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-0.5 text-[11px] text-[#9CA3AF]">
               <span className="inline-flex items-center gap-1.5">
                 <SolidShield className="h-3.5 w-3.5 text-[#16C784]" aria-hidden="true" />
-                {current?.source === "admin" ? "Set by an administrator" : "Advanced automatically"}
+                {current?.source === "admin" ? "Set by the platform" : "Advanced automatically"}
               </span>
               {current ? (
-                <span>Attained {current.achievedAt ? formatDateTime(current.achievedAt) : "—"}</span>
+                <span>Attained {current.achievedAt ? formatDateTime(current.achievedAt) : "N/A"}</span>
               ) : null}
             </div>
             {current?.source === "admin" && current.manualReason ? (
               <p className="rounded-lg bg-[#C6A15B]/10 px-3 py-2 text-[11px] leading-relaxed text-[#C6A15B]">
-                Administrator note: {current.manualReason}
+                Platform note: {current.manualReason}
                 {current.manualSetAt ? ` (${formatDateTime(current.manualSetAt)})` : ""}
               </p>
             ) : null}
@@ -84,10 +84,10 @@ export function InvestmentLevelOverviewPanel({ data }: { data: InvestmentLevelDa
               value={qualifying === null ? "Pending pricing" : formatUsdCompact(qualifying)}
               hint={data.qualificationMetric.label}
             />
-            <Stat label="Level threshold" value={current ? thresholdValue(current.threshold) : "—"} />
+            <Stat label="Level threshold" value={current ? thresholdValue(current.threshold) : "N/A"} />
             <Stat
               label="Levels reached"
-              value={totalLevels > 0 ? `${reachedLevels} / ${totalLevels}` : "—"}
+              value={totalLevels > 0 ? `${reachedLevels} / ${totalLevels}` : "N/A"}
               hint={current?.isHighestLevel ? "Highest level" : "Configured levels"}
               tone="gold"
             />

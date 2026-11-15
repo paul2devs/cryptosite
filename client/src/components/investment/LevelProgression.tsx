@@ -6,7 +6,7 @@ import { journeyLabel, journeyTone } from "./investmentLevelUtils";
 
 function thresholdValue(threshold: string): string {
   const parsed = parseDecimalString(threshold);
-  return parsed === null ? "—" : `$${formatUsdCompact(parsed)}+`;
+  return parsed === null ? "N/A" : `$${formatUsdCompact(parsed)}+`;
 }
 
 function connectorColor(level: InvestmentJourneyLevel): string {

@@ -88,7 +88,7 @@ export function MembershipOverview({
                   Qualifying volume
                 </p>
                 <p className="financial-figure mt-1 truncate text-sm text-[#F5F5F7]">
-                  {qualifying === null ? "—" : formatUsd(qualifying)}
+                  {qualifying === null ? "N/A" : formatUsd(qualifying)}
                 </p>
               </div>
             </div>

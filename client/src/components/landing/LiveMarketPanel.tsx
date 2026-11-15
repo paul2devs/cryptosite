@@ -38,7 +38,7 @@ export function LivePrice({
   if (price === undefined) {
     return (
       <div className={`${alignment}`}>
-        <p className="financial-figure text-sm font-medium text-[#6B7280]">—</p>
+        <p className="financial-figure text-sm font-medium text-[#6B7280]">-</p>
       </div>
     );
   }

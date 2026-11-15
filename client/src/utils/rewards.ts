@@ -242,7 +242,7 @@ export const REWARD_CATEGORY_LABEL: Record<RewardCategory, string> = {
 };
 
 export const REWARD_REQUIREMENT_LABEL: Record<RewardRequirementType, string> = {
-  manual: "Issued by an administrator",
+  manual: "Issued by the platform",
   deposit_total: "Confirmed, verified deposits",
   invest_total: "Verified invested principal",
   membership_tier: "Membership tier",

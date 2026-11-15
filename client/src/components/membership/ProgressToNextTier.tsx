@@ -64,7 +64,7 @@ export function ProgressToNextTier({ data }: { data: MembershipData }) {
             <div className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-center sm:w-20">
               <TierEmblem tierName={next?.name ?? "Next"} order={nextOrder} locked size="sm" />
               <span className="w-full truncate text-[11px] font-medium text-[#9CA3AF]">
-                {next?.name ?? "—"}
+                {next?.name ?? "N/A"}
               </span>
             </div>
           )}
@@ -82,15 +82,15 @@ export function ProgressToNextTier({ data }: { data: MembershipData }) {
               highest
                 ? current
                   ? `$${current.minAmount}+`
-                  : "—"
+                  : "N/A"
                 : nextMin === null
-                ? "—"
+                ? "N/A"
                 : formatUsd(nextMin)
             }
           />
           <Stat
             label="Remaining"
-            value={highest ? "—" : remaining === null ? "—" : formatUsd(Math.max(0, remaining))}
+            value={highest ? "N/A" : remaining === null ? "N/A" : formatUsd(Math.max(0, remaining))}
             tone={highest || (remaining !== null && remaining <= 0) ? "positive" : "gold"}
           />
         </StatStrip>

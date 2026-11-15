@@ -115,7 +115,7 @@ export async function runChurnDetection(): Promise<void> {
     if (prediction.risk_level === "medium") {
       await Notification.create({
         type: "churn_risk_medium",
-        message: "You’re close to unlocking more rewards—small consistent deposits accelerate your progress.",
+        message: "You’re close to unlocking more rewards. Small consistent deposits accelerate your progress.",
         user_id: user.user_id,
         timestamp: now
       });

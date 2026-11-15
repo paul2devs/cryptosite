@@ -8,7 +8,7 @@ import usdtLogo from "../../assets/crypto/usdt.svg";
  * Original, self-contained artwork for the public landing page.
  *
  * Everything here is drawn with SVG, CSS gradients and the platform's own
- * asset logos — no third-party stock imagery and no external asset hosts, so
+ * asset logos, no third-party stock imagery and no external asset hosts, so
  * the visuals stay on-brand, load instantly and never depend on a remote
  * request. Each graphic exists to support the section it sits in.
  */
@@ -97,7 +97,7 @@ const NETWORK_EDGES: Array<[number, number]> = [
 
 /**
  * Abstract blockchain network: a constellation of nodes joined by edges.
- * Purely decorative — the ids are prefixed per instance so multiple copies on
+ * Purely decorative. The ids are prefixed per instance so multiple copies on
  * one page never collide.
  */
 export function NetworkGraphic({
@@ -316,7 +316,7 @@ export function GlowOrb({
 
 /**
  * Horizontal trend indicator driven entirely by real 24h change. It never
- * draws a synthetic price history — the bar length encodes the magnitude of
+ * draws a synthetic price history. The bar length encodes the magnitude of
  * the real change and the colour encodes its direction.
  */
 export function TrendIndicator({ change }: { change: number }) {
