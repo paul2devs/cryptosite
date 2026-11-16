@@ -6,6 +6,7 @@ require("./BonusOptimizationLog");
 require("./ChurnPrediction");
 require("./Deposit");
 require("./EarningsLog");
+require("./EmailVerificationToken");
 require("./Level");
 require("./Notification");
 require("./PasswordResetToken");

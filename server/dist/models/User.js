@@ -69,6 +69,16 @@ User.init({
         allowNull: false,
         defaultValue: false
     },
+    email_verified: {
+        type: sequelize_1.DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
+    email_verified_at: {
+        type: sequelize_1.DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null
+    },
     bonus_blocked: {
         type: sequelize_1.DataTypes.BOOLEAN,
         allowNull: false,

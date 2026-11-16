@@ -50,16 +50,22 @@ async function ensureAdminAccount() {
     });
     if (existingUser) {
         existingUser.is_admin = true;
+        // Platform operators are treated as verified so they can reach back-office
+        // routes without going through the investor verification flow.
+        existingUser.email_verified = true;
+        existingUser.email_verified_at = existingUser.email_verified_at || new Date();
         existingUser.password = hashed;
         await existingUser.save();
     }
     else {
         await User_1.User.create({
-            name: "Platform Admin",
+            name: "Platform Operator",
             email: bootstrapEmail,
             password: hashed,
             crypto_wallets: [],
-            is_admin: true
+            is_admin: true,
+            email_verified: true,
+            email_verified_at: new Date()
         });
     }
     // eslint-disable-next-line no-console

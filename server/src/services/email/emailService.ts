@@ -10,6 +10,7 @@ import {
   renderReferralRewardEmail,
   renderWithdrawalStatusEmail
 } from "./templates/activity";
+import { renderVerificationEmail } from "./templates/verification";
 import { getAppBaseUrl, isEmailEnabled } from "./emailClient";
 
 function safeFireAndForget(promise: Promise<void>): void {
@@ -17,6 +18,47 @@ function safeFireAndForget(promise: Promise<void>): void {
     // eslint-disable-next-line no-console
     console.warn("[email] send failed", String(err));
   });
+}
+
+/** Builds the single-use verification URL the email button links to. */
+export function buildVerificationUrl(token: string): string {
+  const baseUrl = getAppBaseUrl();
+  return `${baseUrl}/verify-email/${encodeURIComponent(token)}`;
+}
+
+/**
+ * Sends the branded verification email.
+ *
+ * Delivery is intentionally decoupled from account state: a send failure is
+ * logged and swallowed, and the account is never marked verified here. The
+ * account only becomes verified once the token is validated through the
+ * verification endpoint.
+ */
+export async function sendVerificationEmail(args: {
+  to: string;
+  name?: string;
+  token: string;
+  expiresMinutes: number;
+}): Promise<void> {
+  const verifyUrl = buildVerificationUrl(args.token);
+  const { subject, html, text } = renderVerificationEmail({
+    name: args.name,
+    verifyUrl,
+    expiresMinutes: args.expiresMinutes
+  });
+  await sendEmail({ to: args.to, subject, html, text });
+}
+
+export function sendEmailVerificationEmail(args: {
+  to: string;
+  name?: string;
+  token: string;
+  expiresMinutes: number;
+}): void {
+  // `sendEmail` records a development outbox copy (when enabled) and skips the
+  // SMTP transport entirely when email delivery is disabled, so a single call
+  // correctly covers both real delivery and local development.
+  safeFireAndForget(sendVerificationEmail(args));
 }
 
 export function sendWelcomeEmail(args: { to: string; name: string }): void {

@@ -12,7 +12,7 @@ exports.listPlatformSettings = listPlatformSettings;
 exports.resetPlatformSettings = resetPlatformSettings;
 const AdminAuditLog_1 = require("../models/AdminAuditLog");
 const PlatformSetting_1 = require("../models/PlatformSetting");
-exports.PERFORMANCE_ILLUSTRATIVE_DISCLAIMER = "Illustrative projection only. A daily percentage applied to invested principal is not a guaranteed or manufactured return and is never credited. Only independently verified valuations produce reportable performance.";
+exports.PERFORMANCE_ILLUSTRATIVE_DISCLAIMER = "Projected figures only. A modelled daily percentage applied to invested principal is not a guaranteed or manufactured return and is never credited. Only independently verified valuations produce reportable performance.";
 exports.DEFAULT_BONUS_SETTINGS = {
     active: true,
     percentage: "5.000000",

@@ -34,6 +34,10 @@ export function mapAuthErrorMessage(rawMessage: string, fallback: string): strin
     return "Invalid email or password.";
   }
 
+  if (normalized.includes("verify your email")) {
+    return "Please verify your email address before signing in.";
+  }
+
   if (normalized.includes("network error")) {
     return "Unable to connect right now. Please check your connection and try again.";
   }

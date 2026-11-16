@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { body } from "express-validator";
 import {
   forgotPassword,
@@ -6,11 +7,27 @@ import {
   me,
   refreshToken,
   register,
-  resetPassword
+  resendVerification,
+  resetPassword,
+  verifyEmail
 } from "../controllers/authController";
 import { authenticate } from "../middleware/auth";
 
 const router = Router();
+
+const verifyEmailLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_VERIFY_WINDOW_MS || 15 * 60 * 1000),
+  max: Number(process.env.RATE_LIMIT_VERIFY_MAX || 20),
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const resendVerificationLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_RESEND_VERIFICATION_WINDOW_MS || 15 * 60 * 1000),
+  max: Number(process.env.RATE_LIMIT_RESEND_VERIFICATION_MAX || 5),
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 router.post(
   "/register",
@@ -37,6 +54,20 @@ router.post("/refresh", refreshToken);
 router.get("/me", authenticate, me);
 
 router.post(
+  "/verify-email",
+  verifyEmailLimiter,
+  [body("token").isString().isLength({ min: 16, max: 256 })],
+  verifyEmail
+);
+
+router.post(
+  "/resend-verification",
+  resendVerificationLimiter,
+  [body("email").isEmail().normalizeEmail()],
+  resendVerification
+);
+
+router.post(
   "/forgot-password",
   [body("email").isEmail().normalizeEmail()],
   forgotPassword
@@ -52,4 +83,3 @@ router.post(
 );
 
 export default router;
-

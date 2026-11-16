@@ -91,8 +91,25 @@ export const EMPTY_STATES = {
  */
 export const ERRORS = {
   generic: "Something went wrong. Please try again.",
-  pricingUnavailable:
-    "Live pricing is unavailable right now, so we cannot calculate a conversion. Please try again shortly.",
-  rateStale: "This rate may be out of date. Refresh the rate before sending funds.",
+  rateUnavailable: {
+    title: "Unable to fetch the current exchange rate.",
+    body: "We couldn't retrieve live pricing right now. Please try again."
+  },
+  rateStale: {
+    title: "This exchange rate is out of date.",
+    body: "The last rate we received is too old to price a conversion. Refresh the rate to continue."
+  },
   addressUnavailable: "Deposit addresses are unavailable right now. Please refresh and try again."
+} as const;
+
+/**
+ * Step 3 (estimated conversion) status copy. The conversion is always an
+ * estimate: it prices the deposit at the current rate and is never presented as
+ * the final credited amount.
+ */
+export const DEPOSIT_CONVERSION = {
+  fetching: "Fetching current exchange rate...",
+  retry: "Retry",
+  estimateNote:
+    "This is an estimate based on the current rate. The final amount is confirmed once your deposit is verified on-chain."
 } as const;

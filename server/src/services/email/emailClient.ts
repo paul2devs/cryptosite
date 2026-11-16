@@ -31,6 +31,51 @@ export function isEmailEnabled(): boolean {
   return getBoolEnv("EMAIL_ENABLED", false);
 }
 
+/**
+ * Development-only outbox. When enabled (and never in production) every
+ * outgoing message is captured in memory so a developer can complete the
+ * verification flow end to end without configuring an SMTP provider. It is
+ * strictly opt-in through `EMAIL_DEV_OUTBOX_ENABLED` and exposes nothing unless
+ * the developer asks for it.
+ */
+export interface EmailOutboxEntry {
+  capturedAt: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
+
+const OUTBOX_LIMIT = 25;
+const emailOutbox: EmailOutboxEntry[] = [];
+
+export function isEmailOutboxEnabled(): boolean {
+  const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
+  return !isProduction && getBoolEnv("EMAIL_DEV_OUTBOX_ENABLED", false);
+}
+
+export function recordEmailInOutbox(payload: EmailSendRequest): void {
+  if (!isEmailOutboxEnabled()) return;
+  emailOutbox.unshift({
+    capturedAt: new Date().toISOString(),
+    to: payload.to,
+    subject: payload.subject,
+    html: payload.html,
+    text: payload.text
+  });
+  if (emailOutbox.length > OUTBOX_LIMIT) {
+    emailOutbox.length = OUTBOX_LIMIT;
+  }
+}
+
+export function getEmailOutbox(): EmailOutboxEntry[] {
+  return emailOutbox.slice();
+}
+
+export function clearEmailOutbox(): void {
+  emailOutbox.length = 0;
+}
+
 export function getAppBaseUrl(): string {
   const raw =
     process.env.APP_BASE_URL ||
@@ -73,6 +118,10 @@ export function getTransporter(): any {
 }
 
 export async function sendEmail(payload: EmailSendRequest): Promise<void> {
+  // Capture a development copy first (no-op in production), so local flows can
+  // be completed even when no SMTP provider is configured.
+  recordEmailInOutbox(payload);
+
   if (!isEmailEnabled()) {
     return;
   }

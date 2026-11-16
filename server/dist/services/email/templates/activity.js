@@ -8,7 +8,7 @@ const emailClient_1 = require("../emailClient");
 const layout_1 = require("./layout");
 function renderDepositStatusEmail(args) {
     const baseUrl = (0, emailClient_1.getAppBaseUrl)();
-    const subject = `Deposit ${args.status} — ${args.asset} ${formatAmount(args.amount)}`;
+    const subject = `Deposit ${args.status}: ${args.asset} ${formatAmount(args.amount)}`;
     const accent = args.status === "Approved" ? "#16C784" : args.status === "Rejected" ? "#EA3943" : "#C6A15B";
     const html = (0, layout_1.renderEmailLayout)({
         title: `Deposit ${args.status}`,
@@ -32,7 +32,7 @@ function renderDepositStatusEmail(args) {
 }
 function renderWithdrawalStatusEmail(args) {
     const baseUrl = (0, emailClient_1.getAppBaseUrl)();
-    const subject = `Withdrawal ${args.status} — ${formatAmount(args.amount)}`;
+    const subject = `Withdrawal ${args.status}: ${formatAmount(args.amount)}`;
     const accent = args.status === "Approved" ? "#16C784" : args.status === "Rejected" ? "#EA3943" : "#C6A15B";
     const html = (0, layout_1.renderEmailLayout)({
         title: `Withdrawal ${args.status}`,
@@ -54,7 +54,7 @@ function renderWithdrawalStatusEmail(args) {
 }
 function renderReferralRewardEmail(args) {
     const baseUrl = (0, emailClient_1.getAppBaseUrl)();
-    const subject = `Referral reward unlocked — +${Math.round(args.bonusPercent)}% multiplier`;
+    const subject = `Referral reward unlocked: +${Math.round(args.bonusPercent)}% multiplier`;
     const html = (0, layout_1.renderEmailLayout)({
         title: "Referral reward received",
         preheader: `You unlocked a referral multiplier boost for ${args.durationHours} hours.`,
@@ -75,7 +75,7 @@ function renderReferralRewardEmail(args) {
 }
 function renderLevelUpEmail(args) {
     const baseUrl = (0, emailClient_1.getAppBaseUrl)();
-    const subject = `Level up unlocked — Level ${args.newLevel}`;
+    const subject = `Level up unlocked: Level ${args.newLevel}`;
     const html = (0, layout_1.renderEmailLayout)({
         title: `Level ${args.newLevel} unlocked`,
         preheader: "Your progression just increased. Multipliers and rewards have improved.",

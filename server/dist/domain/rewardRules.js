@@ -22,12 +22,12 @@ exports.REWARD_CATEGORY_LABEL = {
 };
 exports.REWARD_CATEGORY_DESCRIPTION = {
     loyalty: "Earned progressively from your verified activity on the platform.",
-    promotional: "Issued by the platform or by an administrator for a specific campaign.",
+    promotional: "Issued by the platform for a specific campaign.",
     referral: "Earned from the accounts that joined with your referral code.",
     special: "Granted for exceptional account milestones and reviewed individually."
 };
 exports.REWARD_REQUIREMENT_LABEL = {
-    manual: "Issued by an administrator",
+    manual: "Issued by the platform",
     deposit_total: "Confirmed, verified deposits",
     invest_total: "Verified invested principal",
     membership_tier: "Membership tier",

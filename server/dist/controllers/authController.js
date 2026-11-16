@@ -7,6 +7,8 @@ exports.register = register;
 exports.login = login;
 exports.refreshToken = refreshToken;
 exports.me = me;
+exports.verifyEmail = verifyEmail;
+exports.resendVerification = resendVerification;
 exports.forgotPassword = forgotPassword;
 exports.resetPassword = resetPassword;
 const bcrypt_1 = __importDefault(require("bcrypt"));
@@ -19,6 +21,7 @@ const sequelize_1 = require("sequelize");
 const activityService_1 = require("../services/activityService");
 const emailService_1 = require("../services/email/emailService");
 const passwordResetService_1 = require("../services/passwordResetService");
+const emailVerificationService_1 = require("../services/emailVerificationService");
 const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 function getAuthCookieOptions() {
     const isProduction = process.env.NODE_ENV === "production";
@@ -89,30 +92,40 @@ async function register(req, res) {
                 }
             }
         }
-        const payload = { userId: user.user_id, isAdmin: user.is_admin };
-        const accessToken = (0, jwt_1.signAccessToken)(payload);
-        const refreshToken = (0, jwt_1.signRefreshToken)(payload);
-        const cookieOptions = getAuthCookieOptions();
-        res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-        res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
+        // Email verification is mandatory, so registration deliberately does NOT
+        // open a session. The account stays inaccessible until the emailed link is
+        // opened and the token is validated on the server.
+        const { token, expiresMinutes } = await (0, emailVerificationService_1.createEmailVerificationTokenForUser)(user);
+        (0, emailService_1.sendEmailVerificationEmail)({
+            to: user.email,
+            name: user.name,
+            token,
+            expiresMinutes
+        });
+        // The freshly issued token starts the resend cooldown, so the screen can
+        // show an accurate countdown instead of an enabled button that would be
+        // silently rate-limited server-side.
+        const resendAvailableAt = await (0, emailVerificationService_1.getVerificationResendAvailableAt)(user.user_id);
         res.status(201).json({
+            message: "Account created. Check your inbox to verify your email address.",
             user: {
                 user_id: user.user_id,
                 name: user.name,
                 email: user.email,
-                level: user.level,
-                xp: user.xp,
-                streak: user.streak,
-                pending_earnings: user.pending_earnings,
+                email_verified: false,
                 is_admin: user.is_admin,
-                referral_code: user.referral_code,
-                referred_by: user.referred_by
+                referral_code: user.referral_code
             },
-            accessToken,
-            refreshToken
+            verification: {
+                required: true,
+                email: (0, emailVerificationService_1.maskEmail)(user.email),
+                expiresMinutes,
+                resendAvailableAt: resendAvailableAt ? resendAvailableAt.toISOString() : null
+            }
         });
-        await (0, activityService_1.trackUserActivity)(user.user_id, "login", { source: "register" });
-        (0, emailService_1.sendWelcomeEmail)({ to: user.email, name: user.name });
+        await (0, activityService_1.trackUserActivity)(user.user_id, "email_verification_request", {
+            source: "register"
+        });
     }
     catch (error) {
         res.status(500).json({ message: "Registration failed" });
@@ -134,6 +147,18 @@ async function login(req, res) {
         const match = await bcrypt_1.default.compare(password, user.password);
         if (!match) {
             res.status(401).json({ message: "Invalid credentials" });
+            return;
+        }
+        // Correct credentials, but the address has not been confirmed: the account
+        // must not be misrepresented as a credential failure.
+        if (!user.email_verified) {
+            const resendAvailableAt = await (0, emailVerificationService_1.getVerificationResendAvailableAt)(user.user_id);
+            res.status(403).json({
+                message: "Please verify your email address before signing in.",
+                code: "EMAIL_NOT_VERIFIED",
+                email: (0, emailVerificationService_1.maskEmail)(user.email),
+                resendAvailableAt: resendAvailableAt ? resendAvailableAt.toISOString() : null
+            });
             return;
         }
         const payload = { userId: user.user_id, isAdmin: user.is_admin };
@@ -179,6 +204,17 @@ async function refreshToken(req, res) {
         // Those must not be forwarded to `jwt.sign` together with `expiresIn`,
         // otherwise jsonwebtoken throws and every refresh request fails with 401.
         const { userId, isAdmin } = (0, jwt_1.verifyRefreshToken)(token);
+        // A refresh must not resurrect a session for an account whose email is no
+        // longer verified (defence in depth: unverified accounts never receive a
+        // refresh token in the first place).
+        const user = await User_1.User.findByPk(userId);
+        if (!user || (!user.email_verified && !user.is_admin)) {
+            res.status(403).json({
+                message: "Please verify your email address before signing in.",
+                code: "EMAIL_NOT_VERIFIED"
+            });
+            return;
+        }
         const accessToken = (0, jwt_1.signAccessToken)({ userId, isAdmin });
         const cookieOptions = getAuthCookieOptions();
         res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
@@ -209,6 +245,7 @@ async function me(req, res) {
                 streak: user.streak,
                 pending_earnings: user.pending_earnings,
                 is_admin: user.is_admin,
+                email_verified: user.email_verified,
                 referral_code: user.referral_code,
                 referred_by: user.referred_by
             }
@@ -216,6 +253,114 @@ async function me(req, res) {
     }
     catch (error) {
         res.status(500).json({ message: "Failed to fetch profile" });
+    }
+}
+/**
+ * Consumes a single-use verification token.
+ *
+ * The response is intentionally explicit about the outcome so the verification
+ * screen can render the right state, but it never echoes the token or any
+ * backend detail.
+ */
+async function verifyEmail(req, res) {
+    const errors = (0, express_validator_1.validationResult)(req);
+    if (!errors.isEmpty()) {
+        res.status(400).json({
+            status: "invalid",
+            code: "VERIFICATION_TOKEN_INVALID",
+            message: "This verification link is invalid or has already been used."
+        });
+        return;
+    }
+    const { token } = req.body;
+    try {
+        const result = await (0, emailVerificationService_1.consumeEmailVerificationToken)({ token: String(token || "") });
+        if (result.status === "verified") {
+            (0, emailService_1.sendWelcomeEmail)({ to: result.user.email, name: result.user.name });
+            await (0, activityService_1.trackUserActivity)(result.user.user_id, "email_verified", {
+                source: "verification_link"
+            });
+            res.status(200).json({
+                status: "verified",
+                email_verified: true,
+                message: "Your email address has been confirmed."
+            });
+            return;
+        }
+        if (result.status === "already_verified") {
+            res.status(200).json({
+                status: "already_verified",
+                email_verified: true,
+                message: "Your email address is already confirmed."
+            });
+            return;
+        }
+        if (result.status === "expired") {
+            res.status(410).json({
+                status: "expired",
+                code: "VERIFICATION_TOKEN_EXPIRED",
+                message: "This verification link has expired."
+            });
+            return;
+        }
+        res.status(400).json({
+            status: "invalid",
+            code: "VERIFICATION_TOKEN_INVALID",
+            message: "This verification link is invalid or has already been used."
+        });
+    }
+    catch {
+        res.status(400).json({
+            status: "invalid",
+            code: "VERIFICATION_TOKEN_INVALID",
+            message: "This verification link is invalid or has already been used."
+        });
+    }
+}
+/**
+ * Requests a fresh verification email.
+ *
+ * The response is identical whether or not an account exists for the address,
+ * so the endpoint cannot be used to enumerate accounts. The account's own
+ * cooldown is enforced silently, while HTTP-level rate limiting protects the
+ * email provider from abuse.
+ */
+async function resendVerification(req, res) {
+    const errors = (0, express_validator_1.validationResult)(req);
+    if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+    }
+    const { email } = req.body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const cooldownSeconds = (0, emailVerificationService_1.getEmailVerificationResendCooldownSeconds)();
+    const genericResponse = {
+        ok: true,
+        message: "If an account exists for that address, a new verification email has been sent.",
+        cooldownSeconds
+    };
+    try {
+        await (0, emailVerificationService_1.pruneEmailVerificationTokens)();
+        const user = await User_1.User.findOne({ where: { email: normalizedEmail } });
+        if (user && !user.email_verified) {
+            const availableAt = await (0, emailVerificationService_1.getVerificationResendAvailableAt)(user.user_id);
+            if (!availableAt) {
+                const { token, expiresMinutes } = await (0, emailVerificationService_1.createEmailVerificationTokenForUser)(user);
+                (0, emailService_1.sendEmailVerificationEmail)({
+                    to: user.email,
+                    name: user.name,
+                    token,
+                    expiresMinutes
+                });
+                await (0, activityService_1.trackUserActivity)(user.user_id, "email_verification_request", {
+                    source: "resend"
+                });
+            }
+        }
+        res.status(200).json(genericResponse);
+    }
+    catch {
+        res.status(200).json(genericResponse);
     }
 }
 async function forgotPassword(req, res) {

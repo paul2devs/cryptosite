@@ -13,6 +13,8 @@ export type UserActivityType =
   | "password_reset_request"
   | "password_reset_complete"
   | "password_changed"
+  | "email_verification_request"
+  | "email_verified"
   | "membership_upgrade"
   | "configuration_change"
   | "performance_unavailable"

@@ -2,7 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const marketController_1 = require("../controllers/marketController");
+const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.get("/prices", marketController_1.getMarketPrices);
 router.get("/coin/:symbol", marketController_1.getMarketPriceForCoin);
+router.get("/status", auth_1.authenticate, auth_1.requireAdmin, marketController_1.getMarketDataDiagnostics);
 exports.default = router;

@@ -4,6 +4,7 @@ import "./BonusOptimizationLog";
 import "./ChurnPrediction";
 import "./Deposit";
 import "./EarningsLog";
+import "./EmailVerificationToken";
 import "./Level";
 import "./Notification";
 import "./PasswordResetToken";

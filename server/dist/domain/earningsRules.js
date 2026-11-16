@@ -11,7 +11,7 @@ exports.describeRealisedEarnings = describeRealisedEarnings;
 exports.projectedDailyEarnings = projectedDailyEarnings;
 exports.projectedEarningsSeries = projectedEarningsSeries;
 const money_1 = require("./money");
-exports.PROJECTED_RETURN_DISCLAIMER = "Projected figures apply an illustrative daily rate to invested principal. They are not a guarantee and are not credited. Only verified valuations recorded against real positions produce reportable performance.";
+exports.PROJECTED_RETURN_DISCLAIMER = "Projected figures apply a modelled daily rate to invested principal. They are not a guarantee and are not credited. Only verified valuations recorded against real positions produce reportable performance.";
 exports.PERFORMANCE_AMOUNT_SCALE = 8;
 exports.PERFORMANCE_PERCENT_SCALE = 6;
 function dayKey(value) {

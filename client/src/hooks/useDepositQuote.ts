@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../utils/api";
 import { ERRORS } from "../constants/copy";
 import type { CryptoType } from "../utils/deposit";
@@ -29,7 +29,13 @@ export interface DepositQuote {
   estimatedReceivedLabel: string | null;
 }
 
+/**
+ * Amount edits are coalesced so a new rate is fetched once the user pauses, not
+ * on every keystroke. The interval keeps a displayed rate from going stale while
+ * the user is on the amount step.
+ */
 const DEBOUNCE_MS = 250;
+const AUTO_REFRESH_MS = 60_000;
 
 export interface DepositQuoteState {
   quote: DepositQuote | null;
@@ -38,10 +44,20 @@ export interface DepositQuoteState {
   refresh: () => void;
 }
 
+function isAbortError(error: unknown): boolean {
+  const candidate = error as { code?: string; name?: string } | undefined;
+  return (
+    candidate?.code === "ERR_CANCELED" ||
+    candidate?.name === "CanceledError" ||
+    candidate?.name === "AbortError"
+  );
+}
+
 /**
  * Fetch the USD→crypto conversion for a deposit. Re-runs whenever the selected
  * asset/network changes or the USD amount changes (debounced), so the estimated
- * crypto amount always reflects the current verified rate.
+ * crypto amount always reflects the current verified rate. Requests are
+ * sequenced so a slow response can never overwrite a newer result.
  */
 export function useDepositQuote(
   cryptoType: CryptoType,
@@ -51,13 +67,18 @@ export function useDepositQuote(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+  const requestSeq = useRef(0);
 
   const refresh = useCallback(() => {
     setNonce((current) => current + 1);
   }, []);
 
   useEffect(() => {
+    const sequence = requestSeq.current + 1;
+    requestSeq.current = sequence;
     let cancelled = false;
+    const controller = new AbortController();
+
     const handle = window.setTimeout(async () => {
       setLoading(true);
       try {
@@ -65,19 +86,22 @@ export function useDepositQuote(
           params: {
             crypto_type: cryptoType,
             ...(usdAmount !== null ? { usd_amount: usdAmount } : {})
-          }
+          },
+          signal: controller.signal
         });
-        if (!cancelled) {
-          setQuote(response.data);
-          setError(null);
+        if (cancelled || sequence !== requestSeq.current) {
+          return;
         }
+        setQuote(response.data);
+        setError(null);
       } catch (requestError) {
-        if (!cancelled) {
-          setError(ERRORS.pricingUnavailable);
-          setQuote(null);
+        if (cancelled || sequence !== requestSeq.current || isAbortError(requestError)) {
+          return;
         }
+        setError(ERRORS.rateUnavailable.title);
+        setQuote(null);
       } finally {
-        if (!cancelled) {
+        if (!cancelled && sequence === requestSeq.current) {
           setLoading(false);
         }
       }
@@ -86,8 +110,20 @@ export function useDepositQuote(
     return () => {
       cancelled = true;
       window.clearTimeout(handle);
+      controller.abort();
     };
   }, [cryptoType, usdAmount, nonce]);
+
+  // Keep the displayed rate fresh: a rate that goes stale is replaced by the
+  // next automatic refresh rather than being left on screen as if it were live.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        setNonce((current) => current + 1);
+      }
+    }, AUTO_REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return { quote, loading, error, refresh };
 }

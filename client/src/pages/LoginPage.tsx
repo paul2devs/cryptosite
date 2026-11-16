@@ -19,9 +19,22 @@ export function LoginPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const result = await dispatch(loginUser({ email: email.trim().toLowerCase(), password }));
+    const normalizedEmail = email.trim().toLowerCase();
+    const result = await dispatch(loginUser({ email: normalizedEmail, password }));
     if (loginUser.fulfilled.match(result)) {
       navigate("/");
+      return;
+    }
+    // Correct credentials, but the address has not been confirmed. This is not
+    // a credential failure, so the user is routed to the verification screen
+    // where a fresh link can be requested.
+    if (loginUser.rejected.match(result) && result.payload?.code === "EMAIL_NOT_VERIFIED") {
+      navigate("/verify-email", {
+        state: {
+          email: normalizedEmail,
+          resendAvailableAt: result.payload.resendAvailableAt ?? null
+        }
+      });
     }
   };
 

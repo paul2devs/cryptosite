@@ -31,8 +31,11 @@ export async function initDatabase(): Promise<void> {
   try {
     await sequelize.authenticate();
     const shouldAlter = String(process.env.DB_SYNC_ALTER || "").toLowerCase() === "true";
+    // Capture whether the email verification column already existed *before* the
+    // sync, so legacy accounts can be backfilled as verified exactly once.
+    const usersHadEmailVerified = await hasEmailVerifiedColumn();
     await sequelize.sync({ alter: shouldAlter });
-    await reconcileUsersSchema();
+    await reconcileUsersSchema({ backfillEmailVerified: !usersHadEmailVerified });
     await reconcileWithdrawalsSchema();
     await reconcileMembershipSchema();
     await reconcileInvestmentLevelSchema();
@@ -49,9 +52,46 @@ export async function initDatabase(): Promise<void> {
   }
 }
 
-async function reconcileUsersSchema(): Promise<void> {
+async function hasEmailVerifiedColumn(): Promise<boolean> {
+  try {
+    const definition = await sequelize.getQueryInterface().describeTable("users");
+    return "email_verified" in definition;
+  } catch {
+    // The table does not exist yet (fresh database): nothing to backfill.
+    return true;
+  }
+}
+
+async function reconcileUsersSchema(options: {
+  backfillEmailVerified: boolean;
+}): Promise<void> {
   const queryInterface = sequelize.getQueryInterface();
   const usersDefinition = await queryInterface.describeTable("users");
+
+  if (!("email_verified" in usersDefinition)) {
+    await queryInterface.addColumn("users", "email_verified", {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    });
+  }
+
+  if (!("email_verified_at" in usersDefinition)) {
+    await queryInterface.addColumn("users", "email_verified_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+
+  // Accounts that existed before email verification was introduced keep their
+  // full access: they are treated as verified. Only accounts created after this
+  // migration start unverified.
+  if (options.backfillEmailVerified) {
+    await sequelize.query(
+      `UPDATE users SET email_verified = true, email_verified_at = COALESCE(email_verified_at, NOW()) WHERE email_verified = false`
+    );
+  }
 
   if (!("bonus_blocked" in usersDefinition)) {
     await queryInterface.addColumn("users", "bonus_blocked", {

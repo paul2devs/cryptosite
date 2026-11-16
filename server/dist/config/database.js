@@ -31,8 +31,11 @@ async function initDatabase() {
     try {
         await exports.sequelize.authenticate();
         const shouldAlter = String(process.env.DB_SYNC_ALTER || "").toLowerCase() === "true";
+        // Capture whether the email verification column already existed *before* the
+        // sync, so legacy accounts can be backfilled as verified exactly once.
+        const usersHadEmailVerified = await hasEmailVerifiedColumn();
         await exports.sequelize.sync({ alter: shouldAlter });
-        await reconcileUsersSchema();
+        await reconcileUsersSchema({ backfillEmailVerified: !usersHadEmailVerified });
         await reconcileWithdrawalsSchema();
         await reconcileMembershipSchema();
         await reconcileInvestmentLevelSchema();
@@ -48,9 +51,39 @@ async function initDatabase() {
         throw new Error(`Database connection failed: ${detail}`);
     }
 }
-async function reconcileUsersSchema() {
+async function hasEmailVerifiedColumn() {
+    try {
+        const definition = await exports.sequelize.getQueryInterface().describeTable("users");
+        return "email_verified" in definition;
+    }
+    catch {
+        // The table does not exist yet (fresh database): nothing to backfill.
+        return true;
+    }
+}
+async function reconcileUsersSchema(options) {
     const queryInterface = exports.sequelize.getQueryInterface();
     const usersDefinition = await queryInterface.describeTable("users");
+    if (!("email_verified" in usersDefinition)) {
+        await queryInterface.addColumn("users", "email_verified", {
+            type: sequelize_1.DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false
+        });
+    }
+    if (!("email_verified_at" in usersDefinition)) {
+        await queryInterface.addColumn("users", "email_verified_at", {
+            type: sequelize_1.DataTypes.DATE,
+            allowNull: true,
+            defaultValue: null
+        });
+    }
+    // Accounts that existed before email verification was introduced keep their
+    // full access: they are treated as verified. Only accounts created after this
+    // migration start unverified.
+    if (options.backfillEmailVerified) {
+        await exports.sequelize.query(`UPDATE users SET email_verified = true, email_verified_at = COALESCE(email_verified_at, NOW()) WHERE email_verified = false`);
+    }
     if (!("bonus_blocked" in usersDefinition)) {
         await queryInterface.addColumn("users", "bonus_blocked", {
             type: sequelize_1.DataTypes.BOOLEAN,

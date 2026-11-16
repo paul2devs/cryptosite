@@ -7,7 +7,7 @@ const emailClient_1 = require("../emailClient");
 const layout_1 = require("./layout");
 function renderWelcomeEmail(args) {
     const baseUrl = (0, emailClient_1.getAppBaseUrl)();
-    const subject = "Welcome to NexaCrypto — your account is ready";
+    const subject = "Welcome to NexaCrypto: your account is ready";
     const html = (0, layout_1.renderEmailLayout)({
         title: "Welcome to NexaCrypto",
         preheader: "Your account is ready. Start with a verified deposit to unlock levels and multipliers.",

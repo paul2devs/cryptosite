@@ -14,6 +14,7 @@ import { generateReferralCode } from "../utils/referralCode";
 import { Op } from "sequelize";
 import { trackUserActivity } from "../services/activityService";
 import {
+  sendEmailVerificationEmail,
   sendPasswordChangedEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail
@@ -23,6 +24,14 @@ import {
   createPasswordResetTokenForUser,
   pruneExpiredPasswordResetTokens
 } from "../services/passwordResetService";
+import {
+  consumeEmailVerificationToken,
+  createEmailVerificationTokenForUser,
+  getEmailVerificationResendCooldownSeconds,
+  getVerificationResendAvailableAt,
+  maskEmail,
+  pruneEmailVerificationTokens
+} from "../services/emailVerificationService";
 
 const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 
@@ -110,32 +119,43 @@ export async function register(req: Request, res: Response): Promise<void> {
       }
     }
 
-    const payload: JwtPayload = { userId: user.user_id, isAdmin: user.is_admin };
-    const accessToken = signAccessToken(payload);
-    const refreshToken = signRefreshToken(payload);
-    const cookieOptions = getAuthCookieOptions();
-    res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-    res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    // Email verification is mandatory, so registration deliberately does NOT
+    // open a session. The account stays inaccessible until the emailed link is
+    // opened and the token is validated on the server.
+    const { token, expiresMinutes } = await createEmailVerificationTokenForUser(user);
+    sendEmailVerificationEmail({
+      to: user.email,
+      name: user.name,
+      token,
+      expiresMinutes
+    });
+
+    // The freshly issued token starts the resend cooldown, so the screen can
+    // show an accurate countdown instead of an enabled button that would be
+    // silently rate-limited server-side.
+    const resendAvailableAt = await getVerificationResendAvailableAt(user.user_id);
 
     res.status(201).json({
+      message: "Account created. Check your inbox to verify your email address.",
       user: {
         user_id: user.user_id,
         name: user.name,
         email: user.email,
-        level: user.level,
-        xp: user.xp,
-        streak: user.streak,
-        pending_earnings: user.pending_earnings,
+        email_verified: false,
         is_admin: user.is_admin,
-        referral_code: user.referral_code,
-        referred_by: user.referred_by
+        referral_code: user.referral_code
       },
-      accessToken,
-      refreshToken
+      verification: {
+        required: true,
+        email: maskEmail(user.email),
+        expiresMinutes,
+        resendAvailableAt: resendAvailableAt ? resendAvailableAt.toISOString() : null
+      }
     });
 
-    await trackUserActivity(user.user_id, "login", { source: "register" });
-    sendWelcomeEmail({ to: user.email, name: user.name });
+    await trackUserActivity(user.user_id, "email_verification_request", {
+      source: "register"
+    });
   } catch (error) {
     res.status(500).json({ message: "Registration failed" });
   }
@@ -160,6 +180,19 @@ export async function login(req: Request, res: Response): Promise<void> {
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       res.status(401).json({ message: "Invalid credentials" });
+      return;
+    }
+
+    // Correct credentials, but the address has not been confirmed: the account
+    // must not be misrepresented as a credential failure.
+    if (!user.email_verified) {
+      const resendAvailableAt = await getVerificationResendAvailableAt(user.user_id);
+      res.status(403).json({
+        message: "Please verify your email address before signing in.",
+        code: "EMAIL_NOT_VERIFIED",
+        email: maskEmail(user.email),
+        resendAvailableAt: resendAvailableAt ? resendAvailableAt.toISOString() : null
+      });
       return;
     }
 
@@ -211,6 +244,17 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
     // Those must not be forwarded to `jwt.sign` together with `expiresIn`,
     // otherwise jsonwebtoken throws and every refresh request fails with 401.
     const { userId, isAdmin } = verifyRefreshToken(token);
+    // A refresh must not resurrect a session for an account whose email is no
+    // longer verified (defence in depth: unverified accounts never receive a
+    // refresh token in the first place).
+    const user = await User.findByPk(userId);
+    if (!user || (!user.email_verified && !user.is_admin)) {
+      res.status(403).json({
+        message: "Please verify your email address before signing in.",
+        code: "EMAIL_NOT_VERIFIED"
+      });
+      return;
+    }
     const accessToken = signAccessToken({ userId, isAdmin });
     const cookieOptions = getAuthCookieOptions();
     res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
@@ -246,12 +290,131 @@ export async function me(
         streak: user.streak,
         pending_earnings: user.pending_earnings,
         is_admin: user.is_admin,
+        email_verified: user.email_verified,
         referral_code: user.referral_code,
         referred_by: user.referred_by
       }
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch profile" });
+  }
+}
+
+/**
+ * Consumes a single-use verification token.
+ *
+ * The response is intentionally explicit about the outcome so the verification
+ * screen can render the right state, but it never echoes the token or any
+ * backend detail.
+ */
+export async function verifyEmail(req: Request, res: Response): Promise<void> {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({
+      status: "invalid",
+      code: "VERIFICATION_TOKEN_INVALID",
+      message: "This verification link is invalid or has already been used."
+    });
+    return;
+  }
+
+  const { token } = req.body as { token: string };
+
+  try {
+    const result = await consumeEmailVerificationToken({ token: String(token || "") });
+
+    if (result.status === "verified") {
+      sendWelcomeEmail({ to: result.user.email, name: result.user.name });
+      await trackUserActivity(result.user.user_id, "email_verified", {
+        source: "verification_link"
+      });
+      res.status(200).json({
+        status: "verified",
+        email_verified: true,
+        message: "Your email address has been confirmed."
+      });
+      return;
+    }
+
+    if (result.status === "already_verified") {
+      res.status(200).json({
+        status: "already_verified",
+        email_verified: true,
+        message: "Your email address is already confirmed."
+      });
+      return;
+    }
+
+    if (result.status === "expired") {
+      res.status(410).json({
+        status: "expired",
+        code: "VERIFICATION_TOKEN_EXPIRED",
+        message: "This verification link has expired."
+      });
+      return;
+    }
+
+    res.status(400).json({
+      status: "invalid",
+      code: "VERIFICATION_TOKEN_INVALID",
+      message: "This verification link is invalid or has already been used."
+    });
+  } catch {
+    res.status(400).json({
+      status: "invalid",
+      code: "VERIFICATION_TOKEN_INVALID",
+      message: "This verification link is invalid or has already been used."
+    });
+  }
+}
+
+/**
+ * Requests a fresh verification email.
+ *
+ * The response is identical whether or not an account exists for the address,
+ * so the endpoint cannot be used to enumerate accounts. The account's own
+ * cooldown is enforced silently, while HTTP-level rate limiting protects the
+ * email provider from abuse.
+ */
+export async function resendVerification(req: Request, res: Response): Promise<void> {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({ errors: errors.array() });
+    return;
+  }
+
+  const { email } = req.body as { email: string };
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const cooldownSeconds = getEmailVerificationResendCooldownSeconds();
+  const genericResponse = {
+    ok: true,
+    message: "If an account exists for that address, a new verification email has been sent.",
+    cooldownSeconds
+  };
+
+  try {
+    await pruneEmailVerificationTokens();
+    const user = await User.findOne({ where: { email: normalizedEmail } });
+
+    if (user && !user.email_verified) {
+      const availableAt = await getVerificationResendAvailableAt(user.user_id);
+      if (!availableAt) {
+        const { token, expiresMinutes } = await createEmailVerificationTokenForUser(user);
+        sendEmailVerificationEmail({
+          to: user.email,
+          name: user.name,
+          token,
+          expiresMinutes
+        });
+        await trackUserActivity(user.user_id, "email_verification_request", {
+          source: "resend"
+        });
+      }
+    }
+
+    res.status(200).json(genericResponse);
+  } catch {
+    res.status(200).json(genericResponse);
   }
 }
 

@@ -1,12 +1,17 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "./store";
 import { logout, restoreSession, setAccessToken } from "./store/authSlice";
 import { AppDispatch } from "./store";
-import { SESSION_EXPIRED_EVENT, TOKEN_REFRESHED_EVENT } from "./utils/api";
+import {
+  EMAIL_NOT_VERIFIED_EVENT,
+  SESSION_EXPIRED_EVENT,
+  TOKEN_REFRESHED_EVENT
+} from "./utils/api";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { TermsPage } from "./pages/TermsPage";
@@ -91,6 +96,12 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
   if (!user || !accessToken) {
     return <Navigate to="/landing" replace />;
   }
+  // A stored session can outlive an account whose verification was revoked.
+  // The server refuses every protected call in that case; mirror it here so the
+  // user lands on the verification screen instead of a broken dashboard.
+  if (user.email_verified === false && !user.is_admin) {
+    return <Navigate to="/verify-email" replace />;
+  }
   return children;
 }
 
@@ -166,6 +177,13 @@ function App() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const initialized = useSelector((state: RootState) => state.auth.initialized);
+  const userEmail = useSelector((state: RootState) => state.auth.user?.email ?? null);
+  // Read inside the event listener without re-registering it on every render.
+  const userEmailRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    userEmailRef.current = userEmail;
+  }, [userEmail]);
 
   useEffect(() => {
     void dispatch(restoreSession());
@@ -182,12 +200,24 @@ function App() {
         dispatch(setAccessToken(token));
       }
     };
+    // A protected API call rejected the request because the account's email is
+    // not verified. The session is unusable, so it is dropped and the user is
+    // sent to the verification screen to request a fresh link.
+    const handleEmailNotVerified = () => {
+      dispatch(logout());
+      navigate("/verify-email", {
+        replace: true,
+        state: { email: userEmailRef.current || "" }
+      });
+    };
 
     window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
     window.addEventListener(TOKEN_REFRESHED_EVENT, handleTokenRefreshed);
+    window.addEventListener(EMAIL_NOT_VERIFIED_EVENT, handleEmailNotVerified);
     return () => {
       window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
       window.removeEventListener(TOKEN_REFRESHED_EVENT, handleTokenRefreshed);
+      window.removeEventListener(EMAIL_NOT_VERIFIED_EVENT, handleEmailNotVerified);
     };
   }, [dispatch, navigate]);
 
@@ -226,6 +256,8 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookies" element={<CookiesPage />} />

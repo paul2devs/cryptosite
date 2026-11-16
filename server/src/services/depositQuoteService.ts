@@ -39,8 +39,18 @@ const SOURCE_LABELS: Record<MarketDataSource, string> = {
   binance: "Binance"
 };
 
-/** A rate older than this is surfaced to the user as potentially out of date. */
+/**
+ * A rate older than this is treated as expired: it cannot be used to price a new
+ * conversion and must be refreshed first. The pricing service refreshes every
+ * few seconds, so this only trips during a sustained provider outage.
+ */
 const RATE_STALE_MS = 5 * 60 * 1000;
+
+const RATE_UNAVAILABLE_REASON =
+  "Live pricing is unavailable right now, so we cannot calculate a conversion. Please try again shortly.";
+
+const RATE_STALE_REASON =
+  "The last exchange rate we received is out of date, so it cannot be used for a conversion. Refresh the rate and try again.";
 
 export const DEPOSIT_FEE_NOTE =
   "The platform does not charge a deposit fee. Network fees are set by the blockchain and are not collected by the platform.";
@@ -117,24 +127,32 @@ export async function buildDepositQuote(input: {
   const point = prices[SYMBOL_BY_CRYPTO_TYPE[cryptoType]];
 
   if (!point || !Number.isFinite(point.price) || point.price <= 0) {
-    return {
-      ...base,
-      reason:
-        "Live pricing is unavailable right now, so we cannot calculate a conversion. Please try again shortly."
-    };
+    return { ...base, reason: RATE_UNAVAILABLE_REASON };
   }
 
   const updatedAt = point.lastUpdated ? new Date(point.lastUpdated) : null;
   const updatedAtValid = updatedAt !== null && Number.isFinite(updatedAt.getTime());
-  const stale = updatedAtValid ? Date.now() - updatedAt!.getTime() > RATE_STALE_MS : true;
+  const ageMs = updatedAtValid ? Date.now() - updatedAt!.getTime() : Number.POSITIVE_INFINITY;
+  const stale = !updatedAtValid || ageMs > RATE_STALE_MS;
+
+  const rateMeta = {
+    rate: point.price,
+    rateSource: point.source ? SOURCE_LABELS[point.source] : "Configured pricing service",
+    rateUpdatedAt: updatedAtValid ? updatedAt!.toISOString() : null
+  };
+
+  // An expired rate is disclosed with its timestamp so the user knows how old it
+  // is, but it is never used to price a fresh conversion: the amount stays
+  // unavailable until the rate is refreshed.
+  if (stale) {
+    return { ...base, ...rateMeta, stale: true, reason: RATE_STALE_REASON };
+  }
 
   const quote: DepositQuote = {
     ...base,
+    ...rateMeta,
     available: true,
-    rate: point.price,
-    rateSource: point.source ? SOURCE_LABELS[point.source] : "Configured pricing service",
-    rateUpdatedAt: updatedAtValid ? updatedAt!.toISOString() : null,
-    stale
+    stale: false
   };
 
   const usdAmount =

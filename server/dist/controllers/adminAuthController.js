@@ -48,6 +48,6 @@ async function adminLogin(req, res) {
         await (0, activityService_1.trackUserActivity)(user.user_id, "login", { source: "admin_login" });
     }
     catch {
-        res.status(500).json({ message: "Admin login failed" });
+        res.status(500).json({ message: "Platform login failed" });
     }
 }

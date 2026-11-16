@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { getAssetMeta } from "../portfolio/assetMeta";
 import { formatDateTime, formatUsd } from "../../utils/format";
 import {
@@ -7,7 +7,7 @@ import {
   type DepositNetworkOption
 } from "../../utils/deposit";
 import type { DepositQuote } from "../../hooks/useDepositQuote";
-import { ERRORS } from "../../constants/copy";
+import { DEPOSIT_CONVERSION, ERRORS } from "../../constants/copy";
 
 function ConversionRow({
   label,
@@ -61,12 +61,20 @@ export function DepositAmountInput({
   const meta = getAssetMeta(option.symbol);
   const presets = depositQuickSelectUsd();
   const showFormatError = !validation.empty && !validation.valid;
-  const rateAvailable = quote?.available === true && quote.rate !== null;
-  const cryptoAmountLabel =
-    rateAvailable && quote?.cryptoAmountLabel ? quote.cryptoAmountLabel : null;
+
+  const rate = quote?.rate ?? null;
+  const rateAvailable = quote?.available === true && rate !== null;
+  const cryptoAmountLabel = rateAvailable ? quote?.cryptoAmountLabel ?? null : null;
+  // A rate the backend marked expired can be shown, but never as a live rate:
+  // it is surfaced as unavailable until the user refreshes it.
+  const showStale = quoteError === null && quote?.available === false && quote.stale === true;
+  const unavailable = quoteError !== null || (quote !== null && quote.available === false);
+  const showLoading = !unavailable && !rateAvailable;
 
   const parsedValue = Number(value);
   const hasValue = validation.valid && Number.isFinite(parsedValue) && parsedValue > 0;
+
+  const retryDisabled = disabled || quoteLoading;
 
   return (
     <div className="space-y-3">
@@ -145,7 +153,7 @@ export function DepositAmountInput({
           <button
             type="button"
             onClick={onRefreshRate}
-            disabled={disabled}
+            disabled={retryDisabled}
             className="inline-flex items-center gap-1 rounded-full bg-[#17181A] px-2 py-1 text-[10px] font-medium text-[#9CA3AF] transition-colors hover:text-[#F5F5F7] disabled:opacity-50"
           >
             <RefreshCw className={`h-3 w-3 ${quoteLoading ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -153,27 +161,66 @@ export function DepositAmountInput({
           </button>
         </div>
 
-        {quoteError ? (
-          <p className="text-[11px] text-[#EA3943]">{quoteError}</p>
-        ) : !rateAvailable ? (
-          <p className="text-[11px] text-[#EA3943]">
-            {quote?.reason ?? "We could not calculate a conversion. Please try again shortly."}
-          </p>
+        {unavailable ? (
+          <div className="space-y-2 rounded-lg bg-[#EA3943]/8 px-3 py-2.5">
+            <p className="text-[11px] font-medium text-[#EA3943]">
+              {showStale ? ERRORS.rateStale.title : ERRORS.rateUnavailable.title}
+            </p>
+            <p className="text-[11px] leading-relaxed text-[#9CA3AF]">
+              {showStale ? ERRORS.rateStale.body : ERRORS.rateUnavailable.body}
+            </p>
+            {showStale && quote?.rateUpdatedAt ? (
+              <p className="text-[10px] text-[#6B7280]">
+                Last rate received {formatDateTime(quote.rateUpdatedAt)}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={onRefreshRate}
+              disabled={retryDisabled}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#17181A] px-2.5 py-1.5 text-[11px] font-medium text-[#F5F5F7] transition-colors hover:bg-[#1F2023] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-3 w-3 ${quoteLoading ? "animate-spin" : ""}`}
+                aria-hidden="true"
+              />
+              {DEPOSIT_CONVERSION.retry}
+            </button>
+          </div>
+        ) : showLoading ? (
+          <div className="flex items-center gap-2 py-0.5 text-[11px] text-[#9CA3AF]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#C6A15B]" aria-hidden="true" />
+            {DEPOSIT_CONVERSION.fetching}
+          </div>
         ) : (
           <>
             <ConversionRow
-              label="Amount to send"
-              value={cryptoAmountLabel ?? "-"}
-              hint={
-                cryptoAmountLabel
-                  ? undefined
-                  : "Enter a USD amount within the deposit range to see the equivalent"
-              }
+              label="Deposit amount"
+              value={hasValue ? formatUsd(parsedValue) : "-"}
+              hint={hasValue ? undefined : "USD value you deposit"}
             />
             <ConversionRow
               label="Exchange rate"
-              value={quote?.rate !== null && quote?.rate !== undefined ? `1 ${option.symbolLabel} = ${formatUsd(quote.rate)}` : "-"}
+              value={rate !== null ? `1 ${option.symbolLabel} = ${formatUsd(rate)}` : "-"}
               hint={`${option.symbolLabel}/USD`}
+            />
+            <div className="border-t border-[#26272B] pt-1.5">
+              <ConversionRow
+                label="Estimated amount received"
+                value={cryptoAmountLabel ?? "-"}
+                hint={
+                  hasValue
+                    ? `Send exactly this amount on ${option.networkLabel}`
+                    : `Enter a USD amount to see the estimated ${option.symbolLabel} you will receive`
+                }
+                emphasise
+              />
+            </div>
+            <ConversionRow label="Deposit fee" value="None" hint={quote?.feeNote} />
+            <ConversionRow
+              label="Network fee"
+              value="Set by the network"
+              hint={quote?.networkFeeNote}
             />
             <ConversionRow
               label="Rate source"
@@ -184,22 +231,9 @@ export function DepositAmountInput({
                   : undefined
               }
             />
-            <ConversionRow label="Deposit fee" value="None" hint={quote?.feeNote} />
-            <ConversionRow
-              label="Network fee"
-              value="Set by the network"
-              hint={quote?.networkFeeNote}
-            />
-            <div className="border-t border-[#26272B] pt-1.5">
-              <ConversionRow
-                label="Estimated amount received"
-                value={quote?.estimatedReceivedLabel ?? "-"}
-                emphasise
-              />
-            </div>
-            {quote?.stale ? (
-              <p className="text-[10px] leading-relaxed text-[#C6A15B]">{ERRORS.rateStale}</p>
-            ) : null}
+            <p className="text-[10px] leading-relaxed text-[#6B7280]">
+              {DEPOSIT_CONVERSION.estimateNote}
+            </p>
           </>
         )}
       </div>

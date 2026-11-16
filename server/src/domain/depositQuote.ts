@@ -68,37 +68,70 @@ export function validateUsdAmountInput(value: string): UsdAmountValidation {
 }
 
 /**
+ * Fixed decimal scale used for all money arithmetic. Values are lifted into
+ * scaled integers before any division or multiplication so binary floating point
+ * can never drift the credited amount (the classic `0.1 + 0.2` class of error).
+ */
+const DECIMAL_SCALE = 100_000_000; // 1e8, i.e. 8 decimal places
+const DECIMAL_SCALE_BIGINT = 100_000_000n;
+
+/** Lift a positive finite decimal into a scaled BigInt, or null when unusable. */
+function toScaledInteger(value: number): bigint | null {
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  const scaled = Math.round(value * DECIMAL_SCALE);
+  if (!Number.isFinite(scaled) || scaled <= 0) {
+    return null;
+  }
+  return BigInt(scaled);
+}
+
+/**
  * Convert a USD value into an asset amount, truncated to the asset precision.
- * Returns null when the price is unusable so callers never fabricate an amount.
+ * The division is performed on scaled integers so the truncation is exact for
+ * the asset's precision.
+ *
+ * Returns null when the price is unusable or the amount rounds down to zero, so
+ * callers never fabricate an amount.
  */
 export function usdToCryptoAmount(
   usd: number,
   usdPrice: number,
   decimals: number
 ): number | null {
-  if (!Number.isFinite(usd) || usd <= 0) {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) {
     return null;
   }
-  if (!Number.isFinite(usdPrice) || usdPrice <= 0) {
+  const usdScaled = toScaledInteger(usd);
+  const priceScaled = toScaledInteger(usdPrice);
+  if (usdScaled === null || priceScaled === null) {
     return null;
   }
-  const factor = Math.pow(10, decimals);
-  const floored = Math.floor((usd / usdPrice) * factor) / factor;
-  if (!Number.isFinite(floored) || floored <= 0) {
+
+  const amountScale = 10n ** BigInt(decimals);
+  // usd / price, evaluated at the asset's decimal precision. BigInt division
+  // truncates toward zero, which is the desired "floor" for positive amounts.
+  const truncated = (usdScaled * amountScale) / priceScaled;
+  if (truncated <= 0n) {
     return null;
   }
-  return floored;
+  // `truncated` is already scaled by 10^decimals, so divide by that same factor.
+  return Number(truncated) / Number(amountScale);
 }
 
-/** Value in USD of an asset amount at the given rate. */
+/** Value in USD of an asset amount at the given rate, computed exactly. */
 export function cryptoToUsdAmount(amount: number, usdPrice: number): number | null {
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const amountScaled = toScaledInteger(amount);
+  const priceScaled = toScaledInteger(usdPrice);
+  if (amountScaled === null || priceScaled === null) {
     return null;
   }
-  if (!Number.isFinite(usdPrice) || usdPrice <= 0) {
+  const product = (amountScaled * priceScaled) / DECIMAL_SCALE_BIGINT;
+  if (product <= 0n) {
     return null;
   }
-  return amount * usdPrice;
+  return Number(product) / DECIMAL_SCALE;
 }
 
 /** Whether an actual value is within the allowed relative tolerance of expected. */

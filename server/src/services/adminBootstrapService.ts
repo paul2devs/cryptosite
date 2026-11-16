@@ -56,6 +56,10 @@ export async function ensureAdminAccount(): Promise<void> {
 
   if (existingUser) {
     existingUser.is_admin = true;
+    // Platform operators are treated as verified so they can reach back-office
+    // routes without going through the investor verification flow.
+    existingUser.email_verified = true;
+    existingUser.email_verified_at = existingUser.email_verified_at || new Date();
     existingUser.password = hashed;
     await existingUser.save();
   } else {
@@ -64,7 +68,9 @@ export async function ensureAdminAccount(): Promise<void> {
       email: bootstrapEmail,
       password: hashed,
       crypto_wallets: [],
-      is_admin: true
+      is_admin: true,
+      email_verified: true,
+      email_verified_at: new Date()
     });
   }
 

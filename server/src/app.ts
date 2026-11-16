@@ -26,6 +26,7 @@ import aiRoutes from "./routes/aiRoutes";
 import referralRoutes from "./routes/referralRoutes";
 import adminAuthRoutes from "./routes/adminAuthRoutes";
 import operationsRoutes from "./routes/operationsRoutes";
+import emailPreviewRoutes from "./routes/emailPreviewRoutes";
 import { ensureDefaultMembershipBenefits, ensureDefaultMembershipTiers } from "./services/membershipService";
 import { ensureDefaultInvestmentLevelBenefits, ensureDefaultInvestmentLevels } from "./services/investmentLevelService";
 import { ensureDefaultLevels } from "./services/gamificationService";
@@ -92,6 +93,11 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/admin_auth", adminAuthRoutes);
 app.use("/api/operations", operationsRoutes);
+
+// Email preview is a development tool only: it is never mounted in production.
+if (String(process.env.NODE_ENV || "").toLowerCase() !== "production") {
+  app.use("/api/dev/email-preview", emailPreviewRoutes);
+}
 
 app.use(notFoundHandler);
 

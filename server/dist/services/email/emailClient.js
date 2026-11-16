@@ -4,6 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isEmailEnabled = isEmailEnabled;
+exports.isEmailOutboxEnabled = isEmailOutboxEnabled;
+exports.recordEmailInOutbox = recordEmailInOutbox;
+exports.getEmailOutbox = getEmailOutbox;
+exports.clearEmailOutbox = clearEmailOutbox;
 exports.getAppBaseUrl = getAppBaseUrl;
 exports.getMailFrom = getMailFrom;
 exports.getTransporter = getTransporter;
@@ -31,6 +35,32 @@ let cachedTransporter = null;
 let cachedFrom = null;
 function isEmailEnabled() {
     return getBoolEnv("EMAIL_ENABLED", false);
+}
+const OUTBOX_LIMIT = 25;
+const emailOutbox = [];
+function isEmailOutboxEnabled() {
+    const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
+    return !isProduction && getBoolEnv("EMAIL_DEV_OUTBOX_ENABLED", false);
+}
+function recordEmailInOutbox(payload) {
+    if (!isEmailOutboxEnabled())
+        return;
+    emailOutbox.unshift({
+        capturedAt: new Date().toISOString(),
+        to: payload.to,
+        subject: payload.subject,
+        html: payload.html,
+        text: payload.text
+    });
+    if (emailOutbox.length > OUTBOX_LIMIT) {
+        emailOutbox.length = OUTBOX_LIMIT;
+    }
+}
+function getEmailOutbox() {
+    return emailOutbox.slice();
+}
+function clearEmailOutbox() {
+    emailOutbox.length = 0;
 }
 function getAppBaseUrl() {
     const raw = process.env.APP_BASE_URL ||
@@ -69,6 +99,9 @@ function getTransporter() {
     return cachedTransporter;
 }
 async function sendEmail(payload) {
+    // Capture a development copy first (no-op in production), so local flows can
+    // be completed even when no SMTP provider is configured.
+    recordEmailInOutbox(payload);
     if (!isEmailEnabled()) {
         return;
     }

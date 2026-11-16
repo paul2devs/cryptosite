@@ -120,6 +120,29 @@ export function validateRuntimeEnv(): EnvWarning[] {
     });
   }
 
+  const emailEnabled = ["1", "true", "yes", "on"].includes(
+    String(process.env.EMAIL_ENABLED || "").trim().toLowerCase()
+  );
+  if (emailEnabled) {
+    const missing = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"].filter(
+      (name) => !process.env[name] || String(process.env[name]).trim().length === 0
+    );
+    if (missing.length > 0) {
+      warnings.push({
+        name: missing[0],
+        message: `EMAIL_ENABLED is true but ${missing.join(
+          ", "
+        )} is not set; verification and notification emails cannot be delivered.`
+      });
+    }
+  } else {
+    warnings.push({
+      name: "EMAIL_ENABLED",
+      message:
+        "EMAIL_ENABLED is not true; transactional emails (including email verification) will not be delivered."
+    });
+  }
+
   return warnings;
 }
 

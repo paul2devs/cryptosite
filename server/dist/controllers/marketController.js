@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getMarketPrices = getMarketPrices;
 exports.getMarketPriceForCoin = getMarketPriceForCoin;
+exports.getMarketDataDiagnostics = getMarketDataDiagnostics;
 const marketDataService_1 = require("../services/marketDataService");
 async function getMarketPrices(_req, res) {
     try {
@@ -29,5 +30,18 @@ async function getMarketPriceForCoin(req, res) {
     }
     catch {
         res.status(500).json({ message: "Failed to load price" });
+    }
+}
+/**
+ * Operator-facing diagnostics for the pricing pipeline. Restricted to platform
+ * administrators because it exposes the last upstream error.
+ */
+async function getMarketDataDiagnostics(_req, res) {
+    try {
+        const status = await (0, marketDataService_1.getMarketDataStatus)();
+        res.status(200).json(status);
+    }
+    catch {
+        res.status(500).json({ message: "Failed to load market data status" });
     }
 }

@@ -88,7 +88,7 @@ async function deleteUserAccount(adminId, userId, reason) {
             throw new Error("User not found");
         }
         if (target.is_admin) {
-            throw new Error("Administrator accounts cannot be deleted");
+            throw new Error("Platform accounts cannot be deleted");
         }
         await destroyUserData(userId, transaction);
         await User_1.User.destroy({ where: { user_id: userId }, transaction });

@@ -28,6 +28,7 @@ const aiRoutes_1 = __importDefault(require("./routes/aiRoutes"));
 const referralRoutes_1 = __importDefault(require("./routes/referralRoutes"));
 const adminAuthRoutes_1 = __importDefault(require("./routes/adminAuthRoutes"));
 const operationsRoutes_1 = __importDefault(require("./routes/operationsRoutes"));
+const emailPreviewRoutes_1 = __importDefault(require("./routes/emailPreviewRoutes"));
 const membershipService_1 = require("./services/membershipService");
 const investmentLevelService_1 = require("./services/investmentLevelService");
 const gamificationService_1 = require("./services/gamificationService");
@@ -87,6 +88,10 @@ app.use("/api/ai", aiRoutes_1.default);
 app.use("/api/referrals", referralRoutes_1.default);
 app.use("/api/admin_auth", adminAuthRoutes_1.default);
 app.use("/api/operations", operationsRoutes_1.default);
+// Email preview is a development tool only: it is never mounted in production.
+if (String(process.env.NODE_ENV || "").toLowerCase() !== "production") {
+    app.use("/api/dev/email-preview", emailPreviewRoutes_1.default);
+}
 app.use(errorHandler_1.notFoundHandler);
 app.use(errorHandler_1.errorHandler);
 async function startApp() {

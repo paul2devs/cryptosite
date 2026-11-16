@@ -15,6 +15,8 @@ export interface UserAttributes {
   pending_earnings: unknown;
   seen_notifications: unknown;
   is_admin: boolean;
+  email_verified: boolean;
+  email_verified_at: Date | null;
   last_activity_at?: Date | null;
   withdrawable_balance: number;
   locked_balance: number;
@@ -37,6 +39,8 @@ export type UserCreationAttributes = Optional<
   | "pending_earnings"
   | "seen_notifications"
   | "is_admin"
+  | "email_verified"
+  | "email_verified_at"
   | "last_activity_at"
   | "withdrawable_balance"
   | "locked_balance"
@@ -64,6 +68,8 @@ export class User
   public pending_earnings!: unknown;
   public seen_notifications!: unknown;
   public is_admin!: boolean;
+  public email_verified!: boolean;
+  public email_verified_at!: Date | null;
   public last_activity_at!: Date | null;
   public withdrawable_balance!: number;
   public locked_balance!: number;
@@ -137,6 +143,16 @@ User.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false
+    },
+    email_verified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
+    email_verified_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null
     },
     bonus_blocked: {
       type: DataTypes.BOOLEAN,

@@ -5,6 +5,7 @@ const baseURL = resolveApiBaseUrl();
 
 export const SESSION_EXPIRED_EVENT = "auth:session-expired";
 export const TOKEN_REFRESHED_EVENT = "auth:token-refreshed";
+export const EMAIL_NOT_VERIFIED_EVENT = "auth:email-not-verified";
 
 interface StoredTokens {
   accessToken: string | null;
@@ -112,6 +113,19 @@ api.interceptors.response.use(
       requestUrl.includes("/auth/forgot-password") ||
       requestUrl.includes("/auth/reset-password");
 
+    // A protected route rejected the request because the account's email is
+    // not verified. Drop the (unusable) session and send the user to the
+    // verification screen. Login itself is excluded: the login page inspects
+    // this code directly to offer a resend action.
+    const isEmailNotVerified =
+      status === 403 &&
+      (error.response?.data as { code?: string } | undefined)?.code === "EMAIL_NOT_VERIFIED";
+    if (isEmailNotVerified && !isCredentialCall) {
+      clearStoredTokens();
+      notifyEmailNotVerified();
+      return Promise.reject(error);
+    }
+
     if (status === 401 && !originalRequest._retry && !isAuthRefreshCall && !isCredentialCall) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -177,6 +191,12 @@ function notifyTokenRefreshed(accessToken: string): void {
     window.dispatchEvent(
       new CustomEvent(TOKEN_REFRESHED_EVENT, { detail: { accessToken } })
     );
+  }
+}
+
+function notifyEmailNotVerified(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(EMAIL_NOT_VERIFIED_EVENT));
   }
 }
 

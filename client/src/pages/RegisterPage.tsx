@@ -66,7 +66,14 @@ export function RegisterPage() {
       })
     );
     if (registerUser.fulfilled.match(result)) {
-      navigate("/");
+      // Verification is mandatory: the account is not signed in yet, so the
+      // user is sent to the verification screen instead of the dashboard.
+      navigate("/verify-email", {
+        state: {
+          email: normalizedEmail,
+          resendAvailableAt: result.payload.verification.resendAvailableAt ?? null
+        }
+      });
     }
   };
 

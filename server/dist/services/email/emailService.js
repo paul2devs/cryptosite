@@ -1,5 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.buildVerificationUrl = buildVerificationUrl;
+exports.sendVerificationEmail = sendVerificationEmail;
+exports.sendEmailVerificationEmail = sendEmailVerificationEmail;
 exports.sendWelcomeEmail = sendWelcomeEmail;
 exports.sendPasswordResetEmail = sendPasswordResetEmail;
 exports.sendPasswordChangedEmail = sendPasswordChangedEmail;
@@ -10,12 +13,41 @@ exports.sendLevelUpEmail = sendLevelUpEmail;
 const emailClient_1 = require("./emailClient");
 const account_1 = require("./templates/account");
 const activity_1 = require("./templates/activity");
+const verification_1 = require("./templates/verification");
 const emailClient_2 = require("./emailClient");
 function safeFireAndForget(promise) {
     promise.catch((err) => {
         // eslint-disable-next-line no-console
         console.warn("[email] send failed", String(err));
     });
+}
+/** Builds the single-use verification URL the email button links to. */
+function buildVerificationUrl(token) {
+    const baseUrl = (0, emailClient_2.getAppBaseUrl)();
+    return `${baseUrl}/verify-email/${encodeURIComponent(token)}`;
+}
+/**
+ * Sends the branded verification email.
+ *
+ * Delivery is intentionally decoupled from account state: a send failure is
+ * logged and swallowed, and the account is never marked verified here. The
+ * account only becomes verified once the token is validated through the
+ * verification endpoint.
+ */
+async function sendVerificationEmail(args) {
+    const verifyUrl = buildVerificationUrl(args.token);
+    const { subject, html, text } = (0, verification_1.renderVerificationEmail)({
+        name: args.name,
+        verifyUrl,
+        expiresMinutes: args.expiresMinutes
+    });
+    await (0, emailClient_1.sendEmail)({ to: args.to, subject, html, text });
+}
+function sendEmailVerificationEmail(args) {
+    // `sendEmail` records a development outbox copy (when enabled) and skips the
+    // SMTP transport entirely when email delivery is disabled, so a single call
+    // correctly covers both real delivery and local development.
+    safeFireAndForget(sendVerificationEmail(args));
 }
 function sendWelcomeEmail(args) {
     if (!(0, emailClient_2.isEmailEnabled)())

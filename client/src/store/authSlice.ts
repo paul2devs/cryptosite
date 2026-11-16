@@ -11,6 +11,8 @@ export interface UserInfo {
   streak: number;
   pending_earnings: unknown;
   is_admin: boolean;
+  /** Mirrors the server-side flag; a session only exists once this is true. */
+  email_verified?: boolean;
   referral_code?: string | null;
   referred_by?: string | null;
 }
@@ -45,6 +47,31 @@ interface AuthResponse {
   user: UserInfo;
   accessToken: string;
   refreshToken: string;
+}
+
+/**
+ * Registration no longer mints a session: the account stays locked until the
+ * emailed verification link is opened. The response only carries the context
+ * the verification screen needs.
+ */
+export interface RegistrationResponse {
+  message: string;
+  user: UserInfo;
+  verification: {
+    required: boolean;
+    /** Masked address, safe to display. */
+    email: string;
+    expiresMinutes: number;
+    resendAvailableAt: string | null;
+  };
+}
+
+/** Structured rejection so callers can branch on the server's error code. */
+export interface AuthThunkError {
+  message: string;
+  code?: string;
+  email?: string;
+  resendAvailableAt?: string | null;
 }
 
 interface StoredTokenPair {
@@ -83,7 +110,7 @@ interface RestoreSessionResult {
 }
 
 export const registerUser = createAsyncThunk<
-  AuthResponse,
+  RegistrationResponse,
   {
     name: string;
     email: string;
@@ -94,7 +121,7 @@ export const registerUser = createAsyncThunk<
   { rejectValue: string }
 >("auth/register", async (payload, thunkApi) => {
   try {
-    const response = await api.post<AuthResponse>("/auth/register", payload);
+    const response = await api.post<RegistrationResponse>("/auth/register", payload);
     return response.data;
   } catch (error: unknown) {
     return thunkApi.rejectWithValue(
@@ -106,15 +133,25 @@ export const registerUser = createAsyncThunk<
 export const loginUser = createAsyncThunk<
   AuthResponse,
   { email: string; password: string },
-  { rejectValue: string }
+  { rejectValue: AuthThunkError }
 >("auth/login", async (payload, thunkApi) => {
   try {
     const response = await api.post<AuthResponse>("/auth/login", payload);
     return response.data;
   } catch (error: unknown) {
-    return thunkApi.rejectWithValue(
-      extractAuthErrorMessage(error, "Unable to log in. Please try again.")
-    );
+    const data = (
+      error as {
+        response?: {
+          data?: { code?: string; email?: string; resendAvailableAt?: string | null };
+        };
+      }
+    )?.response?.data;
+    return thunkApi.rejectWithValue({
+      message: extractAuthErrorMessage(error, "Unable to log in. Please try again."),
+      code: typeof data?.code === "string" ? data.code : undefined,
+      email: typeof data?.email === "string" ? data.email : undefined,
+      resendAvailableAt: data?.resendAvailableAt ?? null
+    });
   }
 });
 
@@ -212,25 +249,12 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(
-        registerUser.fulfilled,
-        (state, action: PayloadAction<AuthResponse>) => {
-          state.loading = false;
-          state.initialized = true;
-          state.sessionUnreachable = false;
-          state.user = action.payload.user;
-          state.accessToken = action.payload.accessToken;
-          state.refreshToken = action.payload.refreshToken;
-          localStorage.setItem(
-            "authTokens",
-            JSON.stringify({
-              accessToken: action.payload.accessToken,
-              refreshToken: action.payload.refreshToken,
-              issuedAt: Date.now()
-            })
-          );
-        }
-      )
+      .addCase(registerUser.fulfilled, (state) => {
+        // Registration does not authenticate: no tokens are issued, so there is
+        // nothing to persist. The user is sent to the verification screen.
+        state.loading = false;
+        state.error = null;
+      })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Registration failed";
@@ -260,7 +284,7 @@ const authSlice = createSlice({
       )
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || "Login failed";
+        state.error = action.payload?.message || "Login failed";
       })
       .addCase(restoreSession.fulfilled, (state, action) => {
         state.loading = false;

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {
   getAllMarketPrices,
+  getMarketDataStatus,
   getMarketPriceForSymbol,
   SupportedSymbol
 } from "../services/marketDataService";
@@ -34,6 +35,19 @@ export async function getMarketPriceForCoin(
     res.status(200).json(point);
   } catch {
     res.status(500).json({ message: "Failed to load price" });
+  }
+}
+
+/**
+ * Operator-facing diagnostics for the pricing pipeline. Restricted to platform
+ * administrators because it exposes the last upstream error.
+ */
+export async function getMarketDataDiagnostics(_req: Request, res: Response): Promise<void> {
+  try {
+    const status = await getMarketDataStatus();
+    res.status(200).json(status);
+  } catch {
+    res.status(500).json({ message: "Failed to load market data status" });
   }
 }
 
