@@ -91,6 +91,11 @@ afterEach(() => {
   }
 });
 
+/**
+ * Mirrors an Esplora `/tx/:txid` answer for a *mined* transfer. Note what is
+ * deliberately absent: Esplora does not return `status.confirmations`, so the
+ * only way to a correct count is `tipHeight - block_height + 1`.
+ */
 function btcRoutes(to: string, sats: number, confirmations: number): MockRoute[] {
   return [
     {
@@ -102,6 +107,39 @@ function btcRoutes(to: string, sats: number, confirmations: number): MockRoute[]
     },
     { match: (url) => url.endsWith("/blocks/tip/height"), respond: () => BTC_TIP }
   ];
+}
+
+/** Mirrors an Esplora answer for a transfer that is still in the mempool. */
+function btcRoutesUnconfirmed(to: string, sats: number): MockRoute[] {
+  return [
+    {
+      match: (url) => url.includes("/tx/"),
+      respond: () => ({
+        status: { confirmed: false },
+        vout: [{ scriptpubkey_address: to, value: sats }]
+      })
+    },
+    { match: (url) => url.endsWith("/blocks/tip/height"), respond: () => BTC_TIP }
+  ];
+}
+
+/**
+ * Stub every side effect an approval triggers and count the wallet credits. The
+ * counter is the observable proof of "credited exactly once".
+ */
+function stubApprovalSideEffects(): { credits: () => number } {
+  stub(sequelize, "transaction", async (callback: any) => callback({ id: "tx-1" }));
+  stub(AdminAuditLog, "create", async () => ({}));
+  stub(Notification, "create", async () => ({}));
+  stub(User, "findByPk", async () => null);
+  stub(activityService, "trackUserActivity", async () => undefined);
+  stub(referralService, "grantReferralRewardsOnApprovedDeposit", async () => undefined);
+  let credits = 0;
+  stub(financialOperations, "recordConfirmedDeposit", async () => {
+    credits += 1;
+    return {};
+  });
+  return { credits: () => credits };
 }
 
 let depositCounter = 0;
@@ -251,6 +289,73 @@ test("admin approval credits the wallet exactly once across repeated approvals",
   const second = await approveDeposit("admin-1", deposit.deposit_id, "again");
   assert.equal(second.credited, false);
   assert.equal(credited, 1);
+});
+
+test("admin approval refuses a Bitcoin transaction that is still unconfirmed", async () => {
+  const deposit = fakeDeposit({
+    tx_hash: "f".repeat(64),
+    detailed_status: "AWAITING_ADMIN_APPROVAL"
+  });
+  stub(Deposit, "findByPk", async () => deposit);
+  stub(Deposit, "findOne", async () => null);
+  const approval = stubApprovalSideEffects();
+  // Esplora: the transfer is in the mempool, so there is no block to count from.
+  routes = btcRoutesUnconfirmed(process.env.BTC_DEPOSIT_ADDRESS!, 50_000_000);
+
+  await assert.rejects(
+    () => approveDeposit("admin-1", deposit.deposit_id, "looks fine"),
+    (error: any) => {
+      assert.equal(error.statusCode, 409);
+      assert.equal(error.code, "VERIFICATION_FAILED");
+      assert.match(String(error.message), /confirmations/i);
+      return true;
+    }
+  );
+  // An unconfirmed transfer must never touch the wallet.
+  assert.equal(approval.credits(), 0);
+  assert.notEqual(deposit.detailed_status, "COMPLETED");
+});
+
+test("admin approval refuses a confirmed Bitcoin transaction below the minimum", async () => {
+  const deposit = fakeDeposit({
+    tx_hash: "f".repeat(64),
+    detailed_status: "AWAITING_ADMIN_APPROVAL"
+  });
+  stub(Deposit, "findByPk", async () => deposit);
+  stub(Deposit, "findOne", async () => null);
+  const approval = stubApprovalSideEffects();
+  // Mined, but only 1 confirmation while the platform requires 2.
+  routes = btcRoutes(process.env.BTC_DEPOSIT_ADDRESS!, 50_000_000, 1);
+
+  await assert.rejects(
+    () => approveDeposit("admin-1", deposit.deposit_id, "looks fine"),
+    (error: any) => {
+      assert.equal(error.statusCode, 409);
+      assert.equal(error.code, "VERIFICATION_FAILED");
+      assert.match(String(error.message), /confirmations/i);
+      return true;
+    }
+  );
+  assert.equal(approval.credits(), 0);
+  assert.notEqual(deposit.detailed_status, "COMPLETED");
+});
+
+test("admin approval credits a Bitcoin transaction that meets the minimum confirmations", async () => {
+  const deposit = fakeDeposit({
+    tx_hash: "f".repeat(64),
+    detailed_status: "AWAITING_ADMIN_APPROVAL"
+  });
+  stub(Deposit, "findByPk", async () => deposit);
+  stub(Deposit, "findOne", async () => null);
+  const approval = stubApprovalSideEffects();
+  // Exactly at the configured minimum (BTC_MIN_CONFIRMATIONS=2).
+  routes = btcRoutes(process.env.BTC_DEPOSIT_ADDRESS!, 50_000_000, 2);
+
+  const outcome = await approveDeposit("admin-1", deposit.deposit_id, "verified");
+  assert.equal(outcome.credited, true);
+  assert.equal(approval.credits(), 1);
+  assert.equal(deposit.detailed_status, "COMPLETED");
+  assert.equal(deposit.confirmation_count, 2);
 });
 
 test("a simultaneous approval cannot bind a transaction already used by another deposit", async () => {

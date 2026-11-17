@@ -68,9 +68,10 @@ async function discoverBitcoin(address, sinceUnixSeconds) {
             continue;
         }
         const blockHeight = Number(status.block_height || 0);
-        const confirmations = status.confirmed === true && tipHeight > 0 && blockHeight > 0
-            ? tipHeight - blockHeight + 1
-            : 0;
+        // Esplora never returns a confirmation count, so it is derived from the tip
+        // with the same shared helper the verifier uses — one formula for the whole
+        // Bitcoin stack, so address discovery and admin approval cannot disagree.
+        const confirmations = status.confirmed === true ? (0, etherscanClient_1.confirmationsForBlock)(tipHeight, blockHeight) : 0;
         transactions.push({
             txHash: String(row.txid || ""),
             amount: sats / 1e8,

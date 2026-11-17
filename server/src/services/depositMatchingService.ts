@@ -15,7 +15,11 @@ import {
 } from "./depositLifecycleService";
 import { getPlatformWallet } from "./walletService";
 import { verifyDepositOnChain } from "./blockchainVerificationService";
-import { etherscanAccountList, resolveEtherscanConfig } from "./etherscanClient";
+import {
+  confirmationsForBlock,
+  etherscanAccountList,
+  resolveEtherscanConfig
+} from "./etherscanClient";
 import {
   fetchBitcoinAddressTransactions,
   fetchSolanaTransaction,
@@ -109,10 +113,11 @@ async function discoverBitcoin(
       continue;
     }
     const blockHeight = Number(status.block_height || 0);
+    // Esplora never returns a confirmation count, so it is derived from the tip
+    // with the same shared helper the verifier uses — one formula for the whole
+    // Bitcoin stack, so address discovery and admin approval cannot disagree.
     const confirmations =
-      status.confirmed === true && tipHeight > 0 && blockHeight > 0
-        ? tipHeight - blockHeight + 1
-        : 0;
+      status.confirmed === true ? confirmationsForBlock(tipHeight, blockHeight) : 0;
     transactions.push({
       txHash: String(row.txid || ""),
       amount: sats / 1e8,
