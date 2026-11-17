@@ -31,12 +31,96 @@ export interface DepositAccountSummary {
   depositRemainingToNext: number | null;
 }
 
+/**
+ * Payment instructions returned by the backend when a pending deposit is
+ * created. The receiving address, the exact amount to send, the unique
+ * reference and the memo capability all come from the server; the client never
+ * derives or invents any of them.
+ */
+export interface DepositPaymentInstructions {
+  reference: string;
+  depositId: string;
+  cryptoType: CryptoType;
+  platformAsset: string;
+  symbol: string;
+  networkLabel: string;
+  networkType: string;
+  receivingAddress: string;
+  amountToSend: number;
+  amountToSendLabel: string;
+  usdAmount: number | null;
+  memo: string | null;
+  memoLabel: string | null;
+  memoRequired: boolean;
+  memoGuidance: string | null;
+  memoSupported: boolean;
+  minConfirmations: number;
+  sendingInstruction: string;
+  networkWarning: string;
+  status: {
+    detailed: string;
+    coarse: string;
+    label: string;
+    tone: string;
+    message: string;
+  };
+  transactionHash: string | null;
+  receivedAmount: number | null;
+  confirmations: number;
+  detectedAt: string | null;
+  verifiedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  approvalRequired: boolean;
+  rejectionReason: string | null;
+}
+
+export interface DepositCreationDiagnostics {
+  reference: string;
+  cryptoType: CryptoType;
+  networkLabel: string;
+  rateVerified: boolean;
+  rateSource: string | null;
+  rateReason: string | null;
+  amountSource: "client" | "server-rate";
+  reusedExisting: boolean;
+  internalNotes: string[];
+}
+
+/** A pending deposit only needs the asset/network and an amount. */
 export interface DepositSubmissionPayload {
   crypto_type: CryptoType;
+  amount?: number | null;
+  usd_amount?: number | null;
+  memo?: string | null;
+}
+
+export interface CreatedDeposit {
+  deposit: DepositRecord;
+  instructions: DepositPaymentInstructions;
+  diagnostics: DepositCreationDiagnostics;
+}
+
+export interface DepositVerificationSummary {
+  success: boolean;
+  stage: string;
   amount: number;
-  tx_hash: string;
-  /** USD value the user entered; re-validated against the backend rate. */
-  usd_amount: number;
+  toAddress: string;
+  confirmations: number;
+  failureReason?: string | null;
+}
+
+export interface TransactionSubmissionResult {
+  deposit: DepositRecord;
+  instructions: DepositPaymentInstructions;
+  verification: DepositVerificationSummary | null;
+  message: string;
+}
+
+export interface DepositRescanResult {
+  deposit: DepositRecord;
+  instructions: DepositPaymentInstructions | null;
+  outcome: unknown;
 }
 
 interface XpLevelResponse {
@@ -61,7 +145,11 @@ export interface DepositData {
   accountError: string | null;
   depositsError: string | null;
   submitting: boolean;
-  submitDeposit: (payload: DepositSubmissionPayload) => Promise<DepositRecord>;
+  submittingTransaction: boolean;
+  createDeposit: (payload: DepositSubmissionPayload) => Promise<CreatedDeposit>;
+  submitTransaction: (reference: string, txHash: string) => Promise<TransactionSubmissionResult>;
+  rescanDeposit: (reference: string) => Promise<DepositRescanResult>;
+  refreshDeposit: (reference: string) => Promise<DepositRecord | null>;
   refresh: () => void;
 }
 
@@ -92,6 +180,18 @@ function toAccountSummary(raw: XpLevelResponse): DepositAccountSummary {
   };
 }
 
+/**
+ * A per-attempt idempotency key. It is stable for one user action so a
+ * double-click or an automatic retry reuses the same pending deposit instead of
+ * creating a second one.
+ */
+function newIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `dep-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export function useDepositData(): DepositData {
   const [addresses, setAddresses] = useState<DepositAddress[]>([]);
   const [deposits, setDeposits] = useState<DepositRecord[]>([]);
@@ -103,6 +203,7 @@ export function useDepositData(): DepositData {
   const [accountError, setAccountError] = useState<string | null>(null);
   const [depositsError, setDepositsError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submittingTransaction, setSubmittingTransaction] = useState(false);
   const configLoaded = useRef(false);
 
   const loadConfig = useCallback(async () => {
@@ -179,21 +280,80 @@ export function useDepositData(): DepositData {
     void loadDeposits();
   }, [loadConfig, loadDeposits]);
 
-  const submitDeposit = useCallback(
+  const upsertDeposit = useCallback((deposit: DepositRecord) => {
+    setDeposits((previous) => {
+      const without = previous.filter((item) => item.deposit_id !== deposit.deposit_id);
+      return [deposit, ...without];
+    });
+  }, []);
+
+  const createDeposit = useCallback(
     async (payload: DepositSubmissionPayload) => {
       setSubmitting(true);
       try {
-        const response = await api.post<DepositRecord>("/deposits", payload);
-        const created = response.data;
-        setDeposits((previous) => [created, ...previous]);
+        const response = await api.post<CreatedDeposit>("/deposits", payload, {
+          headers: { "idempotency-key": newIdempotencyKey() }
+        });
+        upsertDeposit(response.data.deposit);
         void loadConfig();
         void loadDeposits();
-        return created;
+        return response.data;
       } finally {
         setSubmitting(false);
       }
     },
-    [loadConfig, loadDeposits]
+    [loadConfig, loadDeposits, upsertDeposit]
+  );
+
+  const submitTransaction = useCallback(
+    async (reference: string, txHash: string) => {
+      setSubmittingTransaction(true);
+      try {
+        const response = await api.post<TransactionSubmissionResult>(
+          `/deposits/${encodeURIComponent(reference)}/transaction`,
+          { tx_hash: txHash }
+        );
+        upsertDeposit(response.data.deposit);
+        void loadDeposits();
+        return response.data;
+      } finally {
+        setSubmittingTransaction(false);
+      }
+    },
+    [loadDeposits, upsertDeposit]
+  );
+
+  const rescanDeposit = useCallback(
+    async (reference: string) => {
+      setSubmittingTransaction(true);
+      try {
+        const response = await api.post<DepositRescanResult>(
+          `/deposits/${encodeURIComponent(reference)}/rescan`,
+          {}
+        );
+        upsertDeposit(response.data.deposit);
+        return response.data;
+      } finally {
+        setSubmittingTransaction(false);
+      }
+    },
+    [upsertDeposit]
+  );
+
+  const refreshDeposit = useCallback(
+    async (reference: string) => {
+      try {
+        const response = await api.get<{
+          deposit: DepositRecord;
+          instructions: DepositPaymentInstructions;
+        }>(`/deposits/${encodeURIComponent(reference)}`);
+        upsertDeposit(response.data.deposit);
+        return response.data.deposit;
+      } catch {
+        return null;
+      }
+    },
+    [upsertDeposit]
   );
 
   return {
@@ -207,7 +367,11 @@ export function useDepositData(): DepositData {
     accountError,
     depositsError,
     submitting,
-    submitDeposit,
+    submittingTransaction,
+    createDeposit,
+    submitTransaction,
+    rescanDeposit,
+    refreshDeposit,
     refresh
   };
 }

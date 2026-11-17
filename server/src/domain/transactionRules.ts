@@ -60,6 +60,7 @@ const EXPLORERS: Record<string, string> = {
   BTC: "https://blockchain.com/btc/tx/",
   BITCOIN: "https://blockchain.com/btc/tx/",
   ETH: "https://etherscan.io/tx/",
+  ETHEREUM: "https://etherscan.io/tx/",
   ERC20: "https://etherscan.io/tx/",
   USDT_ERC20: "https://etherscan.io/tx/",
   BNB: "https://bscscan.com/tx/",

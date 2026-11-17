@@ -2,10 +2,11 @@ import { ProgressBar, type Tone } from "../dashboard/primitives";
 import { requiredConfirmations, isCryptoType } from "../../utils/deposit";
 
 function toneForStatus(status: string): Tone {
-  if (status === "Approved") {
+  const detailed = status.trim().toUpperCase();
+  if (detailed === "COMPLETED" || status === "Approved") {
     return "positive";
   }
-  if (status === "Rejected") {
+  if (detailed === "REJECTED" || detailed === "EXPIRED" || detailed === "FAILED" || status === "Rejected") {
     return "negative";
   }
   return "gold";

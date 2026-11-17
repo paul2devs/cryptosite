@@ -53,6 +53,7 @@ const aiPersonalization_1 = require("./cron/aiPersonalization");
 const churnDetection_1 = require("./cron/churnDetection");
 const bonusOptimization_1 = require("./cron/bonusOptimization");
 const fraudSweep_1 = require("./cron/fraudSweep");
+const depositMonitor_1 = require("./cron/depositMonitor");
 const port = Number(process.env.PORT || 4000);
 (0, errorHandler_1.registerProcessHandlers)();
 (0, app_1.startApp)()
@@ -71,6 +72,7 @@ const port = Number(process.env.PORT || 4000);
     (0, churnDetection_1.scheduleChurnDetection)();
     (0, aiPersonalization_1.scheduleAIPersonalization)();
     (0, fraudSweep_1.scheduleFraudSweep)();
+    (0, depositMonitor_1.scheduleDepositMonitor)();
     server.listen(port, () => {
         // eslint-disable-next-line no-console
         console.log(`Server running on http://localhost:${port}`);

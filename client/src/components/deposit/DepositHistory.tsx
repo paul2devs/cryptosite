@@ -69,7 +69,7 @@ export function DepositHistory({
           return true;
         }
         const haystack = [
-          depositReference(deposit.deposit_id),
+          depositReference(deposit),
           deposit.tx_hash ?? "",
           deposit.crypto_type,
           deposit.network ?? "",

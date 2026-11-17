@@ -35,8 +35,8 @@ export function DepositHistoryTable({
 
       <div className="space-y-2">
         {deposits.map((deposit) => {
-          const status = describeDepositStatus(deposit.status);
-          const reference = depositReference(deposit.deposit_id);
+          const status = describeDepositStatus(deposit.detailed_status || deposit.status);
+          const reference = depositReference(deposit);
           const isSelected = deposit.deposit_id === selectedId;
           return (
             <button

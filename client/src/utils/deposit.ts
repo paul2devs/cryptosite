@@ -169,24 +169,102 @@ export function cryptoTypeFromAssetParam(param: string | null): CryptoType | nul
   return isCryptoType(normalized) ? normalized : null;
 }
 
+export type DepositDetailedStatus =
+  | "PENDING"
+  | "DETECTED"
+  | "CONFIRMING"
+  | "AWAITING_ADMIN_APPROVAL"
+  | "COMPLETED"
+  | "REJECTED"
+  | "EXPIRED"
+  | "FAILED";
+
 export interface DepositStatusView {
   label: string;
   tone: DepositTone;
+  message: string;
 }
 
+/** Mirrors the backend status vocabulary, including the exact user-facing copy. */
+const DEPOSIT_STATUS_VIEWS: Record<DepositDetailedStatus, DepositStatusView> = {
+  PENDING: {
+    label: "Waiting for payment",
+    tone: "gold",
+    message: "Waiting for your crypto transfer to arrive."
+  },
+  DETECTED: {
+    label: "Transaction detected",
+    tone: "gold",
+    message: "We've detected your transaction and are checking its confirmations."
+  },
+  CONFIRMING: {
+    label: "Confirming",
+    tone: "gold",
+    message: "Your transaction is being confirmed on the blockchain."
+  },
+  AWAITING_ADMIN_APPROVAL: {
+    label: "Awaiting approval",
+    tone: "gold",
+    message:
+      "We've verified your transaction on the blockchain. It is now awaiting administrator approval before your wallet is credited."
+  },
+  COMPLETED: {
+    label: "Completed",
+    tone: "positive",
+    message: "Your crypto deposit has been confirmed successfully."
+  },
+  REJECTED: {
+    label: "Rejected",
+    tone: "negative",
+    message:
+      "This deposit was rejected by an administrator. Quote your deposit reference to support if you believe this decision is incorrect."
+  },
+  EXPIRED: {
+    label: "Expired",
+    tone: "negative",
+    message:
+      "This deposit request expired before a matching transfer was detected. Quote your deposit reference to support if you already sent funds."
+  },
+  FAILED: {
+    label: "Failed",
+    tone: "negative",
+    message:
+      "This deposit could not be verified. Quote your deposit reference to support and we will reconcile it manually."
+  }
+};
+
+function isDetailedStatus(value: string): value is DepositDetailedStatus {
+  return Object.prototype.hasOwnProperty.call(DEPOSIT_STATUS_VIEWS, value);
+}
+
+/**
+ * Resolve the status view for either a detailed or a legacy coarse status.
+ * Unknown values fall back to the pending state so a deposit is never shown as
+ * completed unless the backend says so.
+ */
 export function describeDepositStatus(status: string): DepositStatusView {
+  const upper = typeof status === "string" ? status.trim().toUpperCase() : "";
+  if (isDetailedStatus(upper)) {
+    return DEPOSIT_STATUS_VIEWS[upper];
+  }
   if (status === "Approved") {
-    return { label: "Confirmed", tone: "positive" };
+    return DEPOSIT_STATUS_VIEWS.COMPLETED;
   }
   if (status === "Rejected") {
-    return { label: "Rejected", tone: "negative" };
+    return DEPOSIT_STATUS_VIEWS.REJECTED;
   }
-  return { label: "Pending", tone: "gold" };
+  return DEPOSIT_STATUS_VIEWS.PENDING;
 }
 
-export function depositReference(depositId: string): string {
-  const compact = depositId.replace(/-/g, "").toUpperCase();
-  return `DEP-${compact.slice(0, 12)}`;
+/**
+ * The backend-generated reference for a deposit. It is never derived on the
+ * client, so users always quote the same identifier the platform stores.
+ */
+export function depositReference(deposit: {
+  reference?: string | null;
+  deposit_id: string;
+}): string {
+  return deposit.reference && deposit.reference.length > 0 ? deposit.reference : "-";
 }
 
 export function countDecimalPlaces(value: string): number {

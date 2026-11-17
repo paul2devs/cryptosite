@@ -7,6 +7,8 @@ export type UserActivityType =
   | "logout"
   | "deposit"
   | "deposit_confirmed"
+  | "deposit_submitted"
+  | "deposit_rejected"
   | "withdrawal"
   | "withdrawal_reviewed"
   | "notification_click"

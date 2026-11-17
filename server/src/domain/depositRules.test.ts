@@ -9,6 +9,7 @@ import {
   normalizeTxHash,
   resolveDepositNetwork,
   resolvePlatformAsset,
+  validateDepositIntent,
   validateDepositSubmission
 } from "./depositRules";
 
@@ -161,21 +162,89 @@ test("enforces the asset decimal precision on both ends", () => {
   );
 });
 
+test("validates a deposit intent without requiring a transaction hash", () => {
+  const valid = validateDepositIntent({
+    cryptoType: "BTC",
+    cryptoAmount: 0.25,
+    usdAmount: 15000
+  });
+  assert.equal(valid.valid, true);
+  assert.deepEqual(valid.errors, []);
+  assert.equal(valid.numericCryptoAmount, 0.25);
+  assert.equal(valid.numericUsdAmount, 15000);
+
+  const usdOnly = validateDepositIntent({
+    cryptoType: "TRC20",
+    cryptoAmount: null,
+    usdAmount: 100
+  });
+  assert.equal(usdOnly.valid, true);
+  assert.equal(usdOnly.numericCryptoAmount, null);
+
+  const noAmount = validateDepositIntent({
+    cryptoType: "ETH",
+    cryptoAmount: null,
+    usdAmount: null
+  });
+  assert.equal(noAmount.valid, false);
+  assert.ok(noAmount.errors.includes("Enter a deposit amount."));
+
+  const unsupported = validateDepositIntent({
+    cryptoType: "USDT",
+    cryptoAmount: 10,
+    usdAmount: null
+  });
+  assert.equal(unsupported.valid, false);
+  assert.ok(
+    unsupported.errors.includes(
+      "Select a supported asset and network before creating a deposit."
+    )
+  );
+
+  const nonPositive = validateDepositIntent({
+    cryptoType: "SOL",
+    cryptoAmount: 0,
+    usdAmount: null
+  });
+  assert.equal(nonPositive.valid, false);
+
+  const tooPrecise = validateDepositIntent({
+    cryptoType: "TRC20",
+    cryptoAmount: 1.2345678,
+    usdAmount: null
+  });
+  assert.equal(tooPrecise.valid, false);
+  assert.ok(
+    tooPrecise.errors.includes("Amount supports at most 6 decimal places for this asset.")
+  );
+});
+
 test("describes deposit statuses with the correct label and tone", () => {
-  assert.deepEqual(describeDepositStatus("Pending"), {
-    label: "Pending",
-    tone: "gold"
-  });
-  assert.deepEqual(describeDepositStatus("Approved"), {
-    label: "Confirmed",
-    tone: "positive"
-  });
-  assert.deepEqual(describeDepositStatus("Rejected"), {
-    label: "Rejected",
-    tone: "negative"
-  });
-  assert.deepEqual(describeDepositStatus("AnythingElse"), {
-    label: "Pending",
-    tone: "gold"
-  });
+  assert.deepEqual(
+    { label: describeDepositStatus("Pending").label, tone: describeDepositStatus("Pending").tone },
+    { label: "Waiting for payment", tone: "gold" }
+  );
+  assert.equal(
+    describeDepositStatus("Pending").message,
+    "Waiting for your crypto transfer to arrive."
+  );
+  assert.deepEqual(
+    {
+      label: describeDepositStatus("Approved").label,
+      tone: describeDepositStatus("Approved").tone
+    },
+    { label: "Completed", tone: "positive" }
+  );
+  assert.deepEqual(
+    {
+      label: describeDepositStatus("Rejected").label,
+      tone: describeDepositStatus("Rejected").tone
+    },
+    { label: "Rejected", tone: "negative" }
+  );
+  assert.equal(describeDepositStatus("AnythingElse").label, "Waiting for payment");
+  assert.equal(
+    describeDepositStatus("AWAITING_ADMIN_APPROVAL").label,
+    "Awaiting approval"
+  );
 });

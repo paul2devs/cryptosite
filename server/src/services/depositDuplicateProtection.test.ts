@@ -1,0 +1,284 @@
+import assert from "assert";
+import { after, afterEach, before, beforeEach, test } from "node:test";
+import axios from "axios";
+import { UniqueConstraintError, ValidationErrorItem } from "sequelize";
+
+/**
+ * Deterministic platform configuration. All readers in the deposit stack read
+ * `process.env` lazily, so pinning them here (before any call) is sufficient.
+ */
+process.env.BLOCKCHAIN_VERIFICATION_ENABLED = "true";
+process.env.BTC_DEPOSIT_ADDRESS = "bc1qg626afhea5ysw9a470c0ewa3dyapw0avff4em6";
+process.env.BTC_BLOCKCHAIN_API_BASE = "https://blockstream.info/api";
+process.env.BTC_MIN_CONFIRMATIONS = "2";
+
+import {
+  DepositCreationError,
+  approveDeposit,
+  submitDepositTransactionHash
+} from "./depositLifecycleService";
+import { resetPlatformWalletCache } from "./walletService";
+
+/**
+ * The models, the Sequelize instance and the side-effect services are resolved
+ * through `require` so their live module objects can be swapped out. The deposit
+ * service reads these as stable singleton references, so patching the property
+ * on the module object is what actually intercepts the call.
+ */
+let Deposit: any;
+let AdminAuditLog: any;
+let Notification: any;
+let User: any;
+let sequelize: any;
+let activityService: any;
+let financialOperations: any;
+let referralService: any;
+
+before(() => {
+  Deposit = require("../models/Deposit").Deposit;
+  AdminAuditLog = require("../models/AdminAuditLog").AdminAuditLog;
+  Notification = require("../models/Notification").Notification;
+  User = require("../models/User").User;
+  sequelize = require("../config/database").sequelize;
+  activityService = require("./activityService");
+  financialOperations = require("./financialOperationsService");
+  referralService = require("./referralService");
+});
+
+const restorers: Array<() => void> = [];
+
+function stub(target: any, key: string, impl: (...args: any[]) => any): void {
+  const original = target[key];
+  target[key] = impl;
+  restorers.push(() => {
+    target[key] = original;
+  });
+}
+
+const BTC_TIP = 800_000;
+
+interface MockRoute {
+  match: (url: string) => boolean;
+  respond: () => unknown;
+}
+
+let routes: MockRoute[] = [];
+
+const originalGet = axios.get;
+
+before(() => {
+  (axios as any).get = async (url: string) => {
+    const route = routes.find((candidate) => candidate.match(url));
+    if (!route) {
+      throw new Error(`no mock route for GET ${url}`);
+    }
+    return { data: route.respond() };
+  };
+});
+
+after(() => {
+  (axios as any).get = originalGet;
+});
+
+beforeEach(() => {
+  routes = [];
+  resetPlatformWalletCache();
+});
+
+afterEach(() => {
+  while (restorers.length > 0) {
+    restorers.pop()!();
+  }
+});
+
+function btcRoutes(to: string, sats: number, confirmations: number): MockRoute[] {
+  return [
+    {
+      match: (url) => url.includes("/tx/"),
+      respond: () => ({
+        status: { confirmed: true, block_height: BTC_TIP - confirmations + 1 },
+        vout: [{ scriptpubkey_address: to, value: sats }]
+      })
+    },
+    { match: (url) => url.endsWith("/blocks/tip/height"), respond: () => BTC_TIP }
+  ];
+}
+
+let depositCounter = 0;
+
+function fakeDeposit(overrides: Record<string, unknown> = {}): any {
+  depositCounter += 1;
+  return {
+    deposit_id: `dep-${depositCounter}`,
+    user_id: "user-1",
+    reference: "NX-7K29P4Q8",
+    crypto_type: "BTC",
+    amount: 0.5,
+    tx_hash: null,
+    received_amount: null,
+    confirmation_count: 0,
+    verification_result: null,
+    network: "Bitcoin",
+    deposit_wallet: null,
+    detected_at: null,
+    verified_at: null,
+    reviewed_by: null,
+    reviewed_at: null,
+    approved_at: null,
+    confirmed_at: null,
+    detailed_status: "PENDING",
+    status: "Pending",
+    save: async () => undefined,
+    ...overrides
+  };
+}
+
+function uniqueViolation() {
+  return new UniqueConstraintError({
+    fields: { tx_hash: "f".repeat(64) },
+    errors: [
+      {
+        message: 'duplicate key value violates unique constraint "deposits_tx_hash_unique"'
+      } as unknown as ValidationErrorItem
+    ]
+  });
+}
+
+test("a transaction hash already attached to another deposit is rejected with 409", async () => {
+  const deposit = fakeDeposit();
+  let lookups = 0;
+  stub(Deposit, "findOne", async () => {
+    lookups += 1;
+    return lookups === 1 ? deposit : { deposit_id: "dep-other" };
+  });
+
+  await assert.rejects(
+    () =>
+      submitDepositTransactionHash({
+        userId: "user-1",
+        reference: "NX-7K29P4Q8",
+        txHash: "f".repeat(64)
+      }),
+    (error: any) => {
+      assert.ok(error instanceof DepositCreationError);
+      assert.equal(error.statusCode, 409);
+      assert.equal(error.code, "TRANSACTION_ALREADY_USED");
+      return true;
+    }
+  );
+});
+
+test("simultaneous duplicate submissions are stopped by the unique index and return 409", async () => {
+  const deposit = fakeDeposit();
+  // Neither request sees the other during the pre-check: the race is real.
+  let lookups = 0;
+  stub(Deposit, "findOne", async () => {
+    lookups += 1;
+    return lookups === 1 ? deposit : null;
+  });
+  stub(Deposit, "findByPk", async () => deposit);
+  stub(sequelize, "transaction", async (callback: any) => callback({ id: "tx-1" }));
+  deposit.save = async () => {
+    throw uniqueViolation();
+  };
+  routes = btcRoutes(process.env.BTC_DEPOSIT_ADDRESS!, 50_000_000, 3);
+
+  await assert.rejects(
+    () =>
+      submitDepositTransactionHash({
+        userId: "user-1",
+        reference: "NX-7K29P4Q8",
+        txHash: "f".repeat(64)
+      }),
+    (error: any) => {
+      assert.equal(error.statusCode, 409);
+      assert.equal(error.code, "TRANSACTION_ALREADY_USED");
+      return true;
+    }
+  );
+});
+
+test("admin approval independently re-verifies and refuses a mismatched transaction", async () => {
+  const deposit = fakeDeposit({
+    tx_hash: "f".repeat(64),
+    detailed_status: "AWAITING_ADMIN_APPROVAL"
+  });
+  stub(Deposit, "findByPk", async () => deposit);
+  stub(Deposit, "findOne", async () => null);
+  let credited = 0;
+  stub(financialOperations, "recordConfirmedDeposit", async () => {
+    credited += 1;
+  });
+  // On-chain the transfer went to somebody else.
+  routes = btcRoutes("bc1qsomeoneelse000000000000000000000000000", 50_000_000, 3);
+
+  await assert.rejects(
+    () => approveDeposit("admin-1", deposit.deposit_id, "looks fine"),
+    (error: any) => {
+      assert.equal(error.statusCode, 409);
+      assert.equal(error.code, "VERIFICATION_FAILED");
+      return true;
+    }
+  );
+  assert.equal(credited, 0);
+});
+
+test("admin approval credits the wallet exactly once across repeated approvals", async () => {
+  const deposit = fakeDeposit({
+    tx_hash: "f".repeat(64),
+    detailed_status: "AWAITING_ADMIN_APPROVAL"
+  });
+  stub(Deposit, "findByPk", async () => deposit);
+  stub(Deposit, "findOne", async () => null);
+  stub(sequelize, "transaction", async (callback: any) => callback({ id: "tx-1" }));
+  stub(AdminAuditLog, "create", async () => ({}));
+  stub(Notification, "create", async () => ({}));
+  stub(User, "findByPk", async () => null);
+  stub(activityService, "trackUserActivity", async () => undefined);
+  stub(referralService, "grantReferralRewardsOnApprovedDeposit", async () => undefined);
+  let credited = 0;
+  stub(financialOperations, "recordConfirmedDeposit", async () => {
+    credited += 1;
+    return {};
+  });
+  routes = btcRoutes(process.env.BTC_DEPOSIT_ADDRESS!, 50_000_000, 3);
+
+  const first = await approveDeposit("admin-1", deposit.deposit_id, "verified");
+  assert.equal(first.credited, true);
+  assert.equal(credited, 1);
+  assert.equal(deposit.detailed_status, "COMPLETED");
+
+  const second = await approveDeposit("admin-1", deposit.deposit_id, "again");
+  assert.equal(second.credited, false);
+  assert.equal(credited, 1);
+});
+
+test("a simultaneous approval cannot bind a transaction already used by another deposit", async () => {
+  const deposit = fakeDeposit({
+    tx_hash: "f".repeat(64),
+    detailed_status: "AWAITING_ADMIN_APPROVAL"
+  });
+  stub(Deposit, "findByPk", async () => deposit);
+  // The other deposit grabbed the same hash between the pre-check and the lock.
+  let lookups = 0;
+  stub(Deposit, "findOne", async () => {
+    lookups += 1;
+    return lookups === 1 ? null : { deposit_id: "dep-other" };
+  });
+  stub(sequelize, "transaction", async (callback: any) => callback({ id: "tx-1" }));
+  let credited = 0;
+  stub(financialOperations, "recordConfirmedDeposit", async () => {
+    credited += 1;
+  });
+  routes = btcRoutes(process.env.BTC_DEPOSIT_ADDRESS!, 50_000_000, 3);
+
+  await assert.rejects(
+    () => approveDeposit("admin-1", deposit.deposit_id, "verified"),
+    (error: any) => {
+      assert.equal(error.statusCode, 409);
+      assert.equal(error.code, "TRANSACTION_ALREADY_USED");
+      return true;
+    }
+  );
+  assert.equal(credited, 0);
+});

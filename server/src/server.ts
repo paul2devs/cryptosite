@@ -15,6 +15,7 @@ import { scheduleAIPersonalization } from "./cron/aiPersonalization";
 import { scheduleChurnDetection } from "./cron/churnDetection";
 import { scheduleBonusOptimization } from "./cron/bonusOptimization";
 import { scheduleFraudSweep } from "./cron/fraudSweep";
+import { scheduleDepositMonitor } from "./cron/depositMonitor";
 
 const port = Number(process.env.PORT || 4000);
 
@@ -36,6 +37,7 @@ startApp()
     scheduleChurnDetection();
     scheduleAIPersonalization();
     scheduleFraudSweep();
+    scheduleDepositMonitor();
     server.listen(port, () => {
       // eslint-disable-next-line no-console
       console.log(`Server running on http://localhost:${port}`);

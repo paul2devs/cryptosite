@@ -1,5 +1,6 @@
-import { DataTypes, Sequelize } from "sequelize";
+import { DataTypes, QueryTypes, Sequelize } from "sequelize";
 import { requireEnv } from "./env";
+import { generateDepositReference } from "../domain/depositReference";
 
 const databaseUrl = requireEnv("DATABASE_URL");
 
@@ -37,6 +38,7 @@ export async function initDatabase(): Promise<void> {
     await sequelize.sync({ alter: shouldAlter });
     await reconcileUsersSchema({ backfillEmailVerified: !usersHadEmailVerified });
     await reconcileWithdrawalsSchema();
+    await reconcileDepositsSchema();
     await reconcileMembershipSchema();
     await reconcileInvestmentLevelSchema();
     dbOk = true;
@@ -179,6 +181,237 @@ async function reconcileWithdrawalsSchema(): Promise<void> {
   }
 }
 
+/**
+ * Bring the `deposits` table in line with the crypto deposit model without
+ * dropping or resetting anything:
+ *
+ *  - add the unique deposit `reference` (NX-XXXXXXXX) used to identify a request,
+ *  - add the memo/destination-tag, received-amount and fine-grained status
+ *    columns used by the deposit verification lifecycle,
+ *  - add the `idempotency_key` used to make deposit creation safe against
+ *    double-clicks and retries,
+ *  - backfill references for existing rows and reconcile legacy coarse statuses
+ *    onto the detailed status model.
+ */
+async function reconcileDepositsSchema(): Promise<void> {
+  const queryInterface = sequelize.getQueryInterface();
+  let definition: Record<string, unknown>;
+  try {
+    definition = await queryInterface.describeTable("deposits");
+  } catch {
+    return;
+  }
+
+  if (!("reference" in definition)) {
+    await queryInterface.addColumn("deposits", "reference", {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("usd_amount" in definition)) {
+    await queryInterface.addColumn("deposits", "usd_amount", {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("memo" in definition)) {
+    await queryInterface.addColumn("deposits", "memo", {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("memo_label" in definition)) {
+    await queryInterface.addColumn("deposits", "memo_label", {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("memo_required" in definition)) {
+    await queryInterface.addColumn("deposits", "memo_required", {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    });
+  }
+  if (!("received_amount" in definition)) {
+    await queryInterface.addColumn("deposits", "received_amount", {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("detailed_status" in definition)) {
+    await queryInterface.addColumn("deposits", "detailed_status", {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "PENDING"
+    });
+  }
+  if (!("idempotency_key" in definition)) {
+    await queryInterface.addColumn("deposits", "idempotency_key", {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("detected_at" in definition)) {
+    await queryInterface.addColumn("deposits", "detected_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("verified_at" in definition)) {
+    await queryInterface.addColumn("deposits", "verified_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("expires_at" in definition)) {
+    await queryInterface.addColumn("deposits", "expires_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("reviewed_by" in definition)) {
+    await queryInterface.addColumn("deposits", "reviewed_by", {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("reviewed_at" in definition)) {
+    await queryInterface.addColumn("deposits", "reviewed_at", {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+  if (!("rejection_reason" in definition)) {
+    await queryInterface.addColumn("deposits", "rejection_reason", {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null
+    });
+  }
+
+  // Ensure the uniqueness guarantees exist even when `sequelize.sync` created
+  // the columns first. Both indexes tolerate multiple NULLs, so legacy rows stay
+  // valid until they are backfilled below.
+  try {
+    await queryInterface.addIndex("deposits", ["reference"], {
+      unique: true,
+      name: "deposits_reference_unique"
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(
+      "[database] deposits_reference_unique could not be created:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+  try {
+    await queryInterface.addIndex("deposits", ["idempotency_key"], {
+      unique: true,
+      name: "deposits_idempotency_key_unique"
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(
+      "[database] deposits_idempotency_key_unique could not be created:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+
+  // One on-chain transaction may fund at most one deposit. This index is the
+  // database-level authority behind the application's duplicate-hash checks, so
+  // its creation is verified rather than assumed.
+  await ensureDepositsTxHashUniqueIndex();
+
+  // Backfill a unique, never-reused reference for every pre-existing deposit.
+  const unreferenced = await sequelize.query<{ deposit_id: string }>(
+    "SELECT deposit_id FROM deposits WHERE reference IS NULL",
+    { type: QueryTypes.SELECT }
+  );
+  for (const row of unreferenced) {
+    await sequelize.query(
+      "UPDATE deposits SET reference = :reference WHERE deposit_id = :depositId AND reference IS NULL",
+      { replacements: { reference: generateDepositReference(), depositId: row.deposit_id } }
+    );
+  }
+
+  // Reconcile coarse legacy statuses onto the detailed status model exactly
+  // once, so historical approved/rejected deposits report the right step.
+  await sequelize.query(
+    "UPDATE deposits SET detailed_status = 'COMPLETED' WHERE status = 'Approved' AND detailed_status = 'PENDING'"
+  );
+  await sequelize.query(
+    "UPDATE deposits SET detailed_status = 'FAILED' WHERE status = 'Rejected' AND detailed_status = 'PENDING'"
+  );
+}
+
+/**
+ * Whether the partial unique index guarding `deposits(tx_hash)` currently
+ * exists. Used at startup and by operational checks: the database must be the
+ * final authority that stops one on-chain transaction funding two deposits.
+ */
+export async function hasDepositsTxHashUniqueIndex(): Promise<boolean> {
+  const rows = await sequelize.query<{ indexname: string }>(
+    "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'deposits' AND indexname = 'deposits_tx_hash_unique'",
+    { type: QueryTypes.SELECT }
+  );
+  return rows.length > 0;
+}
+
+/**
+ * Create the partial unique index on `deposits(tx_hash)` and verify it landed.
+ *
+ * Failures are never swallowed: a duplicate-key violation from pre-existing
+ * data is reported loudly (an operator must deduplicate before the database can
+ * enforce the rule) while any other failure aborts startup so the platform
+ * never runs believing a guarantee exists when it does not.
+ */
+async function ensureDepositsTxHashUniqueIndex(): Promise<void> {
+  if (await hasDepositsTxHashUniqueIndex()) {
+    return;
+  }
+
+  try {
+    await sequelize.query(
+      "CREATE UNIQUE INDEX IF NOT EXISTS deposits_tx_hash_unique ON deposits (tx_hash) WHERE tx_hash IS NOT NULL"
+    );
+  } catch (error) {
+    const sqlState =
+      (error as { original?: { code?: string } })?.original?.code ||
+      (error as { parent?: { code?: string } })?.parent?.code;
+    if (sqlState === "23505") {
+      // eslint-disable-next-line no-console
+      console.error(
+        "[database] deposits_tx_hash_unique could NOT be created because existing rows share a tx_hash. " +
+          "Deduplicate those deposits; until then duplicate protection only holds at the application layer."
+      );
+      return;
+    }
+    throw new Error(
+      `Failed to create deposits_tx_hash_unique: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
+  if (!(await hasDepositsTxHashUniqueIndex())) {
+    throw new Error(
+      "deposits_tx_hash_unique is missing after creation; duplicate transaction protection is not enforced by the database."
+    );
+  }
+}
+
 async function reconcileMembershipSchema(): Promise<void> {
   const queryInterface = sequelize.getQueryInterface();
   let membershipColumns: Record<string, unknown>;
@@ -189,7 +422,6 @@ async function reconcileMembershipSchema(): Promise<void> {
   } catch {
     return;
   }
-
   if (!("manual_tier_id" in membershipColumns)) {
     await queryInterface.addColumn("user_memberships", "manual_tier_id", {
       type: DataTypes.UUID,

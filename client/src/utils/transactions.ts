@@ -2,22 +2,51 @@ import { api } from "./api";
 
 export type TransactionTone = "neutral" | "positive" | "negative" | "gold";
 
+/** Detailed deposit status as returned by the backend lifecycle. */
+export type DepositDetailedStatus =
+  | "PENDING"
+  | "DETECTED"
+  | "CONFIRMING"
+  | "AWAITING_ADMIN_APPROVAL"
+  | "COMPLETED"
+  | "REJECTED"
+  | "EXPIRED"
+  | "FAILED";
+
+export interface DepositStatusView {
+  label: string;
+  tone: TransactionTone;
+  message: string;
+}
+
 export interface DepositRecord {
   deposit_id: string;
+  /** Unique, backend-generated reference shown on the payment screen (e.g. NX-7K29P4Q8). */
+  reference: string | null;
   user_id: string;
   crypto_type: string;
   amount: number;
+  usd_amount: number | null;
   tx_hash: string | null;
   network: string | null;
   deposit_wallet: string | null;
+  memo: string | null;
+  memo_label: string | null;
+  memo_required: boolean;
+  received_amount: number | null;
   confirmation_count: number;
-  confirmed_at: string | null;
+  detailed_status: DepositDetailedStatus | string;
   status: string;
-  multiplier: number;
-  pending_earning: number;
-  timestamp: string;
+  status_view: DepositStatusView;
+  approval_required: boolean;
+  rejection_reason: string | null;
+  reviewed_at: string | null;
+  detected_at: string | null;
+  verified_at: string | null;
+  expires_at: string | null;
+  confirmed_at: string | null;
   approved_at: string | null;
-  total_earned: number;
+  timestamp: string;
 }
 
 export interface WithdrawalRecord {
@@ -64,14 +93,37 @@ const WITHDRAWAL_STATUS: Record<string, StatusDescriptor> = {
   rejected: { label: "Rejected", tone: "negative" }
 };
 
+const DEPOSIT_STATUS_LABEL: Record<string, StatusDescriptor> = {
+  PENDING: { label: "Waiting for payment", tone: "gold" },
+  DETECTED: { label: "Transaction detected", tone: "gold" },
+  CONFIRMING: { label: "Confirming", tone: "gold" },
+  AWAITING_ADMIN_APPROVAL: { label: "Awaiting approval", tone: "gold" },
+  COMPLETED: { label: "Completed", tone: "positive" },
+  REJECTED: { label: "Rejected", tone: "negative" },
+  EXPIRED: { label: "Expired", tone: "negative" },
+  FAILED: { label: "Failed", tone: "negative" }
+};
+
+/**
+ * Resolve the display status for a deposit. The backend sends a `status_view`
+ * (label + tone + message) so the vocabulary is never duplicated; the detailed
+ * and coarse statuses are the fallback for older rows.
+ */
 function describeDeposit(deposit: DepositRecord): StatusDescriptor {
+  if (deposit.status_view?.label && deposit.status_view?.tone) {
+    return { label: deposit.status_view.label, tone: deposit.status_view.tone };
+  }
+  const detailed = DEPOSIT_STATUS_LABEL[String(deposit.detailed_status || "").toUpperCase()];
+  if (detailed) {
+    return detailed;
+  }
   if (deposit.status === "Approved") {
-    return { label: "Confirmed", tone: "positive" };
+    return { label: "Completed", tone: "positive" };
   }
   if (deposit.status === "Rejected") {
     return { label: "Rejected", tone: "negative" };
   }
-  return { label: "Pending", tone: "gold" };
+  return { label: "Waiting for payment", tone: "gold" };
 }
 
 function resolveWithdrawalState(withdrawal: WithdrawalRecord): string {

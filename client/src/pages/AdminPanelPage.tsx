@@ -9,16 +9,7 @@ import {
   StatusBadge,
   type Tone
 } from "../components/dashboard/primitives";
-
-interface AdminDeposit {
-  deposit_id: string;
-  crypto_type: string;
-  amount: number;
-  status: string;
-  multiplier: number;
-  timestamp: string;
-  user_id: string;
-}
+import { CryptoDepositsPanel } from "../components/admin/CryptoDepositsPanel";
 
 interface AdminWithdrawal {
   withdrawal_id: string;
@@ -65,7 +56,6 @@ function riskTone(level: string): Tone {
 }
 
 export function AdminPanelPage() {
-  const [deposits, setDeposits] = useState<AdminDeposit[]>([]);
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<AdminUserStats[]>([]);
@@ -76,13 +66,11 @@ export function AdminPanelPage() {
 
   const loadData = async () => {
     try {
-      const [dRes, wRes, uRes, rRes] = await Promise.all([
-        api.get<AdminDeposit[]>("/deposits"),
+      const [wRes, uRes, rRes] = await Promise.all([
         api.get<AdminWithdrawal[]>("/withdrawals"),
         api.get<AdminUserStats[]>("/admin/users_stats"),
         api.get<AdminRiskFlag[]>("/admin/risk_flags")
       ]);
-      setDeposits(dRes.data);
       setWithdrawals(wRes.data);
       setUsers(uRes.data);
       setRiskFlags(rRes.data);
@@ -94,18 +82,6 @@ export function AdminPanelPage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const updateDepositStatus = async (
-    id: string,
-    status: "Approved" | "Rejected"
-  ) => {
-    try {
-      await api.patch(`/deposits/${id}/status`, { status });
-      await loadData();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to update deposit");
-    }
-  };
 
   const updateWithdrawalStatus = async (
     id: string,
@@ -139,7 +115,7 @@ export function AdminPanelPage() {
     <div className="page-responsive space-y-6">
       <Seo
         title="Platform approvals"
-        description="Platform approvals dashboard for deposits and withdrawals."
+        description="Platform approvals dashboard for crypto deposits and withdrawals."
         path="/admin"
         robots="noindex,nofollow"
       />
@@ -158,48 +134,19 @@ export function AdminPanelPage() {
 
       {error ? <ErrorRow message={error} /> : null}
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <Panel className="min-w-0">
-          <h2 className="text-xs font-medium text-[#F5F5F7]">Deposits</h2>
-          <div className="mt-2 max-h-80 overflow-y-auto pr-1">
-            {deposits.length === 0 && <EmptyState title="No deposits yet" />}
-            <ul className="divide-y divide-[#26272B]/60 text-[11px]">
-              {deposits.map((d) => (
-                <li key={d.deposit_id} className="py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="financial-figure text-sm font-medium text-[#F5F5F7]">
-                      {d.amount} {d.crypto_type}
-                    </span>
-                    <StatusBadge tone={statusTone(d.status)} label={d.status} />
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[#9CA3AF]">
-                    <span className="min-w-0 break-all">User: {d.user_id}</span>
-                    <span className="shrink-0">{new Date(d.timestamp).toLocaleString()}</span>
-                  </div>
-                  {d.status === "Pending" && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateDepositStatus(d.deposit_id, "Approved")}
-                        className="btn btn-sm bg-[#16C784]/12 text-[#16C784] hover:bg-[#16C784]/20"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateDepositStatus(d.deposit_id, "Rejected")}
-                        className="btn btn-sm bg-[#EA3943]/12 text-[#EA3943] hover:bg-[#EA3943]/20"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Panel>
+      <section className="space-y-3">
+        <div className="space-y-1">
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Crypto deposits</h2>
+          <p className="text-[11px] text-[#9CA3AF]">
+            Every crypto deposit requires explicit administrator approval before the user&apos;s
+            wallet is credited. Approving re-verifies the transaction on the correct chain and
+            credits the wallet exactly once.
+          </p>
+        </div>
+        <CryptoDepositsPanel />
+      </section>
 
+      <section className="grid gap-4 md:grid-cols-2">
         <Panel className="min-w-0">
           <h2 className="text-xs font-medium text-[#F5F5F7]">Withdrawals</h2>
           <div className="mt-2 max-h-80 overflow-y-auto pr-1">
@@ -238,12 +185,10 @@ export function AdminPanelPage() {
             </ul>
           </div>
         </Panel>
-      </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
         <Panel className="min-w-0">
           <h2 className="text-xs font-medium text-[#F5F5F7]">User stats</h2>
-          <div className="mt-2 max-h-72 overflow-y-auto pr-1">
+          <div className="mt-2 max-h-80 overflow-y-auto pr-1">
             {users.length === 0 && <EmptyState title="No users yet" />}
             <ul className="divide-y divide-[#26272B]/60 text-[11px]">
               {users.map((u) => (
@@ -267,7 +212,9 @@ export function AdminPanelPage() {
             </ul>
           </div>
         </Panel>
+      </section>
 
+      <section className="grid gap-4 md:grid-cols-2">
         <Panel className="min-w-0">
           <h2 className="text-xs font-medium text-[#F5F5F7]">Broadcast notification</h2>
           <div className="mt-2 space-y-2">
@@ -299,7 +246,7 @@ export function AdminPanelPage() {
         </Panel>
 
         <Panel className="min-w-0">
-          <h2 className="text-xs font-medium text-[#F5F5F7]">Risk & behavior flags</h2>
+          <h2 className="text-xs font-medium text-[#F5F5F7]">Risk &amp; behavior flags</h2>
           <div className="mt-2 max-h-72 overflow-y-auto pr-1">
             {riskFlags.length === 0 && (
               <EmptyState

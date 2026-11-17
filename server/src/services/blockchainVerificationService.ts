@@ -1,8 +1,36 @@
 import axios from "axios";
-import { getPlatformWallets, SupportedPlatformAsset } from "./walletService";
-import { requireEnv, requireIntEnv } from "../config/env";
+import {
+  DepositCryptoType,
+  amountsWithinDepositTolerance,
+  isSupportedDepositCryptoType
+} from "../domain/depositRules";
+import { resolveDepositCapability } from "../domain/depositNetworkCapabilities";
+import { decodeTrc20Transfer, rawTokenAmountToNumber } from "../domain/tronTrc20";
+import { SupportedPlatformAsset, getPlatformWallet } from "./walletService";
+import {
+  confirmationsForBlock,
+  etherscanAccountList,
+  etherscanLatestBlockNumber,
+  etherscanTransactionByHash,
+  etherscanTransactionReceipt,
+  resolveEtherscanConfig
+} from "./etherscanClient";
 
-export type SupportedCryptoType = "BTC" | "ETH" | "SOL" | "ERC20" | "TRC20";
+export type SupportedCryptoType = DepositCryptoType;
+
+/**
+ * Outcome of an independent on-chain lookup. The deposit lifecycle consumes
+ * `stage` rather than a boolean so a transfer that is merely still confirming
+ * is not confused with one that has been wrongly submitted, and so a provider
+ * outage can never be mistaken for a successful verification.
+ */
+export type BlockchainVerificationStage =
+  | "verified"
+  | "not_found"
+  | "mismatch"
+  | "insufficient_confirmations"
+  | "provider_unavailable"
+  | "provider_error";
 
 export interface BlockchainVerificationInput {
   cryptoType: SupportedCryptoType;
@@ -12,6 +40,7 @@ export interface BlockchainVerificationInput {
 
 export interface BlockchainVerificationResult {
   success: boolean;
+  stage: BlockchainVerificationStage;
   assetSymbol: string;
   network: string;
   txHash: string;
@@ -22,619 +51,708 @@ export interface BlockchainVerificationResult {
   failureReason?: string;
 }
 
+/** Public Solana mainnet RPC, used only when SOLANA_RPC_URL is not configured. */
+export const DEFAULT_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
+
 function normalizeAddress(address: string): string {
   return address.trim().toLowerCase();
 }
 
-function getPlatformAddressForCryptoType(cryptoType: SupportedCryptoType): {
-  asset: SupportedPlatformAsset;
-  address: string;
-  network: string;
-} {
-  const wallets = getPlatformWallets();
-  let asset: SupportedPlatformAsset;
-
-  switch (cryptoType) {
-    case "BTC":
-      asset = "BTC";
-      break;
-    case "ETH":
-      asset = "ETH";
-      break;
-    case "SOL":
-      asset = "SOL";
-      break;
-    case "ERC20":
-      asset = "USDT_ERC20";
-      break;
-    case "TRC20":
-      asset = "USDT_TRC20";
-      break;
-    default:
-      throw new Error(`Unsupported crypto type: ${cryptoType}`);
-  }
-
-  const wallet = wallets.find((w) => w.asset === asset);
-  if (!wallet) {
-    throw new Error(`No platform wallet configured for asset ${asset}`);
-  }
-  return wallet;
+/** Base58 is case sensitive, so TRON addresses are compared verbatim. */
+function sameBase58Address(a: string, b: string): boolean {
+  return String(a || "").trim() === String(b || "").trim();
 }
 
-function amountsRoughlyEqual(onChain: number, expected: number): boolean {
-  if (!Number.isFinite(onChain) || !Number.isFinite(expected)) {
-    return false;
+function readOptionalEnv(name: string): string | null {
+  const raw = process.env[name];
+  if (!raw) {
+    return null;
   }
-  if (expected <= 0) {
-    return false;
+  const trimmed = String(raw).trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function hexToNumber(value: unknown): number {
+  const raw = String(value ?? "0");
+  if (raw.length === 0) {
+    return 0;
   }
-  const diff = Math.abs(onChain - expected);
-  const tolerance = Math.max(expected * 0.005, 0.00000001);
-  return diff <= tolerance;
+  try {
+    return Number(BigInt(raw.startsWith("0x") ? raw : `0x${raw}`));
+  } catch {
+    const parsed = Number.parseInt(raw, 16);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+}
+
+/** The platform receiving address and network for a crypto type, or null when unconfigured. */
+export function platformAddressForCryptoType(
+  cryptoType: SupportedCryptoType
+): { asset: SupportedPlatformAsset; address: string; network: string } | null {
+  if (!isSupportedDepositCryptoType(cryptoType)) {
+    return null;
+  }
+  const capability = resolveDepositCapability(cryptoType);
+  const wallet = getPlatformWallet(capability.platformAsset);
+  if (!wallet) {
+    return null;
+  }
+  return { asset: wallet.asset, address: wallet.address, network: wallet.network };
+}
+
+export function symbolForCryptoType(cryptoType: SupportedCryptoType): string {
+  return isSupportedDepositCryptoType(cryptoType)
+    ? resolveDepositCapability(cryptoType).symbol
+    : String(cryptoType);
+}
+
+/**
+ * The verification kill-switch. When it is off the platform does not claim a
+ * transfer is valid — it reports the provider as unavailable so the deposit
+ * stays pending for administrator reconciliation instead of being auto-advanced.
+ */
+export function isBlockchainVerificationEnabled(): boolean {
+  return String(process.env.BLOCKCHAIN_VERIFICATION_ENABLED || "true").trim().toLowerCase() !== "false";
+}
+
+function buildResult(
+  cryptoType: SupportedCryptoType,
+  txHash: string,
+  stage: BlockchainVerificationStage,
+  overrides: Partial<BlockchainVerificationResult> = {}
+): BlockchainVerificationResult {
+  const capability = isSupportedDepositCryptoType(cryptoType)
+    ? resolveDepositCapability(cryptoType)
+    : null;
+  return {
+    success: stage === "verified",
+    stage,
+    assetSymbol: capability?.symbol ?? String(cryptoType),
+    network: capability?.networkType ?? String(cryptoType),
+    txHash,
+    amount: 0,
+    toAddress: "",
+    confirmations: 0,
+    minConfirmations: capability?.minConfirmations ?? 0,
+    ...overrides
+  };
+}
+
+function unconfigured(
+  cryptoType: SupportedCryptoType,
+  txHash: string,
+  reason: string
+): BlockchainVerificationResult {
+  return buildResult(cryptoType, txHash, "provider_unavailable", { failureReason: reason });
+}
+
+/**
+ * Strip anything sensitive (API keys, tokens embedded in URLs) out of a provider
+ * error before it can reach a log line or a user-facing message. Only the scheme
+ * + host + path of any URL survives, so a query-string credential cannot leak.
+ */
+function sanitizeProviderText(text: string): string {
+  let output = String(text || "");
+  const secrets = [
+    process.env.ETHERSCAN_API_KEY,
+    process.env.SOLANA_RPC_URL
+  ].filter((value): value is string => Boolean(value && value.trim().length > 0));
+  for (const secret of secrets) {
+    output = output.split(secret).join("***");
+  }
+  output = output.replace(/(apikey|api_key|token|secret)=[^&\s"']+/gi, "$1=***");
+  output = output.replace(/https?:\/\/[^\s"']+/gi, (url) => {
+    try {
+      const parsed = new URL(url);
+      return `${parsed.origin}${parsed.pathname}`;
+    } catch {
+      return "***";
+    }
+  });
+  return output.length > 300 ? `${output.slice(0, 300)}…` : output;
+}
+
+/**
+ * Turn any thrown value into a short, secret-free description. Axios failures
+ * carry a code (`ETIMEDOUT`, `ENOTFOUND`, …) and an HTTP status; Node surfaces
+ * DNS/connect failures as an `AggregateError` whose `message` is empty, so its
+ * inner errors are read explicitly rather than logged as a blank string.
+ */
+export function describeProviderError(error: unknown): string {
+  const parts: string[] = [];
+
+  if (axios.isAxiosError(error)) {
+    if (error.code) {
+      parts.push(String(error.code));
+    }
+    if (error.response?.status) {
+      parts.push(`HTTP ${error.response.status}`);
+    }
+    const data = error.response?.data;
+    if (typeof data === "string") {
+      parts.push(data);
+    } else if (data && typeof data === "object") {
+      const record = data as Record<string, unknown>;
+      const message = record.message ?? record.error ?? record.result;
+      if (typeof message === "string") {
+        parts.push(message);
+      }
+    }
+    if (parts.length === 0 && error.message) {
+      parts.push(error.message);
+    }
+  } else if (Array.isArray((error as { errors?: unknown })?.errors)) {
+    // Duck-typed because the ES2020 lib target has no global AggregateError.
+    parts.push((error as { name?: string }).name || "AggregateError");
+    const inner = (error as { errors?: unknown[] }).errors || [];
+    for (const item of inner) {
+      const record = item as { code?: string; message?: string; syscall?: string };
+      const detail = [record?.code, record?.syscall, record?.message].filter(Boolean).join(" ");
+      if (detail) {
+        parts.push(detail);
+      }
+    }
+  } else if (error instanceof Error) {
+    parts.push(error.name);
+    if (error.message) {
+      parts.push(error.message);
+    }
+    const code = (error as { code?: string }).code;
+    if (code) {
+      parts.push(String(code));
+    }
+  } else {
+    parts.push(String(error));
+  }
+
+  const joined = parts
+    .map((part) => String(part).trim())
+    .filter((part) => part.length > 0)
+    .join(" | ");
+  return sanitizeProviderText(joined) || "unknown provider failure";
+}
+
+function providerError(
+  cryptoType: SupportedCryptoType,
+  txHash: string,
+  error: unknown,
+  context: string
+): BlockchainVerificationResult {
+  const detail = describeProviderError(error);
+  // Log the full (sanitised) detail server-side; keep the user-facing sentence generic.
+  // eslint-disable-next-line no-console
+  console.error(`[blockchain-verification] ${cryptoType} ${context} failed: ${detail}`);
+  return buildResult(cryptoType, txHash, "provider_error", {
+    failureReason:
+      "We could not reach the blockchain provider to verify this transaction right now. Your deposit stays pending and will be reconciled by an administrator."
+  });
+}
+
+function stageForHttpError(error: unknown): "not_found" | "provider_error" {
+  if (axios.isAxiosError(error) && error.response?.status === 404) {
+    return "not_found";
+  }
+  return "provider_error";
 }
 
 async function verifyBitcoinDeposit(
   params: BlockchainVerificationInput
 ): Promise<BlockchainVerificationResult> {
   const { txHash, expectedAmount } = params;
-  const { address, network } = getPlatformAddressForCryptoType("BTC");
-
-  const base =
-    process.env.BTC_BLOCKCHAIN_API_BASE || "https://blockstream.info/api";
-  const url = `${base.replace(/\/+$/, "")}/tx/${encodeURIComponent(txHash)}`;
-
-  const response = await axios.get(url, { timeout: 10000 });
-  const tx = response.data;
-
-  if (!tx || !Array.isArray(tx.vout)) {
-    return {
-      success: false,
-      assetSymbol: "BTC",
-      network,
-      txHash,
-      amount: 0,
-      toAddress: "",
-      confirmations: 0,
-      minConfirmations: 0,
-      failureReason: "Unable to parse Bitcoin transaction outputs"
-    };
+  const platform = platformAddressForCryptoType("BTC");
+  if (!platform) {
+    return unconfigured("BTC", txHash, "No receiving Bitcoin address is configured.");
   }
+  const capability = resolveDepositCapability("BTC");
 
-  let valueSats = 0;
-  let destinationFound = false;
+  try {
+    const base = (readOptionalEnv("BTC_BLOCKCHAIN_API_BASE") || "https://blockstream.info/api").replace(
+      /\/+$/,
+      ""
+    );
+    // Fetch the transaction and the tip height together: Blockstream's `/tx`
+    // endpoint does not return a confirmation count, so it must be derived from
+    // the height difference. If the tip cannot be read the verification fails
+    // closed rather than reporting confirmations of 0 as if it were mined.
+    const [txResponse, tipResponse] = await Promise.all([
+      axios.get(`${base}/tx/${encodeURIComponent(txHash)}`, { timeout: 15000 }),
+      axios.get(`${base}/blocks/tip/height`, { timeout: 15000 })
+    ]);
+    const tx = txResponse.data as Record<string, unknown>;
 
-  for (const vout of tx.vout) {
-    const outAddress = String(vout.scriptpubkey_address || "").trim();
-    if (normalizeAddress(outAddress) === normalizeAddress(address)) {
-      destinationFound = true;
-      valueSats += Number(vout.value || 0);
+    if (!tx || !Array.isArray(tx.vout)) {
+      return buildResult("BTC", txHash, "not_found", {
+        failureReason: "We could not find this transaction on the Bitcoin network yet."
+      });
     }
-  }
 
-  const confirmations =
-    typeof tx.status?.confirmations === "number"
-      ? tx.status.confirmations
-      : 0;
-  const minConfirmations = requireIntEnv("BTC_MIN_CONFIRMATIONS", 1);
-  const amount = valueSats / 1e8;
+    let valueSats = 0;
+    let destinationFound = false;
+    for (const vout of tx.vout as Array<Record<string, unknown>>) {
+      if (normalizeAddress(String(vout.scriptpubkey_address || "")) === normalizeAddress(platform.address)) {
+        destinationFound = true;
+        valueSats += Number(vout.value || 0);
+      }
+    }
 
-  if (!destinationFound) {
-    return {
-      success: false,
-      assetSymbol: "BTC",
-      network,
-      txHash,
+    const tipHeight = Number(tipResponse.data) || 0;
+    const status = (tx.status || {}) as Record<string, unknown>;
+    const blockHeight = Number(status.block_height || 0);
+    const confirmed = status.confirmed === true;
+    const confirmations =
+      confirmed && tipHeight > 0 && blockHeight > 0 ? confirmationsForBlock(tipHeight, blockHeight) : 0;
+    const amount = valueSats / 1e8;
+
+    if (!destinationFound) {
+      return buildResult("BTC", txHash, "mismatch", {
+        amount,
+        confirmations,
+        failureReason: `This transaction does not pay to the platform Bitcoin address.`
+      });
+    }
+    if (!amountsWithinDepositTolerance(amount, expectedAmount)) {
+      return buildResult("BTC", txHash, "mismatch", {
+        amount,
+        toAddress: platform.address,
+        confirmations,
+        failureReason: "The on-chain BTC amount does not match the amount for this deposit."
+      });
+    }
+    if (confirmations < capability.minConfirmations) {
+      return buildResult("BTC", txHash, "insufficient_confirmations", {
+        amount,
+        toAddress: platform.address,
+        confirmations,
+        failureReason: "The Bitcoin transaction does not have enough confirmations yet."
+      });
+    }
+    return buildResult("BTC", txHash, "verified", {
       amount,
-      toAddress: "",
-      confirmations,
-      minConfirmations,
-      failureReason: "Transaction does not pay to the platform BTC address"
-    };
+      toAddress: platform.address,
+      confirmations
+    });
+  } catch (error) {
+    const stage = stageForHttpError(error);
+    if (stage === "not_found") {
+      return buildResult("BTC", txHash, "not_found", {
+        failureReason: "We could not find this transaction on the Bitcoin network yet."
+      });
+    }
+    return providerError("BTC", txHash, error, "transaction lookup");
   }
-
-  if (!amountsRoughlyEqual(amount, expectedAmount)) {
-    return {
-      success: false,
-      assetSymbol: "BTC",
-      network,
-      txHash,
-      amount,
-      toAddress: address,
-      confirmations,
-      minConfirmations,
-      failureReason: "On-chain BTC amount does not match the claimed amount"
-    };
-  }
-
-  if (confirmations < minConfirmations) {
-    return {
-      success: false,
-      assetSymbol: "BTC",
-      network,
-      txHash,
-      amount,
-      toAddress: address,
-      confirmations,
-      minConfirmations,
-      failureReason: "Bitcoin transaction does not have enough confirmations"
-    };
-  }
-
-  return {
-    success: true,
-    assetSymbol: "BTC",
-    network,
-    txHash,
-    amount,
-    toAddress: address,
-    confirmations,
-    minConfirmations
-  };
 }
 
 async function verifyEthereumNativeDeposit(
   params: BlockchainVerificationInput
 ): Promise<BlockchainVerificationResult> {
   const { txHash, expectedAmount } = params;
-  const { address, network } = getPlatformAddressForCryptoType("ETH");
+  const platform = platformAddressForCryptoType("ETH");
+  if (!platform) {
+    return unconfigured("ETH", txHash, "No receiving Ethereum address is configured.");
+  }
+  if (!resolveEtherscanConfig().apiKey) {
+    return unconfigured("ETH", txHash, "ETHERSCAN_API_KEY is not configured for Ethereum verification.");
+  }
+  const capability = resolveDepositCapability("ETH");
 
-  const base =
-    process.env.ETHERSCAN_API_BASE || "https://api.etherscan.io/api";
-  const apiKey = requireEnv("ETHERSCAN_API_KEY");
-
-  const txResp = await axios.get(base, {
-    timeout: 10000,
-    params: {
-      module: "proxy",
-      action: "eth_getTransactionByHash",
-      txhash: txHash,
-      apikey: apiKey
+  try {
+    const tx = (await etherscanTransactionByHash(txHash)) as Record<string, unknown> | null;
+    if (!tx || typeof tx !== "object") {
+      return buildResult("ETH", txHash, "not_found", {
+        failureReason: "We could not find this transaction on the Ethereum network yet."
+      });
     }
-  });
 
-  const tx = txResp.data?.result;
-  if (!tx) {
-    return {
-      success: false,
-      assetSymbol: "ETH",
-      network,
-      txHash,
-      amount: 0,
-      toAddress: "",
-      confirmations: 0,
-      minConfirmations: 0,
-      failureReason: "Ethereum transaction not found"
-    };
-  }
+    const toAddress = String(tx.to || "").trim();
+    const amount = hexToNumber(tx.value) / 1e18;
+    const receipt = (await etherscanTransactionReceipt(txHash)) as Record<string, unknown> | null;
+    const latestBlock = await etherscanLatestBlockNumber();
+    const txBlock = tx.blockNumber ? hexToNumber(tx.blockNumber) : 0;
+    const confirmations = confirmationsForBlock(latestBlock, txBlock);
 
-  const toAddress = String(tx.to || "").trim();
-  const valueWei = Number.parseInt(tx.value || "0", 16);
-  const amount = valueWei / 1e18;
-
-  const blockResp = await axios.get(base, {
-    timeout: 10000,
-    params: {
-      module: "proxy",
-      action: "eth_blockNumber",
-      apikey: apiKey
+    if (normalizeAddress(toAddress) !== normalizeAddress(platform.address)) {
+      return buildResult("ETH", txHash, "mismatch", {
+        amount,
+        toAddress,
+        confirmations,
+        failureReason: "The Ethereum transaction receiver does not match the platform receiving address."
+      });
     }
-  });
-
-  const latestBlock = Number.parseInt(blockResp.data?.result || "0", 16);
-  const txBlock = Number.parseInt(tx.blockNumber || "0", 16);
-  const confirmations =
-    latestBlock && txBlock && latestBlock >= txBlock
-      ? latestBlock - txBlock
-      : 0;
-  const minConfirmations = requireIntEnv("ETH_MIN_CONFIRMATIONS", 6);
-
-  if (normalizeAddress(toAddress) !== normalizeAddress(address)) {
-    return {
-      success: false,
-      assetSymbol: "ETH",
-      network,
-      txHash,
-      amount,
-      toAddress,
-      confirmations,
-      minConfirmations,
-      failureReason: "Ethereum transaction receiver does not match platform wallet"
-    };
+    if (receipt && String(receipt.status) === "0x0") {
+      return buildResult("ETH", txHash, "mismatch", {
+        amount,
+        toAddress,
+        confirmations,
+        failureReason: "This Ethereum transaction failed on-chain and did not transfer any value."
+      });
+    }
+    if (!amountsWithinDepositTolerance(amount, expectedAmount)) {
+      return buildResult("ETH", txHash, "mismatch", {
+        amount,
+        toAddress,
+        confirmations,
+        failureReason: "The on-chain ETH amount does not match the amount for this deposit."
+      });
+    }
+    if (confirmations < capability.minConfirmations) {
+      return buildResult("ETH", txHash, "insufficient_confirmations", {
+        amount,
+        toAddress,
+        confirmations,
+        failureReason: "The Ethereum transaction does not have enough confirmations yet."
+      });
+    }
+    return buildResult("ETH", txHash, "verified", { amount, toAddress, confirmations });
+  } catch (error) {
+    return providerError("ETH", txHash, error, "transaction lookup");
   }
-
-  if (!amountsRoughlyEqual(amount, expectedAmount)) {
-    return {
-      success: false,
-      assetSymbol: "ETH",
-      network,
-      txHash,
-      amount,
-      toAddress,
-      confirmations,
-      minConfirmations,
-      failureReason: "On-chain ETH amount does not match the claimed amount"
-    };
-  }
-
-  if (confirmations < minConfirmations) {
-    return {
-      success: false,
-      assetSymbol: "ETH",
-      network,
-      txHash,
-      amount,
-      toAddress,
-      confirmations,
-      minConfirmations,
-      failureReason: "Ethereum transaction does not have enough confirmations"
-    };
-  }
-
-  return {
-    success: true,
-    assetSymbol: "ETH",
-    network,
-    txHash,
-    amount,
-    toAddress,
-    confirmations,
-    minConfirmations
-  };
 }
 
 async function verifyEthereumUsdtErc20Deposit(
   params: BlockchainVerificationInput
 ): Promise<BlockchainVerificationResult> {
   const { txHash, expectedAmount } = params;
-  const { address, network } = getPlatformAddressForCryptoType("ERC20");
+  const platform = platformAddressForCryptoType("ERC20");
+  if (!platform) {
+    return unconfigured("ERC20", txHash, "No receiving ERC20 address is configured.");
+  }
+  const contract = readOptionalEnv("USDT_ERC20_CONTRACT_ADDRESS");
+  if (!resolveEtherscanConfig().apiKey) {
+    return unconfigured("ERC20", txHash, "ETHERSCAN_API_KEY is not configured for ERC20 verification.");
+  }
+  if (!contract) {
+    return unconfigured(
+      "ERC20",
+      txHash,
+      "USDT_ERC20_CONTRACT_ADDRESS is not configured, so ERC20 transfers cannot be verified."
+    );
+  }
+  const capability = resolveDepositCapability("ERC20");
 
-  const base =
-    process.env.ETHERSCAN_API_BASE || "https://api.etherscan.io/api";
-  const apiKey = requireEnv("ETHERSCAN_API_KEY");
-  const usdtContract = requireEnv("USDT_ERC20_CONTRACT_ADDRESS");
-
-  const txResp = await axios.get(base, {
-    timeout: 10000,
-    params: {
-      module: "account",
-      action: "tokentx",
-      txhash: txHash,
-      apikey: apiKey
+  try {
+    const tx = (await etherscanTransactionByHash(txHash)) as Record<string, unknown> | null;
+    if (!tx || typeof tx !== "object" || !tx.blockNumber) {
+      return buildResult("ERC20", txHash, "not_found", {
+        failureReason: "We could not find this USDT (ERC20) transfer on the Ethereum network yet."
+      });
     }
-  });
+    const txBlock = hexToNumber(tx.blockNumber);
 
-  const events: any[] = txResp.data?.result || [];
-  const match = events.find(
-    (e) =>
-      normalizeAddress(e.contractAddress || "") ===
-        normalizeAddress(usdtContract) &&
-      normalizeAddress(e.to || "") === normalizeAddress(address)
-  );
+    // Etherscan V2 silently ignores `txhash` on `tokentx` unless `address` is
+    // supplied, and even then it does not filter by hash — an unfiltered result
+    // would validate the wrong transfer. Scope the lookup to the platform
+    // address and to the single block the transaction was mined in, then match
+    // the hash locally. That keeps the candidate set bounded and precise.
+    const events = await etherscanAccountList("tokentx", {
+      address: platform.address,
+      contractaddress: contract,
+      startblock: txBlock,
+      endblock: txBlock,
+      sort: "asc"
+    });
 
-  if (!match) {
-    return {
-      success: false,
-      assetSymbol: "USDT",
-      network,
-      txHash,
-      amount: 0,
-      toAddress: "",
-      confirmations: 0,
-      minConfirmations: 0,
-      failureReason: "No matching USDT ERC20 transfer to platform address"
-    };
-  }
-
-  const valueRaw = String(match.value || "0");
-  const decimals = Number(match.tokenDecimal || 6);
-  const divisor = Math.pow(10, decimals);
-  const amount = Number(valueRaw) / divisor;
-
-  const currentBlockResp = await axios.get(base, {
-    timeout: 10000,
-    params: {
-      module: "proxy",
-      action: "eth_blockNumber",
-      apikey: apiKey
+    const forThisTransaction = events.filter(
+      (event) => String(event.hash || "").toLowerCase() === txHash.toLowerCase()
+    );
+    if (forThisTransaction.length === 0) {
+      return buildResult("ERC20", txHash, "not_found", {
+        failureReason: "We could not find this USDT (ERC20) transfer yet."
+      });
     }
-  });
 
-  const latestBlock = Number.parseInt(currentBlockResp.data?.result || "0", 16);
-  const txBlock = Number(match.blockNumber || "0");
-  const confirmations =
-    latestBlock && txBlock && latestBlock >= txBlock
-      ? latestBlock - txBlock
-      : 0;
-  const minConfirmations = requireIntEnv("ERC20_MIN_CONFIRMATIONS", 6);
+    const contractMatches = forThisTransaction.filter(
+      (event) => normalizeAddress(String(event.contractAddress || "")) === normalizeAddress(contract)
+    );
+    if (contractMatches.length === 0) {
+      return buildResult("ERC20", txHash, "mismatch", {
+        failureReason: "This transaction does not transfer the supported USDT (ERC20) token."
+      });
+    }
 
-  if (!amountsRoughlyEqual(amount, expectedAmount)) {
-    return {
-      success: false,
-      assetSymbol: "USDT",
-      network,
-      txHash,
+    const match = contractMatches.find(
+      (event) => normalizeAddress(String(event.to || "")) === normalizeAddress(platform.address)
+    );
+    if (!match) {
+      return buildResult("ERC20", txHash, "mismatch", {
+        failureReason:
+          "No matching USDT (ERC20) transfer to the platform receiving address was found in this transaction."
+      });
+    }
+
+    const decimals = Number(match.tokenDecimal || capability.decimals);
+    const amount = Number(match.value || 0) / Math.pow(10, decimals);
+    const receipt = (await etherscanTransactionReceipt(txHash)) as Record<string, unknown> | null;
+    const latestBlock = await etherscanLatestBlockNumber();
+    const confirmations = confirmationsForBlock(latestBlock, Number(match.blockNumber || 0));
+
+    if (receipt && String(receipt.status) === "0x0") {
+      return buildResult("ERC20", txHash, "mismatch", {
+        amount,
+        toAddress: platform.address,
+        confirmations,
+        failureReason: "This Ethereum transaction failed on-chain and did not transfer any USDT."
+      });
+    }
+    if (!amountsWithinDepositTolerance(amount, expectedAmount)) {
+      return buildResult("ERC20", txHash, "mismatch", {
+        amount,
+        toAddress: platform.address,
+        confirmations,
+        failureReason: "The on-chain USDT (ERC20) amount does not match the amount for this deposit."
+      });
+    }
+    if (confirmations < capability.minConfirmations) {
+      return buildResult("ERC20", txHash, "insufficient_confirmations", {
+        amount,
+        toAddress: platform.address,
+        confirmations,
+        failureReason: "The USDT (ERC20) transfer does not have enough confirmations yet."
+      });
+    }
+    return buildResult("ERC20", txHash, "verified", {
       amount,
-      toAddress: address,
-      confirmations,
-      minConfirmations,
-      failureReason: "On-chain USDT (ERC20) amount does not match the claimed amount"
-    };
+      toAddress: platform.address,
+      confirmations
+    });
+  } catch (error) {
+    return providerError("ERC20", txHash, error, "token transfer lookup");
   }
-
-  if (confirmations < minConfirmations) {
-    return {
-      success: false,
-      assetSymbol: "USDT",
-      network,
-      txHash,
-      amount,
-      toAddress: address,
-      confirmations,
-      minConfirmations,
-      failureReason: "USDT (ERC20) transfer does not have enough confirmations"
-    };
-  }
-
-  return {
-    success: true,
-    assetSymbol: "USDT",
-    network,
-    txHash,
-    amount,
-    toAddress: address,
-    confirmations,
-    minConfirmations
-  };
 }
 
 async function verifyTronUsdtTrc20Deposit(
   params: BlockchainVerificationInput
 ): Promise<BlockchainVerificationResult> {
   const { txHash, expectedAmount } = params;
-  const { address, network } = getPlatformAddressForCryptoType("TRC20");
-
-  const base =
-    process.env.TRONSCAN_API_BASE ||
-    "https://apilist.tronscanapi.com/api";
-
-  const response = await axios.get(base.replace(/\/+$/, "") + "/transaction-info", {
-    timeout: 10000,
-    params: { hash: txHash }
-  });
-
-  const tx = response.data;
-  if (!tx) {
-    return {
-      success: false,
-      assetSymbol: "USDT",
-      network,
-      txHash,
-      amount: 0,
-      toAddress: "",
-      confirmations: 0,
-      minConfirmations: 0,
-      failureReason: "TRON transaction not found"
-    };
+  const platform = platformAddressForCryptoType("TRC20");
+  if (!platform) {
+    return unconfigured("TRC20", txHash, "No receiving TRC20 address is configured.");
   }
+  const capability = resolveDepositCapability("TRC20");
+  const base = (readOptionalEnv("TRONSCAN_API_BASE") || "https://apilist.tronscanapi.com/api").replace(
+    /\/+$/,
+    ""
+  );
+  const contract = readOptionalEnv("USDT_TRC20_CONTRACT_ADDRESS");
 
-  const contractType = Number(tx.contractType || 0);
-  if (contractType !== 31 && contractType !== 1) {
-    return {
-      success: false,
-      assetSymbol: "USDT",
-      network,
-      txHash,
-      amount: 0,
-      toAddress: "",
-      confirmations: 0,
-      minConfirmations: 0,
-      failureReason: "Transaction is not a TRC20 transfer"
-    };
-  }
+  try {
+    const response = await axios.get(`${base}/transaction-info`, {
+      timeout: 15000,
+      params: { hash: txHash }
+    });
+    const tx = response.data as Record<string, unknown> | null;
+    if (!tx || typeof tx !== "object" || Object.keys(tx).length === 0) {
+      return buildResult("TRC20", txHash, "not_found", {
+        failureReason: "We could not find this transaction on the Tron network yet."
+      });
+    }
 
-  const toAddress = String(tx.contractData?.to_address || "").trim();
-  const amountRaw = Number(tx.contractData?.amount || 0);
-  const amount = amountRaw / 1e6;
-  const confirmations = Number(tx.confirmations || 0);
-  const minConfirmations = requireIntEnv("TRC20_MIN_CONFIRMATIONS", 20);
+    const contractData = (tx.contractData || {}) as Record<string, unknown>;
+    // Tronscan encodes the recipient and amount inside the ABI `data` blob; the
+    // friendly `to_address` / `amount` fields are not returned.
+    const decoded = decodeTrc20Transfer(String(contractData.data || ""));
+    if (!decoded) {
+      return buildResult("TRC20", txHash, "mismatch", {
+        failureReason: "This transaction is not a TRC20 token transfer."
+      });
+    }
 
-  if (normalizeAddress(toAddress) !== normalizeAddress(address)) {
-    return {
-      success: false,
-      assetSymbol: "USDT",
-      network,
-      txHash,
+    const tokenContract = String(contractData.contract_address || tx.contract_address || "").trim();
+    const amount = rawTokenAmountToNumber(decoded.amountRaw, capability.decimals);
+    const confirmations = Number(tx.confirmations || 0);
+    const contractRet = String(tx.contractRet || "").trim().toUpperCase();
+
+    if (contract && tokenContract && !sameBase58Address(tokenContract, contract)) {
+      return buildResult("TRC20", txHash, "mismatch", {
+        amount,
+        toAddress: decoded.toBase58,
+        confirmations,
+        failureReason: "This transaction does not transfer the supported USDT (TRC20) token."
+      });
+    }
+    if (!sameBase58Address(decoded.toBase58, platform.address)) {
+      return buildResult("TRC20", txHash, "mismatch", {
+        amount,
+        toAddress: decoded.toBase58,
+        confirmations,
+        failureReason: "The TRC20 receiver address does not match the platform receiving address."
+      });
+    }
+    if (contractRet && contractRet !== "SUCCESS") {
+      return buildResult("TRC20", txHash, "mismatch", {
+        amount,
+        toAddress: decoded.toBase58,
+        confirmations,
+        failureReason: "This TRC20 transaction failed on-chain and did not transfer any USDT."
+      });
+    }
+    if (!amountsWithinDepositTolerance(amount, expectedAmount)) {
+      return buildResult("TRC20", txHash, "mismatch", {
+        amount,
+        toAddress: decoded.toBase58,
+        confirmations,
+        failureReason: "The on-chain USDT (TRC20) amount does not match the amount for this deposit."
+      });
+    }
+    if (confirmations < capability.minConfirmations) {
+      return buildResult("TRC20", txHash, "insufficient_confirmations", {
+        amount,
+        toAddress: decoded.toBase58,
+        confirmations,
+        failureReason: "The USDT (TRC20) transfer does not have enough confirmations yet."
+      });
+    }
+    return buildResult("TRC20", txHash, "verified", {
       amount,
-      toAddress,
-      confirmations,
-      minConfirmations,
-      failureReason: "TRC20 receiver address does not match platform wallet"
-    };
+      toAddress: decoded.toBase58,
+      confirmations
+    });
+  } catch (error) {
+    const stage = stageForHttpError(error);
+    if (stage === "not_found") {
+      return buildResult("TRC20", txHash, "not_found", {
+        failureReason: "We could not find this transaction on the Tron network yet."
+      });
+    }
+    return providerError("TRC20", txHash, error, "transaction lookup");
   }
+}
 
-  if (!amountsRoughlyEqual(amount, expectedAmount)) {
-    return {
-      success: false,
-      assetSymbol: "USDT",
-      network,
-      txHash,
-      amount,
-      toAddress,
-      confirmations,
-      minConfirmations,
-      failureReason: "On-chain USDT (TRC20) amount does not match the claimed amount"
-    };
+async function solanaRpc(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
+  const response = await axios.post(
+    rpcUrl,
+    { jsonrpc: "2.0", id: 1, method, params },
+    { timeout: 15000 }
+  );
+  if (response.data?.error) {
+    throw new Error(response.data.error.message || `Solana RPC ${method} failed`);
   }
-
-  if (confirmations < minConfirmations) {
-    return {
-      success: false,
-      assetSymbol: "USDT",
-      network,
-      txHash,
-      amount,
-      toAddress,
-      confirmations,
-      minConfirmations,
-      failureReason: "USDT (TRC20) transfer does not have enough confirmations"
-    };
-  }
-
-  return {
-    success: true,
-    assetSymbol: "USDT",
-    network,
-    txHash,
-    amount,
-    toAddress,
-    confirmations,
-    minConfirmations
-  };
+  return response.data?.result;
 }
 
 async function verifySolanaDeposit(
   params: BlockchainVerificationInput
 ): Promise<BlockchainVerificationResult> {
   const { txHash, expectedAmount } = params;
-  const { address, network } = getPlatformAddressForCryptoType("SOL");
-
-  const rpcUrl = requireEnv("SOLANA_RPC_URL");
-
-  const response = await axios.post(
-    rpcUrl,
-    {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "getTransaction",
-      params: [txHash, { encoding: "jsonParsed" }]
-    },
-    { timeout: 10000 }
-  );
-
-  const result = response.data?.result;
-  if (!result) {
-    return {
-      success: false,
-      assetSymbol: "SOL",
-      network,
-      txHash,
-      amount: 0,
-      toAddress: "",
-      confirmations: 0,
-      minConfirmations: 0,
-      failureReason: "Solana transaction not found"
-    };
+  const platform = platformAddressForCryptoType("SOL");
+  if (!platform) {
+    return unconfigured("SOL", txHash, "No receiving Solana address is configured.");
   }
+  // The platform only accepts native SOL transfers (no SPL tokens), so a token
+  // mint check is not applicable: the verified amount is the lamport balance
+  // delta of the receiving account itself.
+  const rpcUrl = readOptionalEnv("SOLANA_RPC_URL") || DEFAULT_SOLANA_RPC_URL;
+  const capability = resolveDepositCapability("SOL");
 
-  const accountKeys: Array<{ pubkey: string }> =
-    result.transaction?.message?.accountKeys || [];
-  const preBalances: number[] = result.meta?.preBalances || [];
-  const postBalances: number[] = result.meta?.postBalances || [];
-
-  const index = accountKeys.findIndex(
-    (k) => normalizeAddress(k.pubkey) === normalizeAddress(address)
-  );
-
-  if (index === -1) {
-    return {
-      success: false,
-      assetSymbol: "SOL",
-      network,
+  try {
+    const result = (await solanaRpc(rpcUrl, "getTransaction", [
       txHash,
-      amount: 0,
-      toAddress: "",
-      confirmations: 0,
-      minConfirmations: 0,
-      failureReason: "Solana transaction does not involve the platform wallet"
-    };
-  }
+      { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }
+    ])) as Record<string, unknown> | null;
 
-  const pre = Number(preBalances[index] || 0);
-  const post = Number(postBalances[index] || 0);
-  const diffLamports = post - pre;
-  const amount = diffLamports / 1e9;
+    if (!result) {
+      return buildResult("SOL", txHash, "not_found", {
+        failureReason: "We could not find this transaction on the Solana network yet."
+      });
+    }
 
-  const statusResp = await axios.post(
-    rpcUrl,
-    {
-      jsonrpc: "2.0",
-      id: 2,
-      method: "getSignatureStatuses",
-      params: [[txHash], { searchTransactionHistory: true }]
-    },
-    { timeout: 10000 }
-  );
+    const transaction = (result.transaction || {}) as Record<string, unknown>;
+    const message = (transaction.message || {}) as Record<string, unknown>;
+    const meta = (result.meta || {}) as Record<string, unknown>;
+    const accountKeys = Array.isArray(message.accountKeys)
+      ? (message.accountKeys as Array<Record<string, unknown>>)
+      : [];
+    const preBalances = Array.isArray(meta.preBalances) ? (meta.preBalances as number[]) : [];
+    const postBalances = Array.isArray(meta.postBalances) ? (meta.postBalances as number[]) : [];
 
-  const status = statusResp.data?.result?.value?.[0];
-  const confirmations =
-    typeof status?.confirmations === "number"
-      ? status.confirmations
-      : status?.confirmationStatus === "finalized"
-        ? requireIntEnv("SOL_MIN_CONFIRMATIONS", 10)
-        : 0;
-  const minConfirmations = requireIntEnv("SOL_MIN_CONFIRMATIONS", 10);
+    const index = accountKeys.findIndex(
+      (key) => normalizeAddress(String(key.pubkey || "")) === normalizeAddress(platform.address)
+    );
+    if (index === -1) {
+      return buildResult("SOL", txHash, "mismatch", {
+        failureReason: "This transaction does not involve the platform receiving address."
+      });
+    }
 
-  if (!amountsRoughlyEqual(amount, expectedAmount)) {
-    return {
-      success: false,
-      assetSymbol: "SOL",
-      network,
-      txHash,
+    const amount = (Number(postBalances[index] || 0) - Number(preBalances[index] || 0)) / 1e9;
+
+    const statusResp = (await solanaRpc(rpcUrl, "getSignatureStatuses", [
+      [txHash],
+      { searchTransactionHistory: true }
+    ])) as { value?: Array<{ confirmations?: number | null; confirmationStatus?: string }> } | null;
+    const status = statusResp?.value?.[0];
+    const confirmations =
+      typeof status?.confirmations === "number"
+        ? status.confirmations
+        : status?.confirmationStatus === "finalized"
+          ? capability.minConfirmations
+          : 0;
+
+    if (meta.err) {
+      return buildResult("SOL", txHash, "mismatch", {
+        amount,
+        toAddress: platform.address,
+        confirmations,
+        failureReason: "This Solana transaction failed on-chain and did not transfer any SOL."
+      });
+    }
+    if (amount <= 0) {
+      return buildResult("SOL", txHash, "mismatch", {
+        amount,
+        toAddress: platform.address,
+        confirmations,
+        failureReason: "This transaction does not transfer SOL to the platform receiving address."
+      });
+    }
+    if (!amountsWithinDepositTolerance(amount, expectedAmount)) {
+      return buildResult("SOL", txHash, "mismatch", {
+        amount,
+        toAddress: platform.address,
+        confirmations,
+        failureReason: "The on-chain SOL amount does not match the amount for this deposit."
+      });
+    }
+    if (confirmations < capability.minConfirmations) {
+      return buildResult("SOL", txHash, "insufficient_confirmations", {
+        amount,
+        toAddress: platform.address,
+        confirmations,
+        failureReason: "The Solana transaction does not have enough confirmations yet."
+      });
+    }
+    return buildResult("SOL", txHash, "verified", {
       amount,
-      toAddress: address,
-      confirmations,
-      minConfirmations,
-      failureReason: "On-chain SOL amount does not match the claimed amount"
-    };
+      toAddress: platform.address,
+      confirmations
+    });
+  } catch (error) {
+    return providerError("SOL", txHash, error, "RPC lookup");
   }
-
-  if (confirmations < minConfirmations) {
-    return {
-      success: false,
-      assetSymbol: "SOL",
-      network,
-      txHash,
-      amount,
-      toAddress: address,
-      confirmations,
-      minConfirmations,
-      failureReason: "Solana transaction does not have enough confirmations"
-    };
-  }
-
-  return {
-    success: true,
-    assetSymbol: "SOL",
-    network,
-    txHash,
-    amount,
-    toAddress: address,
-    confirmations,
-    minConfirmations
-  };
 }
 
+/**
+ * Independently verify a transaction against the correct chain.
+ *
+ * Only the transaction hash and the expected amount come from the caller; the
+ * receiving address, asset, network and confirmation threshold are all read
+ * from platform configuration, so a client can never influence what counts as a
+ * valid payment. Every failure mode is reported as a stage rather than thrown,
+ * and a missing provider is reported as `provider_unavailable` — never as a
+ * success.
+ */
 export async function verifyDepositOnChain(
   params: BlockchainVerificationInput
 ): Promise<BlockchainVerificationResult> {
-  const enabled =
-    String(process.env.BLOCKCHAIN_VERIFICATION_ENABLED || "true").toLowerCase() ===
-    "true";
-
-  if (!enabled) {
-    return {
-      success: true,
-      assetSymbol:
-        params.cryptoType === "BTC" || params.cryptoType === "ETH" || params.cryptoType === "SOL"
-          ? params.cryptoType
-          : "USDT",
-      network: getPlatformAddressForCryptoType(params.cryptoType).network,
-      txHash: params.txHash,
-      amount: params.expectedAmount,
-      toAddress: getPlatformAddressForCryptoType(params.cryptoType).address,
-      confirmations: 0,
-      minConfirmations: 0
-    };
+  if (!isSupportedDepositCryptoType(params.cryptoType)) {
+    return buildResult(params.cryptoType, params.txHash, "provider_unavailable", {
+      failureReason: `Verification is not implemented for ${String(params.cryptoType)}.`
+    });
+  }
+  if (!isBlockchainVerificationEnabled()) {
+    return unconfigured(
+      params.cryptoType,
+      params.txHash,
+      "On-chain verification is disabled by configuration, so deposits must be reconciled by an administrator."
+    );
   }
 
   switch (params.cryptoType) {
@@ -649,7 +767,8 @@ export async function verifyDepositOnChain(
     case "TRC20":
       return verifyTronUsdtTrc20Deposit(params);
     default:
-      throw new Error(`Unsupported crypto type: ${params.cryptoType}`);
+      return buildResult(params.cryptoType, params.txHash, "provider_unavailable", {
+        failureReason: `Verification is not implemented for ${String(params.cryptoType)}.`
+      });
   }
 }
-

@@ -1,4 +1,12 @@
+import {
+  DepositStatusTone,
+  DepositStatusView,
+  describeDepositStatus as describeDepositStatusView
+} from "./depositStatus";
+
 export type DepositCryptoType = "BTC" | "ETH" | "SOL" | "ERC20" | "TRC20";
+
+export { DepositStatusTone, DepositStatusView };
 
 export type DepositPlatformAsset =
   | "BTC"
@@ -129,19 +137,97 @@ export function validateDepositSubmission(
   };
 }
 
-export type DepositStatusTone = "gold" | "positive" | "negative";
+/**
+ * Relative tolerance used when matching an on-chain amount to the expected
+ * deposit amount. Shared by the blockchain verifier and the deposit monitor so
+ * detection and verification always agree on what "the same amount" means.
+ */
+export const DEPOSIT_AMOUNT_TOLERANCE = 0.005;
 
-export interface DepositStatusView {
-  label: string;
-  tone: DepositStatusTone;
+export function amountsWithinDepositTolerance(actual: number, expected: number): boolean {
+  if (!Number.isFinite(actual) || !Number.isFinite(expected) || expected <= 0) {
+    return false;
+  }
+  return Math.abs(actual - expected) <= Math.max(expected * DEPOSIT_AMOUNT_TOLERANCE, 1e-8);
 }
 
 export function describeDepositStatus(status: string): DepositStatusView {
-  if (status === "Approved") {
-    return { label: "Confirmed", tone: "positive" };
+  return describeDepositStatusView(status);
+}
+
+export interface DepositIntentInput {
+  cryptoType: unknown;
+  cryptoAmount: unknown;
+  usdAmount: unknown;
+}
+
+export interface DepositIntentValidation {
+  valid: boolean;
+  errors: string[];
+  numericCryptoAmount: number | null;
+  numericUsdAmount: number | null;
+}
+
+/**
+ * Validate a deposit *intent*: the asset/network, the amount the user intends to
+ * send, and the optional USD value. No transaction hash is required here — a
+ * pending deposit is created first and the on-chain transfer is matched later,
+ * so this validation never depends on a blockchain provider.
+ */
+export function validateDepositIntent(input: DepositIntentInput): DepositIntentValidation {
+  const errors: string[] = [];
+  const cryptoType = input.cryptoType;
+
+  if (!isSupportedDepositCryptoType(cryptoType)) {
+    return {
+      valid: false,
+      errors: ["Select a supported asset and network before creating a deposit."],
+      numericCryptoAmount: null,
+      numericUsdAmount: null
+    };
   }
-  if (status === "Rejected") {
-    return { label: "Rejected", tone: "negative" };
+
+  const hasCryptoAmount =
+    input.cryptoAmount !== undefined && input.cryptoAmount !== null && input.cryptoAmount !== "";
+  const hasUsdAmount =
+    input.usdAmount !== undefined && input.usdAmount !== null && input.usdAmount !== "";
+
+  const numericCryptoAmount = hasCryptoAmount ? Number(input.cryptoAmount) : null;
+  const numericUsdAmount = hasUsdAmount ? Number(input.usdAmount) : null;
+
+  if (!hasCryptoAmount && !hasUsdAmount) {
+    errors.push("Enter a deposit amount.");
   }
-  return { label: "Pending", tone: "gold" };
+
+  if (hasCryptoAmount) {
+    if (!Number.isFinite(numericCryptoAmount) || (numericCryptoAmount as number) <= 0) {
+      errors.push("Deposit amount must be a positive number.");
+    } else if (
+      exceedsDecimalPrecision(
+        numericCryptoAmount as number,
+        DEPOSIT_DECIMALS_BY_CRYPTO_TYPE[cryptoType]
+      )
+    ) {
+      errors.push(
+        `Amount supports at most ${
+          DEPOSIT_DECIMALS_BY_CRYPTO_TYPE[cryptoType]
+        } decimal places for this asset.`
+      );
+    }
+  }
+
+  if (hasUsdAmount && (!Number.isFinite(numericUsdAmount) || (numericUsdAmount as number) <= 0)) {
+    errors.push("The deposit value must be a positive number.");
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    numericCryptoAmount: Number.isFinite(numericCryptoAmount as number)
+      ? (numericCryptoAmount as number)
+      : null,
+    numericUsdAmount: Number.isFinite(numericUsdAmount as number)
+      ? (numericUsdAmount as number)
+      : null
+  };
 }

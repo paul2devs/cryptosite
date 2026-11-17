@@ -121,21 +121,62 @@ const depositRules_1 = require("./depositRules");
     assert_1.default.equal(tooPreciseUsdt.valid, false);
     assert_1.default.ok(tooPreciseUsdt.errors.includes("Amount supports at most 6 decimal places for this asset."));
 });
+(0, node_test_1.test)("validates a deposit intent without requiring a transaction hash", () => {
+    const valid = (0, depositRules_1.validateDepositIntent)({
+        cryptoType: "BTC",
+        cryptoAmount: 0.25,
+        usdAmount: 15000
+    });
+    assert_1.default.equal(valid.valid, true);
+    assert_1.default.deepEqual(valid.errors, []);
+    assert_1.default.equal(valid.numericCryptoAmount, 0.25);
+    assert_1.default.equal(valid.numericUsdAmount, 15000);
+    const usdOnly = (0, depositRules_1.validateDepositIntent)({
+        cryptoType: "TRC20",
+        cryptoAmount: null,
+        usdAmount: 100
+    });
+    assert_1.default.equal(usdOnly.valid, true);
+    assert_1.default.equal(usdOnly.numericCryptoAmount, null);
+    const noAmount = (0, depositRules_1.validateDepositIntent)({
+        cryptoType: "ETH",
+        cryptoAmount: null,
+        usdAmount: null
+    });
+    assert_1.default.equal(noAmount.valid, false);
+    assert_1.default.ok(noAmount.errors.includes("Enter a deposit amount."));
+    const unsupported = (0, depositRules_1.validateDepositIntent)({
+        cryptoType: "USDT",
+        cryptoAmount: 10,
+        usdAmount: null
+    });
+    assert_1.default.equal(unsupported.valid, false);
+    assert_1.default.ok(unsupported.errors.includes("Select a supported asset and network before creating a deposit."));
+    const nonPositive = (0, depositRules_1.validateDepositIntent)({
+        cryptoType: "SOL",
+        cryptoAmount: 0,
+        usdAmount: null
+    });
+    assert_1.default.equal(nonPositive.valid, false);
+    const tooPrecise = (0, depositRules_1.validateDepositIntent)({
+        cryptoType: "TRC20",
+        cryptoAmount: 1.2345678,
+        usdAmount: null
+    });
+    assert_1.default.equal(tooPrecise.valid, false);
+    assert_1.default.ok(tooPrecise.errors.includes("Amount supports at most 6 decimal places for this asset."));
+});
 (0, node_test_1.test)("describes deposit statuses with the correct label and tone", () => {
-    assert_1.default.deepEqual((0, depositRules_1.describeDepositStatus)("Pending"), {
-        label: "Pending",
-        tone: "gold"
-    });
-    assert_1.default.deepEqual((0, depositRules_1.describeDepositStatus)("Approved"), {
-        label: "Confirmed",
-        tone: "positive"
-    });
-    assert_1.default.deepEqual((0, depositRules_1.describeDepositStatus)("Rejected"), {
-        label: "Rejected",
-        tone: "negative"
-    });
-    assert_1.default.deepEqual((0, depositRules_1.describeDepositStatus)("AnythingElse"), {
-        label: "Pending",
-        tone: "gold"
-    });
+    assert_1.default.deepEqual({ label: (0, depositRules_1.describeDepositStatus)("Pending").label, tone: (0, depositRules_1.describeDepositStatus)("Pending").tone }, { label: "Waiting for payment", tone: "gold" });
+    assert_1.default.equal((0, depositRules_1.describeDepositStatus)("Pending").message, "Waiting for your crypto transfer to arrive.");
+    assert_1.default.deepEqual({
+        label: (0, depositRules_1.describeDepositStatus)("Approved").label,
+        tone: (0, depositRules_1.describeDepositStatus)("Approved").tone
+    }, { label: "Completed", tone: "positive" });
+    assert_1.default.deepEqual({
+        label: (0, depositRules_1.describeDepositStatus)("Rejected").label,
+        tone: (0, depositRules_1.describeDepositStatus)("Rejected").tone
+    }, { label: "Rejected", tone: "negative" });
+    assert_1.default.equal((0, depositRules_1.describeDepositStatus)("AnythingElse").label, "Waiting for payment");
+    assert_1.default.equal((0, depositRules_1.describeDepositStatus)("AWAITING_ADMIN_APPROVAL").label, "Awaiting approval");
 });

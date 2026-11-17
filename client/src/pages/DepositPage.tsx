@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, PlusCircle } from "lucide-react";
 import { Seo } from "../components/Seo";
 import {
   Panel,
@@ -9,18 +9,17 @@ import {
   StatStrip,
   Stat
 } from "../components/dashboard/primitives";
-import { SolidCheck, SolidShield } from "../components/icons/SolidIcons";
+import { SolidShield } from "../components/icons/SolidIcons";
 import { DISCLOSURES } from "../constants/copy";
-import { useDepositData } from "../hooks/useDepositData";
+import { useDepositData, type DepositPaymentInstructions } from "../hooks/useDepositData";
 import { useDepositQuote } from "../hooks/useDepositQuote";
-import { formatUsd, truncateMiddle } from "../utils/format";
+import { formatUsd } from "../utils/format";
+import type { DepositRecord } from "../utils/transactions";
 import {
   cryptoTypeFromAssetParam,
   defaultCryptoTypeForSymbol,
-  depositReference,
   getNetworkOption,
   symbolForCryptoType,
-  validateTxHashInput,
   validateUsdAmountInput,
   type CryptoType,
   type DepositSymbol
@@ -30,41 +29,24 @@ import { DepositStepper, type DepositStep } from "../components/deposit/DepositS
 import { AssetSelector } from "../components/deposit/AssetSelector";
 import { NetworkSelector } from "../components/deposit/NetworkSelector";
 import { DepositAmountInput } from "../components/deposit/DepositAmountInput";
-import { TransactionHashInput } from "../components/deposit/TransactionHashInput";
 import { DepositInstructions } from "../components/deposit/DepositInstructions";
 import { DepositHistory } from "../components/deposit/DepositHistory";
 import { DepositLoadingSkeleton } from "../components/deposit/DepositLoadingSkeleton";
 import { DepositVerificationStatus } from "../components/deposit/DepositVerificationStatus";
 
-const LAST_STEP = 5;
+/** Step 3 is the payment screen, created only after the pending record exists. */
+const PAYMENT_STEP = 3;
+
+/** The created pending deposit plus the server-supplied payment instructions. */
+interface PaymentState {
+  deposit: DepositRecord;
+  instructions: DepositPaymentInstructions;
+}
 
 function extractMessage(error: unknown, fallback: string): string {
   const candidate = error as { response?: { data?: { message?: string } } } | undefined;
   const message = candidate?.response?.data?.message;
   return typeof message === "string" && message.length > 0 ? message : fallback;
-}
-
-function ReviewRow({
-  label,
-  value,
-  mono = false
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="shrink-0 text-[11px] text-[#9CA3AF]">{label}</span>
-      <span
-        className={`min-w-0 break-all text-right text-[11px] text-[#F5F5F7] ${
-          mono ? "font-mono" : "financial-figure"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
-  );
 }
 
 export function DepositPage() {
@@ -80,9 +62,11 @@ export function DepositPage() {
     initialCryptoType ?? defaultCryptoTypeForSymbol(initialSymbol)
   );
   const [amount, setAmount] = useState("");
-  const [txHash, setTxHash] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const [successId, setSuccessId] = useState<string | null>(null);
+  const [payment, setPayment] = useState<PaymentState | null>(null);
+  const [txHash, setTxHash] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const stepAnchorRef = useRef<HTMLDivElement | null>(null);
   const previousStepRef = useRef(step);
 
@@ -96,7 +80,10 @@ export function DepositPage() {
     accountError,
     depositsError,
     submitting,
-    submitDeposit,
+    submittingTransaction,
+    createDeposit,
+    submitTransaction,
+    rescanDeposit,
     refresh
   } = useDepositData();
 
@@ -110,8 +97,6 @@ export function DepositPage() {
   // `amount` holds the USD value the user enters. The crypto equivalent is
   // always derived by the backend pricing service via the deposit quote.
   const amountValidation = validateUsdAmountInput(amount);
-  const txValidation = validateTxHashInput(txHash);
-
   const parsedUsd = Number(amount);
   const usdAmount = amountValidation.valid && Number.isFinite(parsedUsd) ? parsedUsd : null;
 
@@ -122,12 +107,9 @@ export function DepositPage() {
     refresh: refreshQuote
   } = useDepositQuote(cryptoType, usdAmount);
 
-  const conversionReady = quote?.available === true && quote.cryptoAmountLabel !== null;
+  const conversionReady =
+    quote?.available === true && quote.cryptoAmount !== null && quote.cryptoAmountLabel !== null;
   const cryptoAmountLabel = conversionReady ? quote!.cryptoAmountLabel! : "-";
-
-  const lastSubmittedDeposit = successId
-    ? deposits.find((deposit) => deposit.deposit_id === successId) ?? null
-    : null;
 
   const steps: DepositStep[] = [
     { id: "asset", label: "Asset", state: step > 0 ? "done" : "active" },
@@ -142,19 +124,9 @@ export function DepositPage() {
       state: step > 2 ? "done" : step === 2 ? "active" : "upcoming"
     },
     {
-      id: "address",
-      label: "Address",
-      state: step > 3 ? "done" : step === 3 ? "active" : "upcoming"
-    },
-    {
-      id: "hash",
-      label: "Tx hash",
-      state: step > 4 ? "done" : step === 4 ? "active" : "upcoming"
-    },
-    {
-      id: "submit",
-      label: "Submit",
-      state: lastSubmittedDeposit ? "done" : step === LAST_STEP ? "active" : "upcoming"
+      id: "payment",
+      label: "Payment",
+      state: step === PAYMENT_STEP ? "active" : "upcoming"
     }
   ];
 
@@ -162,20 +134,14 @@ export function DepositPage() {
     if (submitting) {
       return false;
     }
-    if (step === 2) {
-      return amountValidation.valid && conversionReady;
-    }
-    if (step === 3) {
+    if (step === 1) {
       return address !== null;
-    }
-    if (step === 4) {
-      return txValidation.valid;
     }
     return true;
   })();
 
-  const canSubmit =
-    address !== null && amountValidation.valid && txValidation.valid && !submitting;
+  const canCreate =
+    address !== null && amountValidation.valid && conversionReady && !submitting;
 
   const handleSelectSymbol = (nextSymbol: DepositSymbol) => {
     if (nextSymbol === symbol) {
@@ -184,9 +150,7 @@ export function DepositPage() {
     setSymbol(nextSymbol);
     setCryptoType(defaultCryptoTypeForSymbol(nextSymbol));
     setAmount("");
-    setTxHash("");
     setFormError(null);
-    setSuccessId(null);
   };
 
   const handleChangeNetwork = (nextCryptoType: CryptoType) => {
@@ -195,19 +159,27 @@ export function DepositPage() {
     }
     setCryptoType(nextCryptoType);
     setAmount("");
-    setTxHash("");
     setFormError(null);
-    setSuccessId(null);
   };
 
   const goNext = () => {
     setFormError(null);
-    setStep((current) => Math.min(LAST_STEP, current + 1));
+    setStep((current) => Math.min(PAYMENT_STEP, current + 1));
   };
 
   const goBack = () => {
     setFormError(null);
     setStep((current) => Math.max(0, current - 1));
+  };
+
+  const resetFlow = () => {
+    setFormError(null);
+    setSubmissionError(null);
+    setVerificationMessage(null);
+    setPayment(null);
+    setTxHash("");
+    setAmount("");
+    setStep(0);
   };
 
   // Whenever the step changes, bring the start of the newly displayed section
@@ -228,7 +200,14 @@ export function DepositPage() {
     window.scrollTo({ top: Math.max(0, top), behavior: prefersReduced ? "auto" : "smooth" });
   }, [step]);
 
-  const handleSubmit = async (event: FormEvent) => {
+  /**
+   * Create the pending deposit. Creation only needs the authenticated user, a
+   * supported asset/network and an amount: the backend allocates the unique
+   * reference, stores the record as PENDING and returns the payment
+   * instructions. No wallet is credited here and admin approval is still
+   * required before any balance changes.
+   */
+  const handleCreate = async (event: FormEvent) => {
     event.preventDefault();
     setFormError(null);
     if (!address) {
@@ -241,30 +220,61 @@ export function DepositPage() {
     }
     if (!quote || quote.available !== true || quote.cryptoAmount === null) {
       setFormError(
-        "We cannot submit this deposit until a verified conversion rate is available. Please refresh the rate and try again."
+        "We cannot fix the exact amount to send until a verified rate is available. Please refresh the rate and try again."
       );
       return;
     }
-    if (!txValidation.valid) {
-      setFormError(txValidation.message ?? "Enter a valid transaction hash.");
-      return;
-    }
     try {
-      const created = await submitDeposit({
+      const created = await createDeposit({
         crypto_type: cryptoType,
         amount: quote.cryptoAmount,
-        usd_amount: usdAmount,
-        tx_hash: txHash.trim()
+        usd_amount: usdAmount
       });
-      setSuccessId(created.deposit_id);
-      setAmount("");
+      setPayment({ deposit: created.deposit, instructions: created.instructions });
+      setVerificationMessage(null);
+      setSubmissionError(null);
       setTxHash("");
+      setStep(PAYMENT_STEP);
     } catch (error) {
       setFormError(
-        extractMessage(
-          error,
-          "We could not submit your deposit. Please check the details and try again."
-        )
+        extractMessage(error, "We could not create your deposit right now. Please try again.")
+      );
+    }
+  };
+
+  const handleSubmitHash = async () => {
+    if (!payment) {
+      return;
+    }
+    setSubmissionError(null);
+    setVerificationMessage(null);
+    try {
+      const result = await submitTransaction(payment.instructions.reference, txHash.trim());
+      setPayment({ deposit: result.deposit, instructions: result.instructions });
+      setVerificationMessage(result.message);
+      setTxHash("");
+    } catch (error) {
+      setSubmissionError(
+        extractMessage(error, "We could not verify that transaction right now.")
+      );
+    }
+  };
+
+  const handleRescan = async () => {
+    if (!payment) {
+      return;
+    }
+    setSubmissionError(null);
+    setVerificationMessage(null);
+    try {
+      const result = await rescanDeposit(payment.instructions.reference);
+      setPayment({
+        deposit: result.deposit,
+        instructions: result.instructions ?? payment.instructions
+      });
+    } catch (error) {
+      setSubmissionError(
+        extractMessage(error, "We could not check that deposit right now.")
       );
     }
   };
@@ -280,7 +290,7 @@ export function DepositPage() {
     <div className="page-responsive borderless-ui min-w-0 space-y-8 overflow-x-hidden sm:space-y-10">
       <Seo
         title="Deposit – add funds with verified on-chain payments"
-        description="Add funds to your account using supported crypto assets and networks. Every deposit is verified independently on-chain before it is credited."
+        description="Add funds to your account using supported crypto assets and networks. Every deposit is verified independently on-chain and approved by an administrator before it is credited."
         path="/deposit"
       />
 
@@ -303,7 +313,7 @@ export function DepositPage() {
               <DepositStepper steps={steps} />
             </div>
 
-            <form onSubmit={handleSubmit} className="min-w-0 space-y-6">
+            <form onSubmit={handleCreate} className="min-w-0 space-y-6">
               {step === 0 ? (
                 <Panel className="space-y-4">
                   <SectionHeader
@@ -355,98 +365,44 @@ export function DepositPage() {
                 </Panel>
               ) : null}
 
-              {step === 3 ? (
+              {step === PAYMENT_STEP && payment ? (
                 <DepositInstructions
-                  option={option}
-                  address={address}
-                  quote={quote}
-                  loading={loading}
-                  error={addressesError}
-                  onRetry={refresh}
+                  deposit={payment.deposit}
+                  instructions={payment.instructions}
+                  option={getNetworkOption(payment.instructions.cryptoType)}
+                  txHash={txHash}
+                  onTxHashChange={(next) => {
+                    setTxHash(next);
+                    setSubmissionError(null);
+                    setVerificationMessage(null);
+                  }}
+                  onSubmitHash={handleSubmitHash}
+                  onRescan={handleRescan}
+                  submitting={submittingTransaction}
+                  scanning={submittingTransaction}
+                  message={verificationMessage}
+                  error={submissionError}
                 />
               ) : null}
 
-              {step === 4 ? (
-                <Panel className="space-y-5">
-                  <SectionHeader
-                    eyebrow="Step 5"
-                    title="Enter transaction hash"
-                    description="After sending the funds, paste the on-chain transaction hash so we can verify it."
-                  />
-                  <TransactionHashInput
-                    option={option}
-                    value={txHash}
-                    onChange={(next) => {
-                      setTxHash(next);
-                      setFormError(null);
-                    }}
-                    validation={txValidation}
-                    disabled={submitting}
-                  />
-                </Panel>
-              ) : null}
-
-              {step === LAST_STEP ? (
-                <Panel className="space-y-5">
-                  <SectionHeader
-                    eyebrow="Step 6"
-                    title="Submit deposit for verification"
-                    description={DISCLOSURES.onChainVerification}
-                  />
-
-                  <div className="space-y-2 rounded-xl bg-[#0F0F10] px-3 py-3">
-                    <ReviewRow label="Asset" value={option.symbolLabel} />
-                    <ReviewRow label="Network" value={option.networkLabel} />
-                    <ReviewRow
-                      label="Amount"
-                      value={usdAmount !== null ? formatUsd(usdAmount) : "-"}
-                    />
-                    <ReviewRow
-                      label="You send"
-                      value={conversionReady ? cryptoAmountLabel : "Rate unavailable"}
-                    />
-                    <ReviewRow
-                      label="Transaction hash"
-                      value={txHash.trim() ? truncateMiddle(txHash.trim(), 14, 10) : "-"}
-                      mono
-                    />
-                  </div>
-
-                  {formError ? <ErrorRow message={formError} /> : null}
-
-                  {lastSubmittedDeposit ? (
-                    <div className="flex gap-2 rounded-xl bg-[#16C784]/8 px-3 py-3">
-                      <SolidCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#16C784]" />
-                      <div className="min-w-0 space-y-0.5 text-[11px] text-[#F5F5F7]">
-                        <p className="font-medium">
-                          Deposit submitted · {depositReference(lastSubmittedDeposit.deposit_id)}
-                        </p>
-                        <p className="text-[#9CA3AF]">
-                          We are verifying this transaction on-chain. It stays pending until the
-                          platform confirms it independently.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-[11px] text-[#6B7280]">{DISCLOSURES.depositsNotCredited}</p>
-                  )}
-                </Panel>
-              ) : null}
-
-              {step !== LAST_STEP && formError ? <ErrorRow message={formError} /> : null}
+              {step !== PAYMENT_STEP && formError ? <ErrorRow message={formError} /> : null}
 
               <div className="buttons-row sm:flex sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  disabled={step === 0 || submitting}
-                  className={navButtonClass}
-                >
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  Back
-                </button>
+                {step > 0 && step < PAYMENT_STEP ? (
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    disabled={submitting}
+                    className={navButtonClass}
+                  >
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    Back
+                  </button>
+                ) : (
+                  <span />
+                )}
 
-                {step < LAST_STEP ? (
+                {step < 2 ? (
                   <button
                     type="button"
                     onClick={goNext}
@@ -456,14 +412,19 @@ export function DepositPage() {
                     Continue
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </button>
-                ) : (
-                  <button type="submit" disabled={!canSubmit} className={primaryButtonClass}>
+                ) : step === 2 ? (
+                  <button type="submit" disabled={!canCreate} className={primaryButtonClass}>
                     {submitting ? (
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                     ) : (
                       <SolidShield className="h-4 w-4" aria-hidden="true" />
                     )}
-                    <span>{submitting ? "Submitting for verification…" : "Submit for verification"}</span>
+                    <span>{submitting ? "Creating deposit…" : "Create deposit & continue"}</span>
+                  </button>
+                ) : (
+                  <button type="button" onClick={resetFlow} className={navButtonClass}>
+                    <PlusCircle className="h-4 w-4" aria-hidden="true" />
+                    Create another deposit
                   </button>
                 )}
               </div>
@@ -471,27 +432,34 @@ export function DepositPage() {
           </div>
 
           <div className="min-w-0 space-y-6 lg:sticky lg:top-6">
-            <Panel className="space-y-4">
-              <SectionHeader eyebrow="Summary" title="Deposit summary" />
-              <StatStrip>
-                <Stat label="Asset" value={option.symbolLabel} hint={option.networkLabel} />
-                <Stat label="Network" value={option.networkLabel} hint={`${option.networkType} network`} />
-                <Stat
-                  label="Amount"
-                  value={amountValidation.valid && usdAmount !== null ? formatUsd(usdAmount) : "-"}
-                  hint={amountValidation.valid ? "USD you deposit" : "Enter an amount"}
-                />
-                <Stat
-                  label="You send"
-                  value={conversionReady ? cryptoAmountLabel : "-"}
-                  hint={conversionReady ? "Equivalent at the verified rate" : "Waiting for a live rate"}
-                />
-              </StatStrip>
-            </Panel>
-
-            {lastSubmittedDeposit ? (
-              <DepositVerificationStatus deposit={lastSubmittedDeposit} />
-            ) : null}
+            {step === PAYMENT_STEP && payment ? (
+              <DepositVerificationStatus deposit={payment.deposit} />
+            ) : (
+              <Panel className="space-y-4">
+                <SectionHeader eyebrow="Summary" title="Deposit summary" />
+                <StatStrip>
+                  <Stat label="Asset" value={option.symbolLabel} hint={option.networkLabel} />
+                  <Stat
+                    label="Network"
+                    value={option.networkLabel}
+                    hint={`${option.networkType} network`}
+                  />
+                  <Stat
+                    label="Amount"
+                    value={amountValidation.valid && usdAmount !== null ? formatUsd(usdAmount) : "-"}
+                    hint={amountValidation.valid ? "USD you deposit" : "Enter an amount"}
+                  />
+                  <Stat
+                    label="You send"
+                    value={conversionReady ? cryptoAmountLabel : "-"}
+                    hint={conversionReady ? "Equivalent at the verified rate" : "Waiting for a live rate"}
+                  />
+                </StatStrip>
+                <p className="text-[11px] leading-relaxed text-[#6B7280]">
+                  {DISCLOSURES.depositsNotCredited}
+                </p>
+              </Panel>
+            )}
           </div>
         </div>
       )}
