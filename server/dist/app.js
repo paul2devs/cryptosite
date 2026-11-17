@@ -49,7 +49,14 @@ const corsOptions = {
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+    allowedHeaders: [
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-Requested-With",
+        "Idempotency-Key",
+        "X-Idempotency-Key"
+    ],
     exposedHeaders: ["Content-Type"]
 };
 app.use(errorHandler_1.correlationIdMiddleware);

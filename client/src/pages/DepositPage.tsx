@@ -9,7 +9,6 @@ import {
   StatStrip,
   Stat
 } from "../components/dashboard/primitives";
-import { SolidShield } from "../components/icons/SolidIcons";
 import { DISCLOSURES } from "../constants/copy";
 import { useDepositData, type DepositPaymentInstructions } from "../hooks/useDepositData";
 import { useDepositQuote } from "../hooks/useDepositQuote";
@@ -416,10 +415,8 @@ export function DepositPage() {
                   <button type="submit" disabled={!canCreate} className={primaryButtonClass}>
                     {submitting ? (
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <SolidShield className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    <span>{submitting ? "Creating deposit…" : "Create deposit & continue"}</span>
+                    ) : null}
+                    <span>{submitting ? "Creating deposit…" : "Continue"}</span>
                   </button>
                 ) : (
                   <button type="button" onClick={resetFlow} className={navButtonClass}>
