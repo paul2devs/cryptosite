@@ -70,6 +70,7 @@ export function DepositAmountInput({
   const showStale = quoteError === null && quote?.available === false && quote.stale === true;
   const unavailable = quoteError !== null || (quote !== null && quote.available === false);
   const showLoading = !unavailable && !rateAvailable;
+  const unavailableBody = showStale ? ERRORS.rateStale.body : ERRORS.rateUnavailable.body;
 
   const parsedValue = Number(value);
   const hasValue = validation.valid && Number.isFinite(parsedValue) && parsedValue > 0;
@@ -166,9 +167,9 @@ export function DepositAmountInput({
             <p className="text-[11px] font-medium text-[#EA3943]">
               {showStale ? ERRORS.rateStale.title : ERRORS.rateUnavailable.title}
             </p>
-            <p className="text-[11px] leading-relaxed text-[#9CA3AF]">
-              {showStale ? ERRORS.rateStale.body : ERRORS.rateUnavailable.body}
-            </p>
+            {unavailableBody ? (
+              <p className="text-[11px] leading-relaxed text-[#9CA3AF]">{unavailableBody}</p>
+            ) : null}
             {showStale && quote?.rateUpdatedAt ? (
               <p className="text-[10px] text-[#6B7280]">
                 Last rate received {formatDateTime(quote.rateUpdatedAt)}
@@ -194,6 +195,11 @@ export function DepositAmountInput({
           </div>
         ) : (
           <>
+            {quote?.cached ? (
+              <p className="rounded-lg bg-[#C6A15B]/10 px-2.5 py-1.5 text-[10px] leading-relaxed text-[#C6A15B]">
+                {DEPOSIT_CONVERSION.cachedNote}
+              </p>
+            ) : null}
             <ConversionRow
               label="Deposit amount"
               value={hasValue ? formatUsd(parsedValue) : "-"}

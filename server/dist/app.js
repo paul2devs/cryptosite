@@ -36,6 +36,7 @@ const adminBootstrapService_1 = require("./services/adminBootstrapService");
 const bonusEngineService_1 = require("./services/bonusEngineService");
 const rewardService_1 = require("./services/rewardService");
 const platformSettingsService_1 = require("./services/platformSettingsService");
+const marketDataService_1 = require("./services/marketDataService");
 require("./models");
 const app = (0, express_1.default)();
 const corsOptions = {
@@ -97,6 +98,11 @@ app.use(errorHandler_1.errorHandler);
 async function startApp() {
     (0, env_1.validateCoreEnv)();
     (0, env_1.logEnvWarnings)();
+    // Verify the shared cache and pricing configuration up front so a broken
+    // Redis URL or provider setting is reported at startup rather than on the
+    // first user request.
+    await (0, cache_1.validateCacheConnection)();
+    (0, marketDataService_1.validateMarketDataConfig)();
     await (0, database_1.initDatabase)();
     await (0, gamificationService_1.ensureDefaultLevels)();
     await (0, membershipService_1.ensureDefaultMembershipTiers)();

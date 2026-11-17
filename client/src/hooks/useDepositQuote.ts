@@ -21,6 +21,8 @@ export interface DepositQuote {
   rateSource: string | null;
   rateUpdatedAt: string | null;
   stale: boolean;
+  /** True when the shown rate is served from cache rather than fetched live. */
+  cached: boolean;
   minUsd: number;
   maxUsd: number;
   feeUsd: number;

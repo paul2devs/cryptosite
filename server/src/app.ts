@@ -3,7 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { getDatabaseStatus, initDatabase } from "./config/database";
-import { getCacheStatus } from "./config/cache";
+import { getCacheStatus, validateCacheConnection } from "./config/cache";
 import { isOriginAllowed } from "./config/corsOrigins";
 import { logEnvWarnings, validateCoreEnv } from "./config/env";
 import {
@@ -34,6 +34,7 @@ import { ensureAdminAccount } from "./services/adminBootstrapService";
 import { ensureDefaultBonusCampaign } from "./services/bonusEngineService";
 import { ensureDefaultRewards } from "./services/rewardService";
 import { ensurePlatformSettings } from "./services/platformSettingsService";
+import { validateMarketDataConfig } from "./services/marketDataService";
 import "./models";
 
 const app = express();
@@ -106,6 +107,11 @@ app.use(errorHandler);
 export async function startApp(): Promise<void> {
   validateCoreEnv();
   logEnvWarnings();
+  // Verify the shared cache and pricing configuration up front so a broken
+  // Redis URL or provider setting is reported at startup rather than on the
+  // first user request.
+  await validateCacheConnection();
+  validateMarketDataConfig();
   await initDatabase();
   await ensureDefaultLevels();
   await ensureDefaultMembershipTiers();

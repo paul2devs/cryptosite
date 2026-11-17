@@ -14,6 +14,7 @@ import {
 import {
   MarketDataSource,
   SupportedSymbol,
+  classifyPriceFreshness,
   getAllMarketPrices
 } from "./marketDataService";
 
@@ -36,18 +37,13 @@ const DISPLAY_SYMBOL_BY_CRYPTO_TYPE: Record<DepositCryptoType, string> = {
 
 const SOURCE_LABELS: Record<MarketDataSource, string> = {
   coingecko: "CoinGecko",
+  kraken: "Kraken",
+  coinbase: "Coinbase",
   binance: "Binance"
 };
 
-/**
- * A rate older than this is treated as expired: it cannot be used to price a new
- * conversion and must be refreshed first. The pricing service refreshes every
- * few seconds, so this only trips during a sustained provider outage.
- */
-const RATE_STALE_MS = 5 * 60 * 1000;
-
 const RATE_UNAVAILABLE_REASON =
-  "Live pricing is unavailable right now, so we cannot calculate a conversion. Please try again shortly.";
+  "Current conversion pricing is temporarily unavailable. Please try again shortly.";
 
 const RATE_STALE_REASON =
   "The last exchange rate we received is out of date, so it cannot be used for a conversion. Refresh the rate and try again.";
@@ -80,6 +76,8 @@ export interface DepositQuote {
   rateSource: string | null;
   rateUpdatedAt: string | null;
   stale: boolean;
+  /** True when the shown rate is served from cache rather than fetched live. */
+  cached: boolean;
   minUsd: number;
   maxUsd: number;
   feeUsd: number;
@@ -115,6 +113,7 @@ export async function buildDepositQuote(input: {
     rateSource: null,
     rateUpdatedAt: null,
     stale: false,
+    cached: false,
     minUsd: DEPOSIT_MIN_USD,
     maxUsd: DEPOSIT_MAX_USD,
     feeUsd: 0,
@@ -132,8 +131,8 @@ export async function buildDepositQuote(input: {
 
   const updatedAt = point.lastUpdated ? new Date(point.lastUpdated) : null;
   const updatedAtValid = updatedAt !== null && Number.isFinite(updatedAt.getTime());
-  const ageMs = updatedAtValid ? Date.now() - updatedAt!.getTime() : Number.POSITIVE_INFINITY;
-  const stale = !updatedAtValid || ageMs > RATE_STALE_MS;
+  const ageMs = updatedAtValid ? Date.now() - updatedAt!.getTime() : null;
+  const freshness = updatedAtValid ? classifyPriceFreshness(ageMs) : "stale";
 
   const rateMeta = {
     rate: point.price,
@@ -141,18 +140,22 @@ export async function buildDepositQuote(input: {
     rateUpdatedAt: updatedAtValid ? updatedAt!.toISOString() : null
   };
 
-  // An expired rate is disclosed with its timestamp so the user knows how old it
-  // is, but it is never used to price a fresh conversion: the amount stays
-  // unavailable until the rate is refreshed.
-  if (stale) {
+  // A rate past the staleness threshold is disclosed with its timestamp so the
+  // user knows how old it is, but it is never used to price a fresh conversion:
+  // the amount stays unavailable until the rate is refreshed.
+  if (freshness === "stale") {
     return { ...base, ...rateMeta, stale: true, reason: RATE_STALE_REASON };
   }
 
+  // Inside the staleness window but past the live window: still usable, and
+  // flagged so the UI can disclose that a cached rate is being shown rather than
+  // presenting it as live.
   const quote: DepositQuote = {
     ...base,
     ...rateMeta,
     available: true,
-    stale: false
+    stale: false,
+    cached: freshness === "cached"
   };
 
   const usdAmount =
@@ -197,10 +200,7 @@ export async function validateDepositConversion(input: {
   if (!quote.available || quote.rate === null) {
     return {
       valid: false,
-      errors: [
-        quote.reason ||
-          "Live pricing is unavailable right now, so this deposit cannot be validated. Please try again shortly."
-      ],
+      errors: [quote.reason || RATE_UNAVAILABLE_REASON],
       quote
     };
   }

@@ -184,8 +184,10 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     // Correct credentials, but the address has not been confirmed: the account
-    // must not be misrepresented as a credential failure.
-    if (!user.email_verified) {
+    // must not be misrepresented as a credential failure. Administrators are
+    // exempt from email verification (matching `middleware/auth.ts`), so an
+    // admin can always sign in to operate the platform.
+    if (!user.email_verified && !user.is_admin) {
       const resendAvailableAt = await getVerificationResendAvailableAt(user.user_id);
       res.status(403).json({
         message: "Please verify your email address before signing in.",

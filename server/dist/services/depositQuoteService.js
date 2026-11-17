@@ -23,15 +23,11 @@ const DISPLAY_SYMBOL_BY_CRYPTO_TYPE = {
 };
 const SOURCE_LABELS = {
     coingecko: "CoinGecko",
+    kraken: "Kraken",
+    coinbase: "Coinbase",
     binance: "Binance"
 };
-/**
- * A rate older than this is treated as expired: it cannot be used to price a new
- * conversion and must be refreshed first. The pricing service refreshes every
- * few seconds, so this only trips during a sustained provider outage.
- */
-const RATE_STALE_MS = 5 * 60 * 1000;
-const RATE_UNAVAILABLE_REASON = "Live pricing is unavailable right now, so we cannot calculate a conversion. Please try again shortly.";
+const RATE_UNAVAILABLE_REASON = "Current conversion pricing is temporarily unavailable. Please try again shortly.";
 const RATE_STALE_REASON = "The last exchange rate we received is out of date, so it cannot be used for a conversion. Refresh the rate and try again.";
 exports.DEPOSIT_FEE_NOTE = "The platform does not charge a deposit fee. Network fees are set by the blockchain and are not collected by the platform.";
 const NETWORK_FEE_NOTE = "Network fees are set by the blockchain and paid to miners or validators. They are not collected by the platform and cannot be estimated here.";
@@ -64,6 +60,7 @@ async function buildDepositQuote(input) {
         rateSource: null,
         rateUpdatedAt: null,
         stale: false,
+        cached: false,
         minUsd: depositQuote_1.DEPOSIT_MIN_USD,
         maxUsd: depositQuote_1.DEPOSIT_MAX_USD,
         feeUsd: 0,
@@ -78,24 +75,28 @@ async function buildDepositQuote(input) {
     }
     const updatedAt = point.lastUpdated ? new Date(point.lastUpdated) : null;
     const updatedAtValid = updatedAt !== null && Number.isFinite(updatedAt.getTime());
-    const ageMs = updatedAtValid ? Date.now() - updatedAt.getTime() : Number.POSITIVE_INFINITY;
-    const stale = !updatedAtValid || ageMs > RATE_STALE_MS;
+    const ageMs = updatedAtValid ? Date.now() - updatedAt.getTime() : null;
+    const freshness = updatedAtValid ? (0, marketDataService_1.classifyPriceFreshness)(ageMs) : "stale";
     const rateMeta = {
         rate: point.price,
         rateSource: point.source ? SOURCE_LABELS[point.source] : "Configured pricing service",
         rateUpdatedAt: updatedAtValid ? updatedAt.toISOString() : null
     };
-    // An expired rate is disclosed with its timestamp so the user knows how old it
-    // is, but it is never used to price a fresh conversion: the amount stays
-    // unavailable until the rate is refreshed.
-    if (stale) {
+    // A rate past the staleness threshold is disclosed with its timestamp so the
+    // user knows how old it is, but it is never used to price a fresh conversion:
+    // the amount stays unavailable until the rate is refreshed.
+    if (freshness === "stale") {
         return { ...base, ...rateMeta, stale: true, reason: RATE_STALE_REASON };
     }
+    // Inside the staleness window but past the live window: still usable, and
+    // flagged so the UI can disclose that a cached rate is being shown rather than
+    // presenting it as live.
     const quote = {
         ...base,
         ...rateMeta,
         available: true,
-        stale: false
+        stale: false,
+        cached: freshness === "cached"
     };
     const usdAmount = typeof input.usdAmount === "number" && Number.isFinite(input.usdAmount) && input.usdAmount > 0
         ? input.usdAmount
@@ -124,10 +125,7 @@ async function validateDepositConversion(input) {
     if (!quote.available || quote.rate === null) {
         return {
             valid: false,
-            errors: [
-                quote.reason ||
-                    "Live pricing is unavailable right now, so this deposit cannot be validated. Please try again shortly."
-            ],
+            errors: [quote.reason || RATE_UNAVAILABLE_REASON],
             quote
         };
     }

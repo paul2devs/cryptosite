@@ -92,8 +92,8 @@ export const EMPTY_STATES = {
 export const ERRORS = {
   generic: "Something went wrong. Please try again.",
   rateUnavailable: {
-    title: "Unable to fetch the current exchange rate.",
-    body: "We couldn't retrieve live pricing right now. Please try again."
+    title: "Current conversion pricing is temporarily unavailable. Please try again shortly.",
+    body: ""
   },
   rateStale: {
     title: "This exchange rate is out of date.",
@@ -110,6 +110,8 @@ export const ERRORS = {
 export const DEPOSIT_CONVERSION = {
   fetching: "Fetching current exchange rate...",
   retry: "Retry",
+  cachedNote:
+    "Showing a cached rate. Live pricing is temporarily unavailable, so this rate may be slightly out of date.",
   estimateNote:
     "This is an estimate based on the current rate. The final amount is confirmed once your deposit is verified on-chain."
 } as const;
