@@ -8,6 +8,7 @@ import { resolveDepositCapability } from "../domain/depositNetworkCapabilities";
 import { decodeTrc20Transfer, rawTokenAmountToNumber } from "../domain/tronTrc20";
 import { SupportedPlatformAsset, getPlatformWallet } from "./walletService";
 import {
+  EtherscanProviderError,
   confirmationsForBlock,
   etherscanAccountList,
   etherscanLatestBlockNumber,
@@ -15,6 +16,15 @@ import {
   etherscanTransactionReceipt,
   resolveEtherscanConfig
 } from "./etherscanClient";
+import {
+  fetchBitcoinTipHeight,
+  fetchBitcoinTransaction,
+  fetchSolanaTransaction,
+  isNotFoundError,
+  providerGet,
+  solanaRpcCall,
+  readOptionalEnv
+} from "./blockchainProviderClient";
 
 export type SupportedCryptoType = DepositCryptoType;
 
@@ -28,6 +38,7 @@ export type BlockchainVerificationStage =
   | "verified"
   | "not_found"
   | "mismatch"
+  | "invalid_hash"
   | "insufficient_confirmations"
   | "provider_unavailable"
   | "provider_error";
@@ -63,15 +74,6 @@ function sameBase58Address(a: string, b: string): boolean {
   return String(a || "").trim() === String(b || "").trim();
 }
 
-function readOptionalEnv(name: string): string | null {
-  const raw = process.env[name];
-  if (!raw) {
-    return null;
-  }
-  const trimmed = String(raw).trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 function hexToNumber(value: unknown): number {
   const raw = String(value ?? "0");
   if (raw.length === 0) {
@@ -84,6 +86,97 @@ function hexToNumber(value: unknown): number {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 }
+
+/** A Bitcoin/Tron transaction id: 64 hex characters. */
+const HEX_TXID_PATTERN = /^[0-9a-f]{64}$/i;
+/** A Solana signature: base58 of a 64-byte Ed25519 signature (86–88 characters). */
+const SOLANA_SIGNATURE_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{64,100}$/;
+/** An Ed25519 signature — and therefore a Solana transaction signature — is 64 bytes. */
+const SOLANA_SIGNATURE_BYTES = 64;
+const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+function stripHexPrefix(value: string): string {
+  return /^0x/i.test(value) ? value.slice(2) : value;
+}
+
+/** Base58 decode with leading-zero handling, or null when a character is invalid. */
+function decodeBase58(value: string): Uint8Array | null {
+  const bytes: number[] = [0];
+  for (const character of value) {
+    let carry = BASE58_ALPHABET.indexOf(character);
+    if (carry < 0) {
+      return null;
+    }
+    for (let i = 0; i < bytes.length; i += 1) {
+      carry += bytes[i] * 58;
+      bytes[i] = carry & 0xff;
+      carry >>= 8;
+    }
+    while (carry > 0) {
+      bytes.push(carry & 0xff);
+      carry >>= 8;
+    }
+  }
+  for (let i = 0; i < value.length && value[i] === "1"; i += 1) {
+    bytes.push(0);
+  }
+  return Uint8Array.from(bytes.reverse());
+}
+
+/**
+ * Canonical form of a transaction hash for its network, or null when the value
+ * cannot possibly be a hash on that network.
+ *
+ * This runs *before* any provider call for two reasons: a malformed hash is a
+ * caller mistake and must never be reported as "the blockchain provider is
+ * unreachable", and an EVM hash pasted without its `0x` prefix, or an uppercase
+ * hex id, must resolve to exactly one stored string or the duplicate-transaction
+ * guard can be bypassed with a cosmetic variant of the same hash.
+ */
+export function normalizeTransactionHash(
+  cryptoType: SupportedCryptoType,
+  rawHash: unknown
+): string | null {
+  const value = typeof rawHash === "string" ? rawHash.trim() : "";
+  if (value.length === 0) {
+    return null;
+  }
+  switch (cryptoType) {
+    case "BTC":
+      return HEX_TXID_PATTERN.test(value) ? value.toLowerCase() : null;
+    case "TRC20":
+      return HEX_TXID_PATTERN.test(stripHexPrefix(value)) ? stripHexPrefix(value).toLowerCase() : null;
+    case "ETH":
+    case "ERC20": {
+      const withoutPrefix = stripHexPrefix(value);
+      return HEX_TXID_PATTERN.test(withoutPrefix) ? `0x${withoutPrefix.toLowerCase()}` : null;
+    }
+    case "SOL": {
+      // The decoded length matters, not just the alphabet: the RPC rejects a
+      // base58 string that is not a 64-byte Ed25519 signature as an invalid
+      // parameter, which would otherwise surface as a provider fault instead of
+      // the caller mistake it actually is.
+      if (!SOLANA_SIGNATURE_PATTERN.test(value)) {
+        return null;
+      }
+      const decoded = decodeBase58(value);
+      return decoded && decoded.length === SOLANA_SIGNATURE_BYTES ? value : null;
+    }
+    default:
+      return null;
+  }
+}
+
+/** Explanation shown when a submitted hash cannot belong to the chosen network. */
+export const INVALID_TX_HASH_REASON: Record<SupportedCryptoType, string> = {
+  BTC: "That is not a Bitcoin transaction ID. A Bitcoin transaction ID is 64 hexadecimal characters — copy it from your wallet or a block explorer and try again.",
+  ETH: "That is not an Ethereum transaction hash. An Ethereum transaction hash is 66 characters starting with 0x — copy it from your wallet or a block explorer and try again.",
+  ERC20:
+    "That is not an Ethereum transaction hash. An ERC20 transfer is identified by its Ethereum transaction hash — 66 characters starting with 0x — copy it from your wallet or a block explorer and try again.",
+  TRC20:
+    "That is not a Tron transaction ID. A TRON transaction ID is 64 hexadecimal characters — copy it from your wallet or a block explorer and try again.",
+  SOL: "That is not a Solana transaction signature. Copy the full base58 signature from your wallet or a block explorer and try again."
+};
 
 /** The platform receiving address and network for a crypto type, or null when unconfigured. */
 export function platformAddressForCryptoType(
@@ -232,27 +325,118 @@ export function describeProviderError(error: unknown): string {
   return sanitizeProviderText(joined) || "unknown provider failure";
 }
 
-function providerError(
+/**
+ * Why a provider call failed, in the only three categories the deposit lifecycle
+ * cares about:
+ *
+ * - `transient`     the provider could not be reached or is throttling us. The
+ *                   transaction may well be perfectly valid, so the deposit must
+ *                   stay pending and the stored hash must be retried later.
+ * - `configuration` the provider answered but rejected us (bad/absent API key,
+ *                   forbidden). An operator has to fix this; retrying blindly
+ *                   will not help.
+ * - `unclassified`  anything else — still never treated as a failed payment.
+ *
+ * A provider fault must never be flattened into `not_found` (which would imply
+ * the transfer does not exist) or into a success.
+ */
+export type ProviderFailureKind = "transient" | "configuration" | "unclassified";
+
+const TRANSIENT_NETWORK_CODES = new Set([
+  "ETIMEDOUT",
+  "ECONNABORTED",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "EPIPE",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "ERR_NETWORK",
+  "ERR_BAD_RESPONSE",
+  "ERR_SOCKET_CONNECTION_TIMEOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_SOCKET"
+]);
+
+const CONFIGURATION_PATTERN =
+  /invalid api key|invalid apikey|missing apikey|apikey is required|api key is required|unauthorized|not authorized|forbidden|invalid key|api key.*(invalid|expired)/i;
+
+const TRANSIENT_MESSAGE_PATTERN =
+  /rate limit|too many requests|max calls|max rate|throttl|temporarily unavailable|service unavailable|timed? ?out|socket hang up|getaddrinfo|econn|enotfound|eai_again/i;
+
+export function classifyProviderFailure(error: unknown): ProviderFailureKind {
+  if (error instanceof EtherscanProviderError) {
+    const message = `${error.code} ${error.message}`;
+    if (CONFIGURATION_PATTERN.test(message)) {
+      return "configuration";
+    }
+    return TRANSIENT_MESSAGE_PATTERN.test(message) ? "transient" : "unclassified";
+  }
+
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status === 401 || status === 403) {
+      return "configuration";
+    }
+    if (status === 429 || (typeof status === "number" && status >= 500)) {
+      return "transient";
+    }
+    if (!error.response) {
+      // No HTTP answer at all: DNS, TCP, TLS or timeout.
+      return "transient";
+    }
+    return TRANSIENT_MESSAGE_PATTERN.test(String(error.message || ""))
+      ? "transient"
+      : "unclassified";
+  }
+
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === "string" && TRANSIENT_NETWORK_CODES.has(code)) {
+    return "transient";
+  }
+  // Node reports DNS/connect failures as an AggregateError with no message.
+  if (Array.isArray((error as { errors?: unknown } | null)?.errors)) {
+    return "transient";
+  }
+  if (TRANSIENT_MESSAGE_PATTERN.test(String((error as Error | null)?.message || ""))) {
+    return "transient";
+  }
+  return "unclassified";
+}
+
+/**
+ * Turn a provider fault into a stage. The detail is logged (sanitised) so an
+ * operator can see the real cause; the depositor only ever sees an explanation
+ * that keeps the deposit pending and never claims the transfer is invalid.
+ */
+function providerFailure(
   cryptoType: SupportedCryptoType,
   txHash: string,
   error: unknown,
   context: string
 ): BlockchainVerificationResult {
+  const kind = classifyProviderFailure(error);
   const detail = describeProviderError(error);
-  // Log the full (sanitised) detail server-side; keep the user-facing sentence generic.
   // eslint-disable-next-line no-console
-  console.error(`[blockchain-verification] ${cryptoType} ${context} failed: ${detail}`);
+  console.error(`[blockchain-verification] ${cryptoType} ${context} failed (${kind}): ${detail}`);
+
+  if (kind === "transient") {
+    return buildResult(cryptoType, txHash, "provider_unavailable", {
+      failureReason:
+        "The blockchain provider is temporarily unavailable, so this transaction could not be checked yet. Your transaction hash is saved and your deposit stays pending — verification will be retried automatically."
+    });
+  }
+  if (kind === "configuration") {
+    return buildResult(cryptoType, txHash, "provider_error", {
+      failureReason:
+        "On-chain verification is unavailable because of a blockchain provider configuration problem. Your deposit stays pending and will be reconciled by an administrator."
+    });
+  }
   return buildResult(cryptoType, txHash, "provider_error", {
     failureReason:
       "We could not reach the blockchain provider to verify this transaction right now. Your deposit stays pending and will be reconciled by an administrator."
   });
-}
-
-function stageForHttpError(error: unknown): "not_found" | "provider_error" {
-  if (axios.isAxiosError(error) && error.response?.status === 404) {
-    return "not_found";
-  }
-  return "provider_error";
 }
 
 async function verifyBitcoinDeposit(
@@ -266,26 +450,21 @@ async function verifyBitcoinDeposit(
   const capability = resolveDepositCapability("BTC");
 
   try {
-    const base = (readOptionalEnv("BTC_BLOCKCHAIN_API_BASE") || "https://blockstream.info/api").replace(
-      /\/+$/,
-      ""
-    );
-    // Fetch the transaction and the tip height together: Blockstream's `/tx`
-    // endpoint does not return a confirmation count, so it must be derived from
-    // the height difference. If the tip cannot be read the verification fails
-    // closed rather than reporting confirmations of 0 as if it were mined.
-    const [txResponse, tipResponse] = await Promise.all([
-      axios.get(`${base}/tx/${encodeURIComponent(txHash)}`, { timeout: 15000 }),
-      axios.get(`${base}/blocks/tip/height`, { timeout: 15000 })
-    ]);
-    const tx = txResponse.data as Record<string, unknown>;
-
-    if (!tx || !Array.isArray(tx.vout)) {
+    // `fetchBitcoinTransaction` walks every configured Esplora endpoint: the
+    // configured base first, then an independent fallback, and only reports a
+    // fault once all of them have failed. A definitive "not found" from any
+    // endpoint is authoritative, so failover can never invent a payment.
+    const lookup = await fetchBitcoinTransaction(txHash);
+    if (lookup.kind === "unavailable") {
+      return providerFailure("BTC", txHash, lookup.error, "transaction lookup");
+    }
+    if (lookup.kind === "not_found") {
       return buildResult("BTC", txHash, "not_found", {
         failureReason: "We could not find this transaction on the Bitcoin network yet."
       });
     }
 
+    const tx = lookup.tx;
     let valueSats = 0;
     let destinationFound = false;
     for (const vout of tx.vout as Array<Record<string, unknown>>) {
@@ -295,12 +474,24 @@ async function verifyBitcoinDeposit(
       }
     }
 
-    const tipHeight = Number(tipResponse.data) || 0;
+    // Blockstream's `/tx` endpoint does not return a confirmation count, so it
+    // must be derived from the height difference. If the tip cannot be read the
+    // verification fails closed rather than reporting confirmations of 0 as if
+    // the transaction were not mined.
+    const tipHeight = lookup.tipHeight || (await fetchBitcoinTipHeight());
+    if (!tipHeight) {
+      return providerFailure(
+        "BTC",
+        txHash,
+        new Error("The Bitcoin chain tip could not be read from any explorer."),
+        "chain tip lookup"
+      );
+    }
     const status = (tx.status || {}) as Record<string, unknown>;
     const blockHeight = Number(status.block_height || 0);
     const confirmed = status.confirmed === true;
     const confirmations =
-      confirmed && tipHeight > 0 && blockHeight > 0 ? confirmationsForBlock(tipHeight, blockHeight) : 0;
+      confirmed && blockHeight > 0 ? confirmationsForBlock(tipHeight, blockHeight) : 0;
     const amount = valueSats / 1e8;
 
     if (!destinationFound) {
@@ -332,13 +523,7 @@ async function verifyBitcoinDeposit(
       confirmations
     });
   } catch (error) {
-    const stage = stageForHttpError(error);
-    if (stage === "not_found") {
-      return buildResult("BTC", txHash, "not_found", {
-        failureReason: "We could not find this transaction on the Bitcoin network yet."
-      });
-    }
-    return providerError("BTC", txHash, error, "transaction lookup");
+    return providerFailure("BTC", txHash, error, "transaction lookup");
   }
 }
 
@@ -404,7 +589,7 @@ async function verifyEthereumNativeDeposit(
     }
     return buildResult("ETH", txHash, "verified", { amount, toAddress, confirmations });
   } catch (error) {
-    return providerError("ETH", txHash, error, "transaction lookup");
+    return providerFailure("ETH", txHash, error, "transaction lookup");
   }
 }
 
@@ -515,7 +700,7 @@ async function verifyEthereumUsdtErc20Deposit(
       confirmations
     });
   } catch (error) {
-    return providerError("ERC20", txHash, error, "token transfer lookup");
+    return providerFailure("ERC20", txHash, error, "token transfer lookup");
   }
 }
 
@@ -535,8 +720,7 @@ async function verifyTronUsdtTrc20Deposit(
   const contract = readOptionalEnv("USDT_TRC20_CONTRACT_ADDRESS");
 
   try {
-    const response = await axios.get(`${base}/transaction-info`, {
-      timeout: 15000,
+    const response = await providerGet(`${base}/transaction-info`, {
       params: { hash: txHash }
     });
     const tx = response.data as Record<string, unknown> | null;
@@ -607,26 +791,13 @@ async function verifyTronUsdtTrc20Deposit(
       confirmations
     });
   } catch (error) {
-    const stage = stageForHttpError(error);
-    if (stage === "not_found") {
+    if (isNotFoundError(error)) {
       return buildResult("TRC20", txHash, "not_found", {
         failureReason: "We could not find this transaction on the Tron network yet."
       });
     }
-    return providerError("TRC20", txHash, error, "transaction lookup");
+    return providerFailure("TRC20", txHash, error, "transaction lookup");
   }
-}
-
-async function solanaRpc(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
-  const response = await axios.post(
-    rpcUrl,
-    { jsonrpc: "2.0", id: 1, method, params },
-    { timeout: 15000 }
-  );
-  if (response.data?.error) {
-    throw new Error(response.data.error.message || `Solana RPC ${method} failed`);
-  }
-  return response.data?.result;
 }
 
 async function verifySolanaDeposit(
@@ -644,10 +815,7 @@ async function verifySolanaDeposit(
   const capability = resolveDepositCapability("SOL");
 
   try {
-    const result = (await solanaRpc(rpcUrl, "getTransaction", [
-      txHash,
-      { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }
-    ])) as Record<string, unknown> | null;
+    const result = (await fetchSolanaTransaction(rpcUrl, txHash)) as Record<string, unknown> | null;
 
     if (!result) {
       return buildResult("SOL", txHash, "not_found", {
@@ -675,7 +843,9 @@ async function verifySolanaDeposit(
 
     const amount = (Number(postBalances[index] || 0) - Number(preBalances[index] || 0)) / 1e9;
 
-    const statusResp = (await solanaRpc(rpcUrl, "getSignatureStatuses", [
+    const statusResp = (await solanaRpcCall<{
+      value?: Array<{ confirmations?: number | null; confirmationStatus?: string }>;
+    }>(rpcUrl, "getSignatureStatuses", [
       [txHash],
       { searchTransactionHistory: true }
     ])) as { value?: Array<{ confirmations?: number | null; confirmationStatus?: string }> } | null;
@@ -725,7 +895,7 @@ async function verifySolanaDeposit(
       confirmations
     });
   } catch (error) {
-    return providerError("SOL", txHash, error, "RPC lookup");
+    return providerFailure("SOL", txHash, error, "RPC lookup");
   }
 }
 
@@ -755,20 +925,32 @@ export async function verifyDepositOnChain(
     );
   }
 
-  switch (params.cryptoType) {
+  // Reject a hash that cannot belong to this network before it reaches a
+  // provider. Reporting "invalid hash" instead of a provider fault keeps a
+  // mistyped or wrong-network hash from looking like an outage, and normalising
+  // here means the value stored against the deposit is canonical.
+  const txHash = normalizeTransactionHash(params.cryptoType, params.txHash);
+  if (!txHash) {
+    return buildResult(params.cryptoType, String(params.txHash ?? "").trim(), "invalid_hash", {
+      failureReason: INVALID_TX_HASH_REASON[params.cryptoType]
+    });
+  }
+
+  const normalized: BlockchainVerificationInput = { ...params, txHash };
+  switch (normalized.cryptoType) {
     case "BTC":
-      return verifyBitcoinDeposit(params);
+      return verifyBitcoinDeposit(normalized);
     case "ETH":
-      return verifyEthereumNativeDeposit(params);
+      return verifyEthereumNativeDeposit(normalized);
     case "SOL":
-      return verifySolanaDeposit(params);
+      return verifySolanaDeposit(normalized);
     case "ERC20":
-      return verifyEthereumUsdtErc20Deposit(params);
+      return verifyEthereumUsdtErc20Deposit(normalized);
     case "TRC20":
-      return verifyTronUsdtTrc20Deposit(params);
+      return verifyTronUsdtTrc20Deposit(normalized);
     default:
-      return buildResult(params.cryptoType, params.txHash, "provider_unavailable", {
-        failureReason: `Verification is not implemented for ${String(params.cryptoType)}.`
+      return buildResult(normalized.cryptoType, normalized.txHash, "provider_unavailable", {
+        failureReason: `Verification is not implemented for ${String(normalized.cryptoType)}.`
       });
   }
 }

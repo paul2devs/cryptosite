@@ -1,4 +1,3 @@
-import axios from "axios";
 import { Op, UniqueConstraintError } from "sequelize";
 import { Deposit } from "../models/Deposit";
 import {
@@ -17,6 +16,13 @@ import {
 import { getPlatformWallet } from "./walletService";
 import { verifyDepositOnChain } from "./blockchainVerificationService";
 import { etherscanAccountList, resolveEtherscanConfig } from "./etherscanClient";
+import {
+  fetchBitcoinAddressTransactions,
+  fetchSolanaTransaction,
+  providerGet,
+  solanaRpcCall,
+  readOptionalEnv
+} from "./blockchainProviderClient";
 
 export interface IncomingTransaction {
   txHash: string;
@@ -39,15 +45,6 @@ export interface DiscoveryResult {
 
 const LOOKBACK_SECONDS_DEFAULT = 48 * 60 * 60;
 const DISCOVERY_LIMIT = 50;
-
-function readOptionalEnv(name: string): string | null {
-  const raw = process.env[name];
-  if (!raw) {
-    return null;
-  }
-  const trimmed = String(raw).trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
 
 function normalizeAddress(address: string): string {
   return address.trim().toLowerCase();
@@ -87,18 +84,10 @@ async function discoverBitcoin(
   address: string,
   sinceUnixSeconds: number
 ): Promise<DiscoveryResult> {
-  const base = readOptionalEnv("BTC_BLOCKCHAIN_API_BASE") || "https://blockstream.info/api";
-  const trimmedBase = base.replace(/\/+$/, "");
-
-  const [txsResponse, tipResponse] = await Promise.all([
-    axios.get(`${trimmedBase}/address/${encodeURIComponent(address)}/txs`, { timeout: 15000 }),
-    axios.get(`${trimmedBase}/blocks/tip/height`, { timeout: 15000 })
-  ]);
-
-  const tipHeight = Number(tipResponse.data) || 0;
-  const rows: Array<Record<string, unknown>> = Array.isArray(txsResponse.data)
-    ? txsResponse.data
-    : [];
+  // Shares the verifier's Esplora failover and IPv4 pinning, so scanning the
+  // receiving address keeps working when the primary explorer is unreachable.
+  const { rows, tipHeight: reportedTip } = await fetchBitcoinAddressTransactions(address);
+  const tipHeight = reportedTip ?? 0;
 
   const transactions: IncomingTransaction[] = [];
   for (const row of rows) {
@@ -240,10 +229,12 @@ async function discoverTronUsdt(
 ): Promise<DiscoveryResult> {
   const base = readOptionalEnv("TRONSCAN_API_BASE") || "https://apilist.tronscanapi.com/api";
   const token = readOptionalEnv("USDT_TRC20_CONTRACT_ADDRESS");
-  const response = await axios.get(`${base.replace(/\/+$/, "")}/filter/trc20/transfers`, {
-    timeout: 15000,
-    params: { relatedAddress: address, limit: DISCOVERY_LIMIT, start: 0 }
-  });
+  const response = await providerGet<{ data?: Array<Record<string, unknown>> }>(
+    `${base.replace(/\/+$/, "")}/filter/trc20/transfers`,
+    {
+      params: { relatedAddress: address, limit: DISCOVERY_LIMIT, start: 0 }
+    }
+  );
 
   const rows: Array<Record<string, unknown>> = Array.isArray(response.data?.data)
     ? response.data.data
@@ -282,27 +273,6 @@ async function discoverTronUsdt(
   return { configured: true, reason: null, transactions };
 }
 
-interface SolanaRpcResponse {
-  result?: unknown;
-  error?: { message?: string };
-}
-
-async function solanaRpc(
-  rpcUrl: string,
-  method: string,
-  params: unknown[]
-): Promise<unknown> {
-  const response = await axios.post<SolanaRpcResponse>(
-    rpcUrl,
-    { jsonrpc: "2.0", id: 1, method, params },
-    { timeout: 15000 }
-  );
-  if (response.data?.error) {
-    throw new Error(response.data.error.message || `Solana RPC ${method} failed`);
-  }
-  return response.data?.result;
-}
-
 async function discoverSolana(
   address: string,
   sinceUnixSeconds: number
@@ -314,7 +284,7 @@ async function discoverSolana(
     );
   }
 
-  const signatures = (await solanaRpc(rpcUrl, "getSignaturesForAddress", [
+  const signatures = (await solanaRpcCall(rpcUrl, "getSignaturesForAddress", [
     address,
     { limit: Math.min(25, DISCOVERY_LIMIT) }
   ])) as Array<{ signature: string; err?: unknown; blockTime?: number | null }> | null;
@@ -328,10 +298,7 @@ async function discoverSolana(
     if (blockTime > 0 && blockTime < sinceUnixSeconds) {
       continue;
     }
-    const detail = (await solanaRpc(rpcUrl, "getTransaction", [
-      entry.signature,
-      { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }
-    ])) as Record<string, unknown> | null;
+    const detail = (await fetchSolanaTransaction(rpcUrl, entry.signature)) as Record<string, unknown> | null;
     if (!detail) {
       continue;
     }
@@ -355,7 +322,7 @@ async function discoverSolana(
       continue;
     }
 
-    const statuses = (await solanaRpc(rpcUrl, "getSignatureStatuses", [
+    const statuses = (await solanaRpcCall(rpcUrl, "getSignatureStatuses", [
       [entry.signature],
       { searchTransactionHistory: true }
     ])) as { value?: Array<{ confirmations?: number | null; confirmationStatus?: string }> } | null;

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DepositCreationError = exports.CLOSED_DEPOSIT_STATUSES = exports.OPEN_DEPOSIT_STATUSES = exports.UNPAID_DEPOSIT_STATUSES = void 0;
+exports.DepositCreationError = exports.RETRYABLE_PROVIDER_STAGES = exports.CLOSED_DEPOSIT_STATUSES = exports.OPEN_DEPOSIT_STATUSES = exports.UNPAID_DEPOSIT_STATUSES = void 0;
 exports.depositExpiryHours = depositExpiryHours;
 exports.detailedStatusOf = detailedStatusOf;
 exports.statusViewOf = statusViewOf;
@@ -52,6 +52,15 @@ exports.CLOSED_DEPOSIT_STATUSES = [
     "REJECTED",
     "EXPIRED",
     "FAILED"
+];
+/**
+ * Verification outcomes that mean "we could not ask the chain", as opposed to
+ * "the chain answered". The transfer may still be perfectly valid, so the hash
+ * the depositor submitted is kept on the deposit and the lookup is retryable.
+ */
+exports.RETRYABLE_PROVIDER_STAGES = [
+    "provider_unavailable",
+    "provider_error"
 ];
 const DEFAULT_EXPIRY_HOURS = 24;
 const DEFAULT_DUPLICATE_WINDOW_SECONDS = 60;
@@ -491,6 +500,13 @@ async function applyVerificationResult(deposit, verification) {
         current.detailed_status = verification.confirmations > 0 ? "CONFIRMING" : "DETECTED";
         current.status = (0, depositStatus_1.coarseStatusForDepositDetailed)(current.detailed_status);
     }
+    else if (exports.RETRYABLE_PROVIDER_STAGES.includes(verification.stage)) {
+        // The provider could not answer, so we learned nothing about the transfer:
+        // keep the deposit PENDING but remember the hash the user submitted, so the
+        // rescan / approval path can retry the exact same lookup later instead of
+        // asking the depositor to paste it again.
+        current.tx_hash = verification.txHash;
+    }
     await current.save();
     return current;
 }
@@ -555,8 +571,8 @@ async function submitDepositTransactionHash(input) {
     if (!deposit) {
         throw new DepositCreationError(404, "DEPOSIT_NOT_FOUND", "We could not find that deposit.");
     }
-    const txHash = typeof input.txHash === "string" ? input.txHash.trim() : "";
-    if (txHash.length < 8 || txHash.length > 200) {
+    const submittedHash = typeof input.txHash === "string" ? input.txHash.trim() : "";
+    if (submittedHash.length < 8 || submittedHash.length > 200) {
         throw new DepositCreationError(400, "INVALID_TX_HASH", "Enter the full blockchain transaction hash (8–200 characters).");
     }
     const detailed = detailedStatusOf(deposit);
@@ -579,14 +595,22 @@ async function submitDepositTransactionHash(input) {
             message: "We've verified your transaction on the blockchain. It is now awaiting administrator approval."
         };
     }
+    if (!(0, depositRules_1.isSupportedDepositCryptoType)(deposit.crypto_type)) {
+        throw new DepositCreationError(409, "UNSUPPORTED_ASSET", "This deposit used an asset the platform no longer supports. Contact support.");
+    }
+    // A hash that cannot belong to this network is a caller mistake, so it is
+    // rejected here with a specific explanation rather than being sent to a
+    // provider and reported back as "the provider is unreachable". The canonical
+    // form is used for the duplicate check, the verification and the stored value.
+    const txHash = (0, blockchainVerificationService_1.normalizeTransactionHash)(deposit.crypto_type, submittedHash);
+    if (!txHash) {
+        throw new DepositCreationError(400, "INVALID_TX_HASH", blockchainVerificationService_1.INVALID_TX_HASH_REASON[deposit.crypto_type]);
+    }
     const reused = await Deposit_1.Deposit.findOne({
         where: { tx_hash: txHash, deposit_id: { [sequelize_1.Op.ne]: deposit.deposit_id } }
     });
     if (reused) {
         throw new DepositCreationError(409, "TRANSACTION_ALREADY_USED", "This transaction hash has already been submitted for another deposit. Each on-chain transaction can only be used once.", { reference: deposit.reference, conflictingDeposit: reused.deposit_id });
-    }
-    if (!(0, depositRules_1.isSupportedDepositCryptoType)(deposit.crypto_type)) {
-        throw new DepositCreationError(409, "UNSUPPORTED_ASSET", "This deposit used an asset the platform no longer supports. Contact support.");
     }
     const verification = await (0, blockchainVerificationService_1.verifyDepositOnChain)({
         cryptoType: deposit.crypto_type,
@@ -632,6 +656,21 @@ async function submitDepositTransactionHash(input) {
             message =
                 verification.failureReason ||
                     "This transaction does not match the asset, network, receiving address or amount for this deposit.";
+            break;
+        case "invalid_hash":
+            message = verification.failureReason || blockchainVerificationService_1.INVALID_TX_HASH_REASON[deposit.crypto_type];
+            break;
+        case "provider_unavailable":
+            // The chain was never asked, so nothing is wrong with the transfer: the
+            // hash is kept and the same check can be retried once the provider is back.
+            message =
+                "We could not reach the blockchain provider to check this transaction right now. Your transaction hash has been saved and we will keep retrying — no action is needed.";
+            break;
+        case "provider_error":
+            // A persistent provider misconfiguration. Kept distinct from a bad
+            // transaction so it is never mistaken for a failed or invalid transfer.
+            message =
+                "We could not complete the blockchain check for this transaction. Your transaction hash has been saved and an administrator will reconcile it.";
             break;
         default:
             message =

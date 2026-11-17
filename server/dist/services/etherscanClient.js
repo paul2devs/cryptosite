@@ -1,7 +1,4 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EtherscanProviderError = exports.ETHEREUM_MAINNET_CHAIN_ID = exports.ETHERSCAN_V2_BASE = void 0;
 exports.resolveEtherscanConfig = resolveEtherscanConfig;
@@ -12,7 +9,7 @@ exports.etherscanLatestBlockNumber = etherscanLatestBlockNumber;
 exports.etherscanTransactionReceipt = etherscanTransactionReceipt;
 exports.etherscanTransactionByHash = etherscanTransactionByHash;
 exports.confirmationsForBlock = confirmationsForBlock;
-const axios_1 = __importDefault(require("axios"));
+const blockchainProviderClient_1 = require("./blockchainProviderClient");
 /**
  * Etherscan retired its V1 API; every call must go through V2 with an explicit
  * chain id. This module is the single place that resolves the endpoint so the
@@ -61,24 +58,16 @@ function detectEtherscanError(payload) {
     }
     return null;
 }
-function readOptionalEnv(name) {
-    const raw = process.env[name];
-    if (!raw) {
-        return null;
-    }
-    const trimmed = String(raw).trim();
-    return trimmed.length > 0 ? trimmed : null;
-}
 function resolveEtherscanConfig() {
-    const configured = readOptionalEnv("ETHERSCAN_API_BASE");
+    const configured = (0, blockchainProviderClient_1.readOptionalEnv)("ETHERSCAN_API_BASE");
     let base = (configured || exports.ETHERSCAN_V2_BASE).replace(/\/+$/, "");
     if (DEPRECATED_V1_BASE_PATTERN.test(base)) {
         base = exports.ETHERSCAN_V2_BASE;
     }
     return {
-        apiKey: readOptionalEnv("ETHERSCAN_API_KEY"),
+        apiKey: (0, blockchainProviderClient_1.readOptionalEnv)("ETHERSCAN_API_KEY"),
         base,
-        chainId: readOptionalEnv("ETHEREUM_CHAIN_ID") || exports.ETHEREUM_MAINNET_CHAIN_ID
+        chainId: (0, blockchainProviderClient_1.readOptionalEnv)("ETHEREUM_CHAIN_ID") || exports.ETHEREUM_MAINNET_CHAIN_ID
     };
 }
 /**
@@ -93,8 +82,7 @@ function resolveEtherscanConfig() {
  */
 async function etherscanRequest(params) {
     const { apiKey, base, chainId } = resolveEtherscanConfig();
-    const response = await axios_1.default.get(base, {
-        timeout: 15000,
+    const response = await (0, blockchainProviderClient_1.providerGet)(base, {
         params: { chainid: chainId, ...params, apikey: apiKey ?? "" }
     });
     const payload = (response.data || {});

@@ -1,4 +1,4 @@
-import axios from "axios";
+import { providerGet, readOptionalEnv } from "./blockchainProviderClient";
 
 /**
  * Etherscan retired its V1 API; every call must go through V2 with an explicit
@@ -63,15 +63,6 @@ function detectEtherscanError(
   return null;
 }
 
-function readOptionalEnv(name: string): string | null {
-  const raw = process.env[name];
-  if (!raw) {
-    return null;
-  }
-  const trimmed = String(raw).trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 export function resolveEtherscanConfig(): EtherscanConfig {
   const configured = readOptionalEnv("ETHERSCAN_API_BASE");
   let base = (configured || ETHERSCAN_V2_BASE).replace(/\/+$/, "");
@@ -99,8 +90,7 @@ export async function etherscanRequest(
   params: Record<string, string | number>
 ): Promise<Record<string, unknown>> {
   const { apiKey, base, chainId } = resolveEtherscanConfig();
-  const response = await axios.get(base, {
-    timeout: 15000,
+  const response = await providerGet(base, {
     params: { chainid: chainId, ...params, apikey: apiKey ?? "" }
   });
   const payload = (response.data || {}) as Record<string, unknown>;

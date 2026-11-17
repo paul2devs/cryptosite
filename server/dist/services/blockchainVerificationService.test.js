@@ -153,7 +153,13 @@ const BTC_HASH = "b".repeat(64);
 const ETH_HASH = `0x${"a".repeat(64)}`;
 const ERC20_HASH = `0x${"c".repeat(64)}`;
 const TRC20_HASH = "d".repeat(64);
-const SOL_HASH = "5".repeat(64);
+/**
+ * Base58 of 64 bytes, i.e. the shape of a real Solana signature. Random-looking
+ * text of the same length is not enough: the decoded byte length is what the
+ * RPC accepts, and what `normalizeTransactionHash` now enforces.
+ */
+const SOL_HASH = "d814XjoBuviF7Knd8Cjz5sGU3pW4oJNPa5DLwJdaqZMTm5MMnq6MytPwH7yv1U89wXQZUUTHTuRpDvmTYLiY9Cs";
+const SOL_HASH_ALT = "2FD9cqYHAsFiVe1Y91Rj58T47Ba16gS74BYtTqSMBf3Nc9hnfmSaNiAnB6wpqofyd6jcckwGjeQTjYZzADzEFfVg";
 // ---------------------------------------------------------------------------
 // Bitcoin — Blockstream
 // ---------------------------------------------------------------------------
@@ -218,7 +224,9 @@ const SOL_HASH = "5".repeat(64);
         { method: "get", match: (url) => url.endsWith("/blocks/tip/height"), respond: () => BTC_TIP }
     ];
     const result = await (0, blockchainVerificationService_1.verifyDepositOnChain)({ cryptoType: "BTC", txHash: BTC_HASH, expectedAmount: 0.5 });
-    assert_1.default.equal(result.stage, "provider_error");
+    // A timeout is transient: the chain was never asked, so the hash stays
+    // retryable instead of being reported as a provider configuration fault.
+    assert_1.default.equal(result.stage, "provider_unavailable");
     assert_1.default.equal(result.success, false);
 });
 (0, node_test_1.test)("BTC: a malformed provider response is not treated as a payment", async () => {
@@ -404,7 +412,7 @@ async function verifyErc20(overrides) {
     assert_1.default.equal(result.stage, "insufficient_confirmations");
     assert_1.default.equal(result.confirmations, 1);
 });
-(0, node_test_1.test)("ERC20: an Etherscan NOTOK envelope is provider_error, never a false not_found", async () => {
+(0, node_test_1.test)("ERC20: an Etherscan NOTOK envelope is retryable, never a false not_found", async () => {
     // A rate limit reached during a token lookup used to be flattened into an
     // empty transfer list, so a real deposit was reported as `not_found`.
     routes = [
@@ -420,12 +428,13 @@ async function verifyErc20(overrides) {
         txHash: ERC20_HASH,
         expectedAmount: 50
     });
-    assert_1.default.equal(result.stage, "provider_error");
+    // Rate limiting is transient, so the deposit stays pending and retryable.
+    assert_1.default.equal(result.stage, "provider_unavailable");
     assert_1.default.equal(result.success, false);
     // The provider detail is logged server-side but never echoed to the user.
     assert_1.default.doesNotMatch(result.failureReason || "", /rate limit/i);
 });
-(0, node_test_1.test)("ERC20: an Etherscan JSON-RPC error envelope is provider_error", async () => {
+(0, node_test_1.test)("ERC20: an Etherscan JSON-RPC rate-limit envelope is retryable", async () => {
     routes = [
         etherscanRoute("eth_getTransactionByHash", {
             jsonrpc: "2.0",
@@ -438,7 +447,25 @@ async function verifyErc20(overrides) {
         txHash: ERC20_HASH,
         expectedAmount: 50
     });
+    assert_1.default.equal(result.stage, "provider_unavailable");
+});
+(0, node_test_1.test)("ERC20: an Etherscan authentication failure is a configuration error", async () => {
+    // A rejected API key will not recover on retry, so it is reported as a
+    // configuration fault (provider_error) rather than as temporarily unavailable.
+    routes = [
+        etherscanRoute("eth_getTransactionByHash", {
+            jsonrpc: "2.0",
+            id: 1,
+            error: { code: -32000, message: "Invalid API Key" }
+        })
+    ];
+    const result = await (0, blockchainVerificationService_1.verifyDepositOnChain)({
+        cryptoType: "ERC20",
+        txHash: ERC20_HASH,
+        expectedAmount: 50
+    });
     assert_1.default.equal(result.stage, "provider_error");
+    assert_1.default.equal(result.success, false);
 });
 (0, node_test_1.test)("ERC20: Etherscan's empty-result envelope still resolves to not_found", async () => {
     // `status: "0"` with "No transactions found" is a legitimate empty result and
@@ -640,8 +667,103 @@ async function verifySol(overrides) {
 });
 (0, node_test_1.test)("SOL: an unavailable RPC is never a valid transaction", async () => {
     const result = await verifySol({ rpcError: true });
-    assert_1.default.equal(result.stage, "provider_error");
+    // A refused connection is transient, so the hash stays retryable.
+    assert_1.default.equal(result.stage, "provider_unavailable");
     assert_1.default.equal(result.success, false);
+});
+(0, node_test_1.test)("SOL: a newer transaction version is retried, not reported as a provider fault", async () => {
+    // Mainnet carries versioned transactions beyond v0. The node rejects a
+    // getTransaction that does not acknowledge the version, so the helper widens
+    // the version it asks for and the transfer verifies normally.
+    let getTransactionAttempts = 0;
+    routes = [
+        {
+            method: "post",
+            match: (_url, config) => config?.data?.method === "getTransaction",
+            respond: (_url, config) => {
+                getTransactionAttempts += 1;
+                const requested = config?.data?.params?.[1]?.maxSupportedTransactionVersion;
+                if (requested === 0) {
+                    return {
+                        jsonrpc: "2.0",
+                        id: 1,
+                        error: {
+                            code: -32015,
+                            message: 'Transaction version (1) is not supported by the requesting client. Please try the request again with the following configuration parameter: "maxSupportedTransactionVersion": 1'
+                        }
+                    };
+                }
+                return {
+                    jsonrpc: "2.0",
+                    id: 1,
+                    result: solTransaction({
+                        accounts: ["11111111111111111111111111111111", SOL_ADDR],
+                        preBalances: [0, 1 * SOL_LAMPORTS],
+                        postBalances: [0, 1.5 * SOL_LAMPORTS]
+                    })
+                };
+            }
+        },
+        {
+            method: "post",
+            match: (_url, config) => config?.data?.method === "getSignatureStatuses",
+            respond: () => ({
+                jsonrpc: "2.0",
+                id: 1,
+                result: { value: [{ confirmations: 12, confirmationStatus: "confirmed" }] }
+            })
+        }
+    ];
+    const result = await (0, blockchainVerificationService_1.verifyDepositOnChain)({
+        cryptoType: "SOL",
+        txHash: SOL_HASH,
+        expectedAmount: 0.5
+    });
+    assert_1.default.equal(result.stage, "verified");
+    assert_1.default.equal(getTransactionAttempts, 2);
+});
+// ---------------------------------------------------------------------------
+// Transaction hash normalisation
+// ---------------------------------------------------------------------------
+(0, node_test_1.test)("normalizeTransactionHash canonicalises every supported network", () => {
+    // Bitcoin and Tron txids are bare lowercase hex.
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("BTC", BTC_HASH.toUpperCase()), BTC_HASH);
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("TRC20", TRC20_HASH.toUpperCase()), TRC20_HASH);
+    // Ethereum hashes always carry the 0x prefix and are lowercased.
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("ETH", ETH_HASH.slice(2)), ETH_HASH);
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("ERC20", ETH_HASH.toUpperCase()), ETH_HASH);
+    // A Solana signature is base58 of exactly 64 bytes and is passed through verbatim.
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("SOL", SOL_HASH), SOL_HASH);
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("SOL", SOL_HASH_ALT), SOL_HASH_ALT);
+    // Anything that cannot belong to the network is rejected.
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("BTC", "not-a-hash"), null);
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("ETH", "0x1234"), null);
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("SOL", "has spaces"), null);
+    // Base58 that does not decode to a 64-byte signature is a caller mistake, not
+    // a provider fault: the RPC would answer "Invalid param: WrongSize" and the
+    // submission would be misreported as an unreachable provider.
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("SOL", "5".repeat(64)), null);
+    assert_1.default.equal((0, blockchainVerificationService_1.normalizeTransactionHash)("SOL", "1".repeat(88)), null);
+});
+(0, node_test_1.test)("a malformed transaction hash is invalid_hash, never a provider fault", async () => {
+    const result = await (0, blockchainVerificationService_1.verifyDepositOnChain)({
+        cryptoType: "BTC",
+        txHash: "definitely-not-a-transaction-hash",
+        expectedAmount: 0.5
+    });
+    assert_1.default.equal(result.stage, "invalid_hash");
+    assert_1.default.equal(result.success, false);
+    assert_1.default.match(result.failureReason || "", /bitcoin/i);
+});
+(0, node_test_1.test)("an uppercase Bitcoin txid is accepted and looked up in canonical form", async () => {
+    routes = btcRoutes(btcTx(BTC_ADDR, 50000000, 3), BTC_TIP);
+    const result = await (0, blockchainVerificationService_1.verifyDepositOnChain)({
+        cryptoType: "BTC",
+        txHash: BTC_HASH.toUpperCase(),
+        expectedAmount: 0.5
+    });
+    assert_1.default.equal(result.stage, "verified");
+    assert_1.default.equal(result.txHash, BTC_HASH);
 });
 // ---------------------------------------------------------------------------
 // Provider error reporting

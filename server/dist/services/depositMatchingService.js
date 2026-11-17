@@ -1,12 +1,8 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.discoverIncomingTransactions = discoverIncomingTransactions;
 exports.runDepositMonitor = runDepositMonitor;
 exports.rescanDeposit = rescanDeposit;
-const axios_1 = __importDefault(require("axios"));
 const sequelize_1 = require("sequelize");
 const Deposit_1 = require("../models/Deposit");
 const depositRules_1 = require("../domain/depositRules");
@@ -15,16 +11,9 @@ const depositLifecycleService_1 = require("./depositLifecycleService");
 const walletService_1 = require("./walletService");
 const blockchainVerificationService_1 = require("./blockchainVerificationService");
 const etherscanClient_1 = require("./etherscanClient");
+const blockchainProviderClient_1 = require("./blockchainProviderClient");
 const LOOKBACK_SECONDS_DEFAULT = 48 * 60 * 60;
 const DISCOVERY_LIMIT = 50;
-function readOptionalEnv(name) {
-    const raw = process.env[name];
-    if (!raw) {
-        return null;
-    }
-    const trimmed = String(raw).trim();
-    return trimmed.length > 0 ? trimmed : null;
-}
 function normalizeAddress(address) {
     return address.trim().toLowerCase();
 }
@@ -55,16 +44,10 @@ function failed(reason) {
     return { configured: true, reason, transactions: [] };
 }
 async function discoverBitcoin(address, sinceUnixSeconds) {
-    const base = readOptionalEnv("BTC_BLOCKCHAIN_API_BASE") || "https://blockstream.info/api";
-    const trimmedBase = base.replace(/\/+$/, "");
-    const [txsResponse, tipResponse] = await Promise.all([
-        axios_1.default.get(`${trimmedBase}/address/${encodeURIComponent(address)}/txs`, { timeout: 15000 }),
-        axios_1.default.get(`${trimmedBase}/blocks/tip/height`, { timeout: 15000 })
-    ]);
-    const tipHeight = Number(tipResponse.data) || 0;
-    const rows = Array.isArray(txsResponse.data)
-        ? txsResponse.data
-        : [];
+    // Shares the verifier's Esplora failover and IPv4 pinning, so scanning the
+    // receiving address keeps working when the primary explorer is unreachable.
+    const { rows, tipHeight: reportedTip } = await (0, blockchainProviderClient_1.fetchBitcoinAddressTransactions)(address);
+    const tipHeight = reportedTip ?? 0;
     const transactions = [];
     for (const row of rows) {
         const status = (row.status || {});
@@ -137,7 +120,7 @@ async function discoverEthereumNative(address, sinceUnixSeconds) {
 }
 async function discoverEthereumUsdt(address, sinceUnixSeconds) {
     const apiKey = (0, etherscanClient_1.resolveEtherscanConfig)().apiKey;
-    const contract = readOptionalEnv("USDT_ERC20_CONTRACT_ADDRESS");
+    const contract = (0, blockchainProviderClient_1.readOptionalEnv)("USDT_ERC20_CONTRACT_ADDRESS");
     if (!apiKey || !contract) {
         return unconfigured(!apiKey
             ? "ETHERSCAN_API_KEY is not configured, so incoming USDT (ERC20) transfers cannot be discovered automatically."
@@ -181,10 +164,9 @@ async function discoverEthereumUsdt(address, sinceUnixSeconds) {
     return { configured: true, reason: null, transactions };
 }
 async function discoverTronUsdt(address, sinceUnixSeconds) {
-    const base = readOptionalEnv("TRONSCAN_API_BASE") || "https://apilist.tronscanapi.com/api";
-    const token = readOptionalEnv("USDT_TRC20_CONTRACT_ADDRESS");
-    const response = await axios_1.default.get(`${base.replace(/\/+$/, "")}/filter/trc20/transfers`, {
-        timeout: 15000,
+    const base = (0, blockchainProviderClient_1.readOptionalEnv)("TRONSCAN_API_BASE") || "https://apilist.tronscanapi.com/api";
+    const token = (0, blockchainProviderClient_1.readOptionalEnv)("USDT_TRC20_CONTRACT_ADDRESS");
+    const response = await (0, blockchainProviderClient_1.providerGet)(`${base.replace(/\/+$/, "")}/filter/trc20/transfers`, {
         params: { relatedAddress: address, limit: DISCOVERY_LIMIT, start: 0 }
     });
     const rows = Array.isArray(response.data?.data)
@@ -221,19 +203,12 @@ async function discoverTronUsdt(address, sinceUnixSeconds) {
     }
     return { configured: true, reason: null, transactions };
 }
-async function solanaRpc(rpcUrl, method, params) {
-    const response = await axios_1.default.post(rpcUrl, { jsonrpc: "2.0", id: 1, method, params }, { timeout: 15000 });
-    if (response.data?.error) {
-        throw new Error(response.data.error.message || `Solana RPC ${method} failed`);
-    }
-    return response.data?.result;
-}
 async function discoverSolana(address, sinceUnixSeconds) {
-    const rpcUrl = readOptionalEnv("SOLANA_RPC_URL");
+    const rpcUrl = (0, blockchainProviderClient_1.readOptionalEnv)("SOLANA_RPC_URL");
     if (!rpcUrl) {
         return unconfigured("SOLANA_RPC_URL is not configured, so incoming SOL transfers cannot be discovered automatically.");
     }
-    const signatures = (await solanaRpc(rpcUrl, "getSignaturesForAddress", [
+    const signatures = (await (0, blockchainProviderClient_1.solanaRpcCall)(rpcUrl, "getSignaturesForAddress", [
         address,
         { limit: Math.min(25, DISCOVERY_LIMIT) }
     ]));
@@ -246,10 +221,7 @@ async function discoverSolana(address, sinceUnixSeconds) {
         if (blockTime > 0 && blockTime < sinceUnixSeconds) {
             continue;
         }
-        const detail = (await solanaRpc(rpcUrl, "getTransaction", [
-            entry.signature,
-            { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }
-        ]));
+        const detail = (await (0, blockchainProviderClient_1.fetchSolanaTransaction)(rpcUrl, entry.signature));
         if (!detail) {
             continue;
         }
@@ -269,7 +241,7 @@ async function discoverSolana(address, sinceUnixSeconds) {
         if (amount <= 0) {
             continue;
         }
-        const statuses = (await solanaRpc(rpcUrl, "getSignatureStatuses", [
+        const statuses = (await (0, blockchainProviderClient_1.solanaRpcCall)(rpcUrl, "getSignatureStatuses", [
             [entry.signature],
             { searchTransactionHistory: true }
         ]));
