@@ -70,6 +70,10 @@ exports.adminDeleteReward = adminDeleteReward;
 exports.adminGrantReward = adminGrantReward;
 exports.adminRevokeReward = adminRevokeReward;
 exports.adminUserRewards = adminUserRewards;
+exports.adminBalanceOverview = adminBalanceOverview;
+exports.adminApplyBalanceAdjustment = adminApplyBalanceAdjustment;
+exports.adminReverseBalanceAdjustment = adminReverseBalanceAdjustment;
+exports.adminBalanceAdjustments = adminBalanceAdjustments;
 const express_validator_1 = require("express-validator");
 const errorHandler_1 = require("../middleware/errorHandler");
 const financialOperationsService_1 = require("../services/financialOperationsService");
@@ -81,6 +85,7 @@ const performanceEngineService_1 = require("../services/performanceEngineService
 const platformSettingsService_1 = require("../services/platformSettingsService");
 const rewardService_1 = require("../services/rewardService");
 const performanceService_1 = require("../services/performanceService");
+const adminBalanceService_1 = require("../services/adminBalanceService");
 const transactionService_1 = require("../services/transactionService");
 function fail(res, error, status = 400) {
     const correlationId = String(res.locals.correlationId || "");
@@ -910,6 +915,53 @@ async function adminRevokeReward(req, res) {
 async function adminUserRewards(req, res) {
     try {
         res.status(200).json(await (0, rewardService_1.listUserRewardsForAdmin)(req.query));
+    }
+    catch (error) {
+        fail(res, error, 500);
+    }
+}
+async function adminBalanceOverview(req, res) {
+    if (rejected(req, res))
+        return;
+    try {
+        res.status(200).json(await (0, adminBalanceService_1.financialOverviewForUser)(req.params.userId));
+    }
+    catch (error) {
+        fail(res, error);
+    }
+}
+async function adminApplyBalanceAdjustment(req, res) {
+    if (rejected(req, res))
+        return;
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const body = req.body;
+        const header = req.headers["idempotency-key"];
+        const idempotencyKey = typeof header === "string" && header.trim().length > 0 ? header.trim() : null;
+        res.status(201).json(await (0, adminBalanceService_1.applyAdjustment)(req.user.userId, { ...body, idempotencyKey }));
+    }
+    catch (error) {
+        fail(res, error);
+    }
+}
+async function adminReverseBalanceAdjustment(req, res) {
+    if (rejected(req, res))
+        return;
+    if (!req.user)
+        return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const reason = String(req.body?.reason || "");
+        const note = req.body?.note ? String(req.body.note) : null;
+        res.status(201).json(await (0, adminBalanceService_1.reverseAdjustment)(req.user.userId, req.params.adjustmentId, reason, note));
+    }
+    catch (error) {
+        fail(res, error);
+    }
+}
+async function adminBalanceAdjustments(req, res) {
+    try {
+        res.status(200).json(await (0, adminBalanceService_1.listAdjustments)(req.query));
     }
     catch (error) {
         fail(res, error, 500);

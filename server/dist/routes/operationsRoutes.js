@@ -176,4 +176,23 @@ router.post("/admin/profit-distribution", auth_1.authenticate, auth_1.requireAdm
     (0, express_validator_1.body)("amount").isString(),
     (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })
 ], operationsController_1.adminProfitDistribution);
+router.get("/admin/balance/users/:userId/overview", auth_1.authenticate, auth_1.requireAdmin, [(0, express_validator_1.param)("userId").isUUID()], operationsController_1.adminBalanceOverview);
+router.get("/admin/balance/adjustments", auth_1.authenticate, auth_1.requireAdmin, operationsController_1.adminBalanceAdjustments);
+router.post("/admin/balance/adjustments", auth_1.authenticate, auth_1.requireAdmin, [
+    (0, express_validator_1.body)("userId").isUUID(),
+    (0, express_validator_1.body)("type").isIn([
+        "credit",
+        "debit",
+        "investment_allocation",
+        "investment_deallocation",
+        "correction"
+    ]),
+    (0, express_validator_1.body)("amount").isString().isLength({ min: 1 }),
+    (0, express_validator_1.body)("reason").isString().isLength({ min: 3 }),
+    (0, express_validator_1.body)("direction").optional({ values: "null" }).isIn(["credit", "debit"]),
+    (0, express_validator_1.body)("note").optional({ values: "null" }).isString(),
+    (0, express_validator_1.body)("positionId").optional({ values: "null" }).isUUID(),
+    (0, express_validator_1.body)("asset").optional({ values: "null" }).isString().isLength({ min: 2 })
+], operationsController_1.adminApplyBalanceAdjustment);
+router.post("/admin/balance/adjustments/:adjustmentId/reverse", auth_1.authenticate, auth_1.requireAdmin, [(0, express_validator_1.param)("adjustmentId").isUUID(), (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })], operationsController_1.adminReverseBalanceAdjustment);
 exports.default = router;

@@ -9,7 +9,9 @@ exports.InvestmentPosition = InvestmentPosition;
 InvestmentPosition.init({
     position_id: { type: sequelize_1.DataTypes.UUID, defaultValue: sequelize_1.DataTypes.UUIDV4, primaryKey: true },
     user_id: { type: sequelize_1.DataTypes.UUID, allowNull: false },
-    deposit_id: { type: sequelize_1.DataTypes.UUID, allowNull: false, unique: true },
+    // Nullable so an administrator can allocate principal into a new position without a
+    // deposit. Deposit-backed positions still set it and the unique index is preserved.
+    deposit_id: { type: sequelize_1.DataTypes.UUID, allowNull: true, unique: true },
     asset: { type: sequelize_1.DataTypes.STRING, allowNull: false },
     principal: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: false },
     strategy: { type: sequelize_1.DataTypes.STRING, allowNull: false, defaultValue: "custody_hold" },

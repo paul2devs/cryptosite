@@ -87,6 +87,12 @@ import {
 } from "../services/rewardService";
 import { getDailyPerformanceDetail, reconcilePerformance } from "../services/performanceService";
 import {
+  applyAdjustment,
+  financialOverviewForUser,
+  listAdjustments,
+  reverseAdjustment
+} from "../services/adminBalanceService";
+import {
   getUserTransactionDetail,
   listAdminTransactions,
   listUserTransactions,
@@ -921,6 +927,57 @@ export async function adminRevokeReward(req: AuthenticatedRequest, res: Response
 export async function adminUserRewards(req: AuthenticatedRequest, res: Response) {
   try {
     res.status(200).json(await listUserRewardsForAdmin(req.query as Record<string, unknown>));
+  } catch (error) {
+    fail(res, error, 500);
+  }
+}
+
+export async function adminBalanceOverview(req: AuthenticatedRequest, res: Response) {
+  if (rejected(req, res)) return;
+  try {
+    res.status(200).json(await financialOverviewForUser(req.params.userId));
+  } catch (error) {
+    fail(res, error);
+  }
+}
+
+export async function adminApplyBalanceAdjustment(req: AuthenticatedRequest, res: Response) {
+  if (rejected(req, res)) return;
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    const body = req.body as {
+      userId: string;
+      type: string;
+      amount: string;
+      direction?: string | null;
+      reason: string;
+      note?: string | null;
+      positionId?: string | null;
+      asset?: string | null;
+    };
+    const header = req.headers["idempotency-key"];
+    const idempotencyKey = typeof header === "string" && header.trim().length > 0 ? header.trim() : null;
+    res.status(201).json(await applyAdjustment(req.user.userId, { ...body, idempotencyKey }));
+  } catch (error) {
+    fail(res, error);
+  }
+}
+
+export async function adminReverseBalanceAdjustment(req: AuthenticatedRequest, res: Response) {
+  if (rejected(req, res)) return;
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  try {
+    const reason = String(req.body?.reason || "");
+    const note = req.body?.note ? String(req.body.note) : null;
+    res.status(201).json(await reverseAdjustment(req.user.userId, req.params.adjustmentId, reason, note));
+  } catch (error) {
+    fail(res, error);
+  }
+}
+
+export async function adminBalanceAdjustments(req: AuthenticatedRequest, res: Response) {
+  try {
+    res.status(200).json(await listAdjustments(req.query as Record<string, unknown>));
   } catch (error) {
     fail(res, error, 500);
   }

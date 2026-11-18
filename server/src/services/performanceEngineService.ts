@@ -56,7 +56,9 @@ export async function runDailyPerformanceCycle(snapshotDate: string): Promise<Da
 
   const settings = await getPerformanceSettings();
   const positions = await InvestmentPosition.findAll({ where: { status: "active" } });
-  const depositIds = positions.map((position) => position.deposit_id);
+  const depositIds = positions
+    .map((position) => position.deposit_id)
+    .filter((depositId): depositId is string => depositId !== null);
   const deposits = depositIds.length > 0 ? await Deposit.findAll({ where: { deposit_id: { [Op.in]: depositIds } } }) : [];
   const confirmedByDeposit = new Map(
     deposits.map((deposit) => [deposit.deposit_id, deposit.confirmed_at ? new Date(deposit.confirmed_at) : null])
@@ -78,7 +80,7 @@ export async function runDailyPerformanceCycle(snapshotDate: string): Promise<Da
   const notifiedUsers = new Set<string>();
 
   for (const position of positions) {
-    const confirmedAt = confirmedByDeposit.get(position.deposit_id) ?? null;
+    const confirmedAt = (position.deposit_id ? confirmedByDeposit.get(position.deposit_id) : undefined) ?? null;
     if (!isPerformanceDayEligible(confirmedAt, snapshotDate)) {
       skipped += 1;
       continue;
@@ -124,7 +126,7 @@ export async function runDailyPerformanceCycle(snapshotDate: string): Promise<Da
     }
 
     const closing = parseDecimal(String(position.current_valuation), AMOUNT_SCALE);
-    const cashFlow = cashFlowByDeposit.get(position.deposit_id) ?? 0n;
+    const cashFlow = (position.deposit_id ? cashFlowByDeposit.get(position.deposit_id) : undefined) ?? 0n;
     const result = calculateDailyPerformance({
       openingCents: opening,
       closingCents: closing,

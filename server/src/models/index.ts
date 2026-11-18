@@ -28,6 +28,7 @@ import "./InvestmentPosition";
 import "./DailyPerformanceSnapshot";
 import "./PerformanceCalculationLog";
 import "./AdminAuditLog";
+import "./BalanceAdjustment";
 import "./InvestmentLevel";
 import "./InvestmentLevelBenefit";
 import "./UserInvestmentLevel";

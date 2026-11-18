@@ -4,7 +4,7 @@ import { sequelize } from "../config/database";
 export interface InvestmentPositionAttributes {
   position_id: string;
   user_id: string;
-  deposit_id: string;
+  deposit_id: string | null;
   asset: string;
   principal: string;
   strategy: string;
@@ -17,7 +17,7 @@ export interface InvestmentPositionAttributes {
 
 export type InvestmentPositionCreationAttributes = Optional<
   InvestmentPositionAttributes,
-  "position_id" | "status" | "verification_status" | "current_valuation" | "last_calculated_at" | "created_at"
+  "position_id" | "deposit_id" | "status" | "verification_status" | "current_valuation" | "last_calculated_at" | "created_at"
 >;
 
 export class InvestmentPosition
@@ -26,7 +26,7 @@ export class InvestmentPosition
 {
   public position_id!: string;
   public user_id!: string;
-  public deposit_id!: string;
+  public deposit_id!: string | null;
   public asset!: string;
   public principal!: string;
   public strategy!: string;
@@ -41,7 +41,9 @@ InvestmentPosition.init(
   {
     position_id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     user_id: { type: DataTypes.UUID, allowNull: false },
-    deposit_id: { type: DataTypes.UUID, allowNull: false, unique: true },
+    // Nullable so an administrator can allocate principal into a new position without a
+    // deposit. Deposit-backed positions still set it and the unique index is preserved.
+    deposit_id: { type: DataTypes.UUID, allowNull: true, unique: true },
     asset: { type: DataTypes.STRING, allowNull: false },
     principal: { type: DataTypes.DECIMAL(36, 8), allowNull: false },
     strategy: { type: DataTypes.STRING, allowNull: false, defaultValue: "custody_hold" },

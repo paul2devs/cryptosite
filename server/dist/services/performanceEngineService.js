@@ -47,7 +47,9 @@ async function runDailyPerformanceCycle(snapshotDate) {
     }
     const settings = await (0, platformSettingsService_1.getPerformanceSettings)();
     const positions = await InvestmentPosition_1.InvestmentPosition.findAll({ where: { status: "active" } });
-    const depositIds = positions.map((position) => position.deposit_id);
+    const depositIds = positions
+        .map((position) => position.deposit_id)
+        .filter((depositId) => depositId !== null);
     const deposits = depositIds.length > 0 ? await Deposit_1.Deposit.findAll({ where: { deposit_id: { [sequelize_1.Op.in]: depositIds } } }) : [];
     const confirmedByDeposit = new Map(deposits.map((deposit) => [deposit.deposit_id, deposit.confirmed_at ? new Date(deposit.confirmed_at) : null]));
     const { start, end } = dayBounds(snapshotDate);
@@ -64,7 +66,7 @@ async function runDailyPerformanceCycle(snapshotDate) {
     let skipped = 0;
     const notifiedUsers = new Set();
     for (const position of positions) {
-        const confirmedAt = confirmedByDeposit.get(position.deposit_id) ?? null;
+        const confirmedAt = (position.deposit_id ? confirmedByDeposit.get(position.deposit_id) : undefined) ?? null;
         if (!(0, earningsRules_1.isPerformanceDayEligible)(confirmedAt, snapshotDate)) {
             skipped += 1;
             continue;
@@ -104,7 +106,7 @@ async function runDailyPerformanceCycle(snapshotDate) {
             continue;
         }
         const closing = (0, money_1.parseDecimal)(String(position.current_valuation), AMOUNT_SCALE);
-        const cashFlow = cashFlowByDeposit.get(position.deposit_id) ?? 0n;
+        const cashFlow = (position.deposit_id ? cashFlowByDeposit.get(position.deposit_id) : undefined) ?? 0n;
         const result = (0, performanceRules_1.calculateDailyPerformance)({
             openingCents: opening,
             closingCents: closing,

@@ -30,7 +30,8 @@ const FLOW_ACCOUNT: Record<string, { code: LedgerAccountCode; kind: LedgerFlowKi
   withdrawal_completed: { code: "withdrawals", kind: "withdrawal" },
   fee_charged: { code: "fees", kind: "fee" },
   profit_distribution: { code: "realized_earnings", kind: "realized" },
-  account_adjustment: { code: "adjustments", kind: "adjustment" }
+  account_adjustment: { code: "adjustments", kind: "adjustment" },
+  adjustment_reversal: { code: "adjustments", kind: "adjustment" }
 };
 
 interface FlowBucket {

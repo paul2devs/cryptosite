@@ -30,6 +30,7 @@ require("./InvestmentPosition");
 require("./DailyPerformanceSnapshot");
 require("./PerformanceCalculationLog");
 require("./AdminAuditLog");
+require("./BalanceAdjustment");
 require("./InvestmentLevel");
 require("./InvestmentLevelBenefit");
 require("./UserInvestmentLevel");

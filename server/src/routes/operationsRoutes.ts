@@ -6,6 +6,9 @@ import {
   activity,
   adjustInvestmentLevel,
   adjustMembership,
+  adminApplyBalanceAdjustment,
+  adminBalanceAdjustments,
+  adminBalanceOverview,
   adminBonus,
   adminBonusCampaigns,
   adminBonusCredits,
@@ -21,6 +24,7 @@ import {
   adminReconcileBonuses,
   adminReconcilePerformanceLedger,
   adminResetSettings,
+  adminReverseBalanceAdjustment,
   adminRevokeReward,
   adminRewardCatalog,
   adminRewards,
@@ -423,6 +427,44 @@ router.post(
     body("reason").isString().isLength({ min: 3 })
   ],
   adminProfitDistribution
+);
+
+router.get(
+  "/admin/balance/users/:userId/overview",
+  authenticate,
+  requireAdmin,
+  [param("userId").isUUID()],
+  adminBalanceOverview
+);
+router.get("/admin/balance/adjustments", authenticate, requireAdmin, adminBalanceAdjustments);
+router.post(
+  "/admin/balance/adjustments",
+  authenticate,
+  requireAdmin,
+  [
+    body("userId").isUUID(),
+    body("type").isIn([
+      "credit",
+      "debit",
+      "investment_allocation",
+      "investment_deallocation",
+      "correction"
+    ]),
+    body("amount").isString().isLength({ min: 1 }),
+    body("reason").isString().isLength({ min: 3 }),
+    body("direction").optional({ values: "null" }).isIn(["credit", "debit"]),
+    body("note").optional({ values: "null" }).isString(),
+    body("positionId").optional({ values: "null" }).isUUID(),
+    body("asset").optional({ values: "null" }).isString().isLength({ min: 2 })
+  ],
+  adminApplyBalanceAdjustment
+);
+router.post(
+  "/admin/balance/adjustments/:adjustmentId/reverse",
+  authenticate,
+  requireAdmin,
+  [param("adjustmentId").isUUID(), body("reason").isString().isLength({ min: 3 })],
+  adminReverseBalanceAdjustment
 );
 
 export default router;

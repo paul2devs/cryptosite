@@ -42,6 +42,8 @@ async function initDatabase() {
         await reconcileDepositsSchema();
         await reconcileMembershipSchema();
         await reconcileInvestmentLevelSchema();
+        await reconcileInvestmentPositionsSchema();
+        await reconcileBalanceAdjustmentSchema();
         dbOk = true;
         dbError = null;
         // eslint-disable-next-line no-console
@@ -463,5 +465,71 @@ async function reconcileInvestmentLevelSchema() {
             allowNull: false,
             defaultValue: "tools"
         });
+    }
+}
+/**
+ * Relax `investment_positions.deposit_id` to nullable so an administrator can
+ * allocate principal into a new position that has no originating deposit. The
+ * column keeps its unique constraint, so deposit-backed positions stay 1:1 and
+ * the change is purely additive: no rows are dropped or rewritten.
+ */
+async function reconcileInvestmentPositionsSchema() {
+    const queryInterface = exports.sequelize.getQueryInterface();
+    let definition;
+    try {
+        definition = await queryInterface.describeTable("investment_positions");
+    }
+    catch {
+        return;
+    }
+    if (definition.deposit_id && definition.deposit_id.allowNull === false) {
+        await queryInterface.changeColumn("investment_positions", "deposit_id", {
+            type: sequelize_1.DataTypes.UUID,
+            allowNull: true
+        });
+    }
+}
+/**
+ * Ensure the administrator balance ledger table has its uniqueness guarantees.
+ * `reference` is a permanent human-readable id; `idempotency_key` stops a
+ * double-submitted adjustment from ever being applied twice.
+ */
+async function reconcileBalanceAdjustmentSchema() {
+    const queryInterface = exports.sequelize.getQueryInterface();
+    try {
+        await queryInterface.describeTable("balance_adjustments");
+    }
+    catch {
+        return;
+    }
+    const indexes = [
+        {
+            name: "balance_adjustments_reference_unique",
+            statement: "CREATE UNIQUE INDEX IF NOT EXISTS balance_adjustments_reference_unique ON balance_adjustments (reference)"
+        },
+        {
+            name: "balance_adjustments_idempotency_key_unique",
+            statement: "CREATE UNIQUE INDEX IF NOT EXISTS balance_adjustments_idempotency_key_unique ON balance_adjustments (idempotency_key) WHERE idempotency_key IS NOT NULL"
+        },
+        {
+            name: "balance_adjustments_user_created_idx",
+            statement: "CREATE INDEX IF NOT EXISTS balance_adjustments_user_created_idx ON balance_adjustments (user_id, created_at)"
+        }
+    ];
+    for (const index of indexes) {
+        try {
+            await exports.sequelize.query(index.statement);
+        }
+        catch (error) {
+            const sqlState = error?.original?.code ||
+                error?.parent?.code;
+            if (sqlState === "23505") {
+                // eslint-disable-next-line no-console
+                console.error(`[database] ${index.name} could NOT be created because existing rows are not unique. ` +
+                    "Deduplicate those rows; until then duplicate protection only holds at the application layer.");
+                continue;
+            }
+            throw new Error(`Failed to create ${index.name}: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 }
