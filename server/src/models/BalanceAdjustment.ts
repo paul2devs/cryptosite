@@ -17,6 +17,10 @@ export interface BalanceAdjustmentAttributes {
   balance_after: string;
   principal_before: string;
   principal_after: string;
+  valuation_before: string | null;
+  valuation_after: string | null;
+  earnings_before: string | null;
+  earnings_after: string | null;
   position_id: string | null;
   reason: string;
   note: string | null;
@@ -33,6 +37,10 @@ export type BalanceAdjustmentCreationAttributes = Optional<
   | "adjustment_id"
   | "asset"
   | "position_id"
+  | "valuation_before"
+  | "valuation_after"
+  | "earnings_before"
+  | "earnings_after"
   | "note"
   | "idempotency_key"
   | "reversal_of"
@@ -59,6 +67,10 @@ export class BalanceAdjustment
   public balance_after!: string;
   public principal_before!: string;
   public principal_after!: string;
+  public valuation_before!: string | null;
+  public valuation_after!: string | null;
+  public earnings_before!: string | null;
+  public earnings_after!: string | null;
   public position_id!: string | null;
   public reason!: string;
   public note!: string | null;
@@ -83,6 +95,13 @@ BalanceAdjustment.init(
     balance_after: { type: DataTypes.DECIMAL(36, 8), allowNull: false },
     principal_before: { type: DataTypes.DECIMAL(36, 8), allowNull: false, defaultValue: "0.00000000" },
     principal_after: { type: DataTypes.DECIMAL(36, 8), allowNull: false, defaultValue: "0.00000000" },
+    // Before/after snapshots for the newer adjustment categories. They stay null for
+    // adjustments that do not touch valuations or earnings, so the audit row only carries
+    // the values that actually changed.
+    valuation_before: { type: DataTypes.DECIMAL(36, 8), allowNull: true, defaultValue: null },
+    valuation_after: { type: DataTypes.DECIMAL(36, 8), allowNull: true, defaultValue: null },
+    earnings_before: { type: DataTypes.DECIMAL(36, 8), allowNull: true, defaultValue: null },
+    earnings_after: { type: DataTypes.DECIMAL(36, 8), allowNull: true, defaultValue: null },
     position_id: { type: DataTypes.UUID, allowNull: true },
     reason: { type: DataTypes.TEXT, allowNull: false },
     note: { type: DataTypes.TEXT, allowNull: true },

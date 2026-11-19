@@ -28,6 +28,7 @@ export function RewardsPage() {
         title="Rewards"
         description="Your NexaCrypto rewards: available promotional rewards, progression toward locked rewards, and full reward history, separate from investment returns."
         path="/rewards"
+        robots="noindex,nofollow"
       />
 
       <div className="flex flex-wrap items-start justify-between gap-3">

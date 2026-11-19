@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { FaTelegramPlane, FaTwitter, FaDiscord } from "react-icons/fa";
-import { DISCLOSURES } from "../constants/copy";
+import { BRAND, DISCLOSURES } from "../constants/copy";
 
 export function Footer() {
   return (
@@ -19,11 +19,11 @@ export function Footer() {
               </span>
             </div>
             <p className="max-w-sm break-words text-xs leading-5 text-[#9CA3AF]">
-              Custodial crypto platform for deposits, transparent level progression, and
-              clearly defined reward mechanics.
+              Digital asset investment platform for portfolio management, on-chain
+              verified deposits and clear progression mechanics.
             </p>
             <p className="break-words text-[11px] leading-5 text-[#6B7280]">
-              {DISCLOSURES.custodial}
+              {DISCLOSURES.platformWallets}
             </p>
           </div>
 
@@ -50,7 +50,7 @@ export function Footer() {
           <div className="min-w-0 space-y-3">
             <p className="display-font text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Community</p>
             <div className="flex items-center gap-3 pt-1">
-              <a href="https://t.me" target="_blank" rel="noreferrer" aria-label="Telegram" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] hover:bg-[#1F2023] transition-colors">
+              <a href={BRAND.telegram} target="_blank" rel="noreferrer" aria-label="Telegram" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] hover:bg-[#1F2023] transition-colors">
                 <FaTelegramPlane className="h-3.5 w-3.5" aria-hidden="true" />
               </a>
               <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] hover:bg-[#1F2023] transition-colors">
@@ -67,7 +67,7 @@ export function Footer() {
         </div>
         <div className="flex flex-col-reverse items-start justify-between gap-3 pt-6 text-[10px] text-[#6B7280] sm:flex-row sm:items-center">
           <p className="break-words">© {new Date().getFullYear()} NexaCrypto. All rights reserved.</p>
-          <p className="break-words sm:text-right">Custodial platform. Nothing here is investment advice. Participate responsibly.</p>
+          <p className="break-words sm:text-right">Digital asset portfolio management and investment performance tracking.</p>
         </div>
       </div>
     </footer>

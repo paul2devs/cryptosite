@@ -60,7 +60,7 @@ export function ResetPasswordPage() {
             Set a new password with <span className="text-gradient-gold">hardened protection.</span>
           </>
         }
-        support="Your reset link is validated once and expires quickly. Choose a strong password to keep your custodial balance secure."
+        support="Your reset link is validated once and expires quickly. Choose a strong password to keep your account secure."
         title="Set a new password"
         description="Choose a strong password. You'll be returned to sign in once it's updated."
         footer={

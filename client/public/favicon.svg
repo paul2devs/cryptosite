@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="NexaCrypto">
+  <title>NexaCrypto</title>
+  <defs>
+    <linearGradient id="ncGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E6CB8C" />
+      <stop offset="0.5" stop-color="#C6A15B" />
+      <stop offset="1" stop-color="#9E7A36" />
+    </linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="15" fill="#0F0F10" stroke="#2A2B2F" stroke-width="1.5" />
+  <path
+    d="M21 46V18l22 28V18"
+    fill="none"
+    stroke="url(#ncGold)"
+    stroke-width="5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="43" cy="18" r="3.2" fill="url(#ncGold)" />
+</svg>

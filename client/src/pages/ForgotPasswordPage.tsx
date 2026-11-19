@@ -32,7 +32,7 @@ export function ForgotPasswordPage() {
     <>
       <Seo
         title="Request password reset"
-        description="Request a secure password reset link for your NexaCrypto custodial account to restore access to your deposits and rewards."
+        description="Request a secure password reset link for your NexaCrypto account to restore access to your digital asset portfolio and account activity."
         path="/forgot-password"
         robots="noindex,nofollow"
       />

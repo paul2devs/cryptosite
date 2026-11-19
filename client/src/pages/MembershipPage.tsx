@@ -19,6 +19,7 @@ export function MembershipPage() {
         title="Membership"
         description="Your NexaCrypto membership tier, tier progression, benefits, tier comparison, and membership history based on confirmed, verified deposits."
         path="/membership"
+        robots="noindex,nofollow"
       />
 
       <div className="flex flex-wrap items-start justify-between gap-3">

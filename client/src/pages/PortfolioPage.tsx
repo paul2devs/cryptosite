@@ -29,8 +29,9 @@ export function PortfolioPage() {
     <div className="page-responsive borderless-ui space-y-8 sm:space-y-10">
       <Seo
         title="Portfolio – holdings, value and performance"
-        description="Track your crypto holdings, portfolio value, available balance, verified performance, asset allocation and full portfolio history."
+        description="Track your digital asset holdings, portfolio value, available balance, verified investment performance, asset allocation and full portfolio history."
         path="/portfolio"
+        robots="noindex,nofollow"
       />
 
       <header className="flex flex-wrap items-start justify-between gap-4">

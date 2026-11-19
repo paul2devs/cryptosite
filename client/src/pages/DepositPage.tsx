@@ -291,6 +291,7 @@ export function DepositPage() {
         title="Deposit – add funds with verified on-chain payments"
         description="Add funds to your account using supported crypto assets and networks. Every deposit is verified independently on-chain and approved by an administrator before it is credited."
         path="/deposit"
+        robots="noindex,nofollow"
       />
 
       <DepositPageHeader

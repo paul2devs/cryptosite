@@ -27,20 +27,18 @@ export function LandingPage() {
   return (
     <div className="landing-page page-responsive relative min-h-screen w-full bg-[#0F0F10]">
       <Seo
-        title="Digital asset wealth, built on structure"
-        description="NexaCrypto is a digital asset wealth platform. Deposit supported crypto into a structured account with membership progression, investment levels, redeemable rewards and performance you can inspect."
+        title="Digital Asset Investment Platform"
+        description="NexaCrypto is a digital asset investment platform designed to help users manage their digital asset portfolios, explore investment opportunities and monitor their account activity."
         path="/landing"
         keywords={[
           "nexacrypto",
-          "digital asset platform",
-          "crypto wealth platform",
-          "custodial crypto platform",
-          "bitcoin",
-          "ethereum",
-          "solana",
-          "usdt",
-          "membership tiers",
-          "investment levels"
+          "digital asset investment platform",
+          "digital asset portfolio",
+          "portfolio management",
+          "investment management",
+          "digital asset wallet",
+          "account security",
+          "investment performance"
         ]}
       />
       <LandingHero />

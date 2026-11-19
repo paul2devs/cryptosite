@@ -15,7 +15,7 @@ export function CookiesPage() {
           </h1>
           <p className="mb-6 text-sm text-slate-200/80">
             This Cookie Policy explains how NexaCrypto uses cookies and local
-            storage to provide a secure, stable, and personalized custodial
+            storage to provide a secure, stable, and personalized digital asset
             experience.
           </p>
           <div className="space-y-5 text-sm text-slate-200/70">

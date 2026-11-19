@@ -42,7 +42,7 @@ export function LoginPage() {
     <>
       <Seo
         title="Secure login"
-        description="Log in to NexaCrypto to manage your custodial crypto deposits, track XP, levels and multipliers, and request secure withdrawals."
+        description="Log in to NexaCrypto to manage your digital asset portfolio, track investment performance and request secure withdrawals."
         path="/login"
         robots="noindex,nofollow"
       />

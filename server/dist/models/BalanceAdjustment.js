@@ -22,6 +22,13 @@ BalanceAdjustment.init({
     balance_after: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: false },
     principal_before: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: false, defaultValue: "0.00000000" },
     principal_after: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: false, defaultValue: "0.00000000" },
+    // Before/after snapshots for the newer adjustment categories. They stay null for
+    // adjustments that do not touch valuations or earnings, so the audit row only carries
+    // the values that actually changed.
+    valuation_before: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: true, defaultValue: null },
+    valuation_after: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: true, defaultValue: null },
+    earnings_before: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: true, defaultValue: null },
+    earnings_after: { type: sequelize_1.DataTypes.DECIMAL(36, 8), allowNull: true, defaultValue: null },
     position_id: { type: sequelize_1.DataTypes.UUID, allowNull: true },
     reason: { type: sequelize_1.DataTypes.TEXT, allowNull: false },
     note: { type: sequelize_1.DataTypes.TEXT, allowNull: true },

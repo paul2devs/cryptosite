@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Send, X } from "lucide-react";
 import { useNotificationContext } from "./NotificationProvider";
+import { BRAND } from "../constants/copy";
 import supportIcon from "../assets/crypto/customersupport.svg";
 
 type Sender = "bot" | "user" | "system";
@@ -29,7 +30,7 @@ interface TopicResponse {
 const WELCOME_MESSAGE =
   "Hello 👋\nI’m your assistant. I can help with deposits, withdrawals, and account-related questions.";
 const TELEGRAM_URL =
-  import.meta.env.VITE_SUPPORT_TELEGRAM_URL || "https://t.me/nexacrypto_support";
+  import.meta.env.VITE_SUPPORT_TELEGRAM_URL || BRAND.telegram;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_MESSAGES = 8;
 const MESSAGE_COOLDOWN_MS = 1_200;

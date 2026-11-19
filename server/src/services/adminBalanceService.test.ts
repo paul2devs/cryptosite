@@ -15,10 +15,15 @@ let InvestmentPosition: any;
 let Deposit: any;
 let Withdrawal: any;
 let AdminAuditLog: any;
+let EarningsLog: any;
+let MembershipTier: any;
+let UserMembership: any;
 let sequelize: any;
 let financialOperations: any;
 let performanceService: any;
 let activityService: any;
+let membershipService: any;
+let investmentLevelService: any;
 
 before(() => {
   service = require("./adminBalanceService");
@@ -28,10 +33,15 @@ before(() => {
   Deposit = require("../models/Deposit").Deposit;
   Withdrawal = require("../models/Withdrawal").Withdrawal;
   AdminAuditLog = require("../models/AdminAuditLog").AdminAuditLog;
+  EarningsLog = require("../models/EarningsLog").EarningsLog;
+  MembershipTier = require("../models/MembershipTier").MembershipTier;
+  UserMembership = require("../models/UserMembership").UserMembership;
   sequelize = require("../config/database").sequelize;
   financialOperations = require("./financialOperationsService");
   performanceService = require("./performanceService");
   activityService = require("./activityService");
+  membershipService = require("./membershipService");
+  investmentLevelService = require("./investmentLevelService");
 });
 
 const restorers: Array<() => void> = [];
@@ -133,8 +143,22 @@ function installStubs(balance: number, positions: Array<Record<string, any>> = [
     return values;
   });
 
+  // The overview reads the adjustment history to show recent administrative activity.
+  stub(BalanceAdjustment, "findAll", async () => state.adjustments);
+
   stub(Deposit, "findAll", async () => []);
   stub(Withdrawal, "findAll", async () => []);
+
+  // Earnings and membership reads are stubbed so the service never opens a real
+  // database connection during the unit run.
+  stub(EarningsLog, "sum", async () => 0);
+  stub(MembershipTier, "findByPk", async () => null);
+  stub(UserMembership, "findByPk", async () => null);
+
+  // Derived state is recalculated after a committed adjustment. The recalculation
+  // services are stubbed so the assertions stay on the adjustment orchestration.
+  stub(membershipService, "syncUserMembership", async () => undefined);
+  stub(investmentLevelService, "syncUserInvestmentLevel", async () => undefined);
 
   stub(financialOperations, "postBalancedEntry", async (input: any) => {
     state.posted.push(input);
@@ -390,5 +414,115 @@ test("a reversal can only happen once and a reversal cannot be reversed", async 
     () => service.reverseAdjustment("admin-2", reversal.adjustment.adjustmentId, "Nested"),
     /cannot be reversed/
   );
+  assert.equal(state.posted.length, 2);
+});
+
+test("valuation correction adjusts a position valuation without moving wallet cash", async () => {
+  const position = activePosition();
+  const state = installStubs(100, [position]);
+  const result = await service.applyAdjustment("admin-1", {
+    userId: "user-1",
+    type: "valuation_correction",
+    amount: "15",
+    direction: "credit",
+    positionId: "pos-existing",
+    reason: "Correct stale position valuation"
+  });
+
+  assert.equal(position.current_valuation, "65.00000000");
+  assert.equal(position.verification_status, "verified");
+  // The correction is a valuation component change; the wallet and cash ledger are untouched.
+  assert.equal(state.balance, 100);
+  assert.equal(state.posted.length, 0);
+  assert.equal(result.adjustment.valuationBefore, "50.00000000");
+  assert.equal(result.adjustment.valuationAfter, "65.00000000");
+  assert.equal(result.adjustment.balanceAfter, "100.00000000");
+});
+
+test("a valuation correction requires a selected position", async () => {
+  installStubs(100, [activePosition()]);
+  await assert.rejects(
+    () =>
+      service.applyAdjustment("admin-1", {
+        userId: "user-1",
+        type: "valuation_correction",
+        amount: "15",
+        direction: "credit",
+        reason: "Missing target"
+      }),
+    /Select which investment position/
+  );
+});
+
+test("pending earnings adjustment records the change without crediting the wallet", async () => {
+  const state = installStubs(100);
+  const result = await service.applyAdjustment("admin-1", {
+    userId: "user-1",
+    type: "pending_earnings",
+    amount: "12",
+    direction: "credit",
+    reason: "Correct accrued pending earnings"
+  });
+
+  // Pending earnings move on the settlement account only; the available wallet is untouched.
+  assert.equal(state.balance, 100);
+  assert.equal(state.posted.length, 1);
+  assert.equal(state.posted[0].debit, "adjustments");
+  assert.equal(state.posted[0].credit, "pending_settlement");
+  assert.equal(state.posted[0].transactionType, "pending_earnings_adjustment");
+  assert.equal(result.adjustment.earningsBefore, "0.00000000");
+  assert.equal(result.adjustment.earningsAfter, "12.00000000");
+  assert.equal(result.adjustment.balanceAfter, "100.00000000");
+});
+
+test("a pending earnings decrease below zero is rejected", async () => {
+  installStubs(100);
+  await assert.rejects(
+    () =>
+      service.applyAdjustment("admin-1", {
+        userId: "user-1",
+        type: "pending_earnings",
+        amount: "5",
+        direction: "debit",
+        reason: "Over-correction"
+      }),
+    /pending earnings negative/
+  );
+});
+
+test("realised earnings settlement credits the wallet via the profit distribution ledger type", async () => {
+  const state = installStubs(100);
+  const result = await service.applyAdjustment("admin-1", {
+    userId: "user-1",
+    type: "realised_earnings",
+    amount: "30",
+    direction: "credit",
+    reason: "Settle verified realised profit"
+  });
+
+  assert.equal(state.balance, 130);
+  assert.equal(state.posted[0].debit, "realized_earnings");
+  assert.equal(state.posted[0].credit, "available_balance");
+  assert.equal(state.posted[0].transactionType, "profit_distribution");
+  assert.equal(result.adjustment.balanceAfter, "130.00000000");
+});
+
+test("reversing a pending earnings adjustment restores the recorded figure", async () => {
+  const state = installStubs(100);
+  const original = await service.applyAdjustment("admin-1", {
+    userId: "user-1",
+    type: "pending_earnings",
+    amount: "12",
+    direction: "credit",
+    reason: "Correct accrued pending earnings"
+  });
+
+  const reversal = await service.reverseAdjustment("admin-2", original.adjustment.adjustmentId, "Wrong figure");
+
+  assert.equal(reversal.adjustment.type, "reversal");
+  assert.equal(reversal.adjustment.reversalOf, original.adjustment.adjustmentId);
+  assert.equal(reversal.adjustment.earningsAfter, "0.00000000");
+  assert.equal(state.balance, 100);
+  // One entry for the original pending-earnings move, one for the reversal.
   assert.equal(state.posted.length, 2);
 });

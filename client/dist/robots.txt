@@ -1,0 +1,29 @@
+User-agent: *
+Allow: /
+
+# Public marketing and legal pages are indexable.
+Allow: /landing
+Allow: /terms
+Allow: /privacy
+Allow: /cookies
+
+# Private application, account, financial and admin routes are never indexed.
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /deposit
+Disallow: /withdraw
+Disallow: /portfolio
+Disallow: /membership
+Disallow: /investment-levels
+Disallow: /rewards
+Disallow: /performance
+Disallow: /transactions
+Disallow: /leaderboards
+Disallow: /settings
+Disallow: /referrals
+Disallow: /admin
+
+Sitemap: https://cryptosite-seven.vercel.app/sitemap.xml

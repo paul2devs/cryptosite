@@ -124,6 +124,7 @@ export function ReferralPage() {
         title="Referrals – invite and earn multiplier boosts"
         description="Invite friends to NexaCrypto and unlock referral multiplier boosts when their deposits are approved."
         path="/referrals"
+        robots="noindex,nofollow"
       />
       <section className="relative overflow-hidden rounded-3xl bg-[#17181A] px-6 py-7 sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute inset-0 opacity-20">
@@ -386,7 +387,7 @@ export function ReferralPage() {
                       return;
                     }
                     const subject = "Join me on this NexaCrypto platform";
-                    const body = `I am using this custodial NexaCrypto platform to grow my deposits with multipliers.\n\nUse my invite link to unlock a shared boost: ${link}`;
+                    const body = `I am using NexaCrypto, a digital asset investment platform, to build my portfolio.\n\nUse my invite link to unlock a shared boost: ${link}`;
                     const url = `mailto:?subject=${encodeURIComponent(
                       subject
                     )}&body=${encodeURIComponent(body)}`;

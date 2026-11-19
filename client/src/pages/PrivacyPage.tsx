@@ -48,7 +48,7 @@ export function PrivacyPage() {
                 Depending on your jurisdiction, we may process your data based on your
                 consent, our contractual obligations to you, compliance with applicable
                 laws and regulations, and our legitimate interests in operating a secure
-                custodial platform.
+                digital asset platform.
               </p>
             </section>
             <section>

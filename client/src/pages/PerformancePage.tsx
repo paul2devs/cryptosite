@@ -31,6 +31,7 @@ export function PerformancePage() {
         title="Daily performance & ROI – verified investment reporting"
         description="Track verified daily profit and loss, time-weighted and money-weighted ROI, portfolio value over time and full daily performance history."
         path="/performance"
+        robots="noindex,nofollow"
       />
 
       <header className="flex flex-wrap items-start justify-between gap-4">

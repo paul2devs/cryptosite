@@ -80,24 +80,86 @@ function displayMoney(value: string | null | undefined): string {
 interface AdjustmentEffect {
   availableDelta: bigint;
   principalDelta: bigint;
+  valuationDelta: bigint;
+  earningsDelta: bigint;
 }
 
-function previewEffect(type: BalanceAdjustmentType, direction: BalanceAdjustmentDirection, amountUnits: bigint): AdjustmentEffect {
+// Types where the administrator chooses whether the value moves up or down.
+const DIRECTION_TYPES: BalanceAdjustmentType[] = [
+  "correction",
+  "valuation_correction",
+  "pending_earnings",
+  "realised_earnings"
+];
+
+// Types that must be applied against an existing investment position.
+const POSITION_TYPES: BalanceAdjustmentType[] = [
+  "investment_deallocation",
+  "valuation_correction"
+];
+
+function needsDirection(type: BalanceAdjustmentType): boolean {
+  return DIRECTION_TYPES.includes(type);
+}
+
+function needsPosition(type: BalanceAdjustmentType): boolean {
+  return POSITION_TYPES.includes(type);
+}
+
+// The direction labels depend on which value the chosen category moves, so the
+// administrator is never asked to pick an ambiguous "increase or decrease".
+function directionLabel(type: BalanceAdjustmentType, direction: BalanceAdjustmentDirection): string {
+  const credit = direction === "credit";
+  switch (type) {
+    case "valuation_correction":
+      return credit ? "Increase position valuation" : "Decrease position valuation";
+    case "pending_earnings":
+      return credit ? "Increase pending earnings" : "Decrease pending earnings";
+    case "realised_earnings":
+      return credit ? "Settle into available balance" : "Reverse from available balance";
+    default:
+      return credit ? "Increase available balance" : "Decrease available balance";
+  }
+}
+
+function previewEffect(
+  type: BalanceAdjustmentType,
+  direction: BalanceAdjustmentDirection,
+  amountUnits: bigint
+): AdjustmentEffect {
+  const base: AdjustmentEffect = {
+    availableDelta: 0n,
+    principalDelta: 0n,
+    valuationDelta: 0n,
+    earningsDelta: 0n
+  };
   switch (type) {
     case "credit":
-      return { availableDelta: amountUnits, principalDelta: 0n };
+      return { ...base, availableDelta: amountUnits };
     case "debit":
-      return { availableDelta: -amountUnits, principalDelta: 0n };
+      return { ...base, availableDelta: -amountUnits };
     case "correction":
       return direction === "debit"
-        ? { availableDelta: -amountUnits, principalDelta: 0n }
-        : { availableDelta: amountUnits, principalDelta: 0n };
+        ? { ...base, availableDelta: -amountUnits }
+        : { ...base, availableDelta: amountUnits };
     case "investment_allocation":
-      return { availableDelta: -amountUnits, principalDelta: amountUnits };
+      return { ...base, availableDelta: -amountUnits, principalDelta: amountUnits };
     case "investment_deallocation":
-      return { availableDelta: amountUnits, principalDelta: -amountUnits };
+      return { ...base, availableDelta: amountUnits, principalDelta: -amountUnits };
+    case "valuation_correction":
+      return direction === "debit"
+        ? { ...base, valuationDelta: -amountUnits }
+        : { ...base, valuationDelta: amountUnits };
+    case "pending_earnings":
+      return direction === "debit"
+        ? { ...base, earningsDelta: -amountUnits }
+        : { ...base, earningsDelta: amountUnits };
+    case "realised_earnings":
+      return direction === "debit"
+        ? { ...base, availableDelta: -amountUnits }
+        : { ...base, availableDelta: amountUnits };
     default:
-      return { availableDelta: 0n, principalDelta: 0n };
+      return base;
   }
 }
 
@@ -216,22 +278,40 @@ export function AdminBalancePanel() {
 
   const availableBefore = toUnits(overview?.balance.available ?? "0");
   const principalBefore = toUnits(overview?.investment.investedPrincipal ?? "0");
+  const earningsBefore = toUnits(overview?.earnings.pendingEarnings ?? "0");
+  const selectedPosition =
+    overview?.positions.find((position) => position.positionId === positionId) ??
+    (overview && overview.positions.length === 1 ? overview.positions[0] : null);
+  const valuationBefore = selectedPosition
+    ? toUnits(selectedPosition.currentValuation ?? selectedPosition.principal)
+    : 0n;
+
   const availableAfter = availableBefore + effect.availableDelta;
   const principalAfter = principalBefore + effect.principalDelta;
-  const needsPosition = type === "investment_deallocation";
+  const valuationAfter = valuationBefore + effect.valuationDelta;
+  const earningsAfter = earningsBefore + effect.earningsDelta;
+  const positionRequired = needsPosition(type);
   const insufficient = availableAfter < 0n;
 
   const problem = (() => {
     if (amountUnits === -1n) return "Amounts support up to 8 decimal places.";
     if (amountUnits <= 0n) return "Enter an amount greater than zero.";
     if (reason.trim().length < 3) return "Enter a reason of at least 3 characters.";
-    if (needsPosition && (overview?.positions.length ?? 0) === 0) {
-      return "This user has no active investment to deallocate from.";
+    if (positionRequired && (overview?.positions.length ?? 0) === 0) {
+      return "This user has no active investment position to adjust.";
     }
-    if (needsPosition && !positionId && (overview?.positions.length ?? 0) > 1) {
-      return "Select which investment position to deallocate from.";
+    if (positionRequired && !selectedPosition) {
+      return "Select which investment position to adjust.";
     }
-    if (principalAfter < 0n) return "The deallocation exceeds the user's invested principal.";
+    if (effect.principalDelta < 0n && principalAfter < 0n) {
+      return "The deallocation exceeds the user's invested principal.";
+    }
+    if (effect.valuationDelta !== 0n && valuationAfter < 0n) {
+      return "The correction would make the position valuation negative.";
+    }
+    if (effect.earningsDelta !== 0n && earningsAfter < 0n) {
+      return "The correction would make pending earnings negative.";
+    }
     if (insufficient) return "Insufficient available balance for this adjustment.";
     return null;
   })();
@@ -261,10 +341,10 @@ export function AdminBalancePanel() {
         userId: overview.account.userId,
         type,
         amount: amount.trim(),
-        direction: type === "correction" ? direction : null,
+        direction: needsDirection(type) ? direction : null,
         reason: reason.trim(),
         note: note.trim() || null,
-        positionId: positionId || null,
+        positionId: selectedPosition?.positionId ?? (positionId || null),
         idempotencyKey: pendingKey
       });
       setOverview(result.overview);
@@ -386,9 +466,14 @@ export function AdminBalancePanel() {
               </button>
             </div>
             <StatStrip>
+              <Stat label="Total portfolio value" value={displayMoney(overview.portfolio.totalPortfolioValue)} tone="gold" />
               <Stat label="Available balance" value={displayMoney(overview.balance.available)} tone="positive" />
               <Stat label="Invested principal" value={displayMoney(overview.investment.investedPrincipal)} />
               <Stat label="Current investment value" value={displayMoney(overview.investment.currentInvestmentValue)} tone="gold" />
+              <Stat label="Pending earnings" value={displayMoney(overview.earnings.pendingEarnings)} tone="neutral" />
+              <Stat label="Membership" value={`${overview.membership.tierName ?? "Unqualified"} (${overview.membership.source})`} />
+            </StatStrip>
+            <StatStrip>
               <Stat
                 label="Unrealised P/L"
                 value={overview.investment.unrealisedProfitLoss === null ? "Unavailable" : displayMoney(overview.investment.unrealisedProfitLoss)}
@@ -399,6 +484,18 @@ export function AdminBalancePanel() {
                 value={displayMoney(overview.investment.totalRealisedProfitLoss)}
                 tone={overview.investment.totalRealisedProfitLoss.startsWith("-") ? "negative" : "positive"}
               />
+              <Stat label="Today's earnings" value={displayMoney(overview.earnings.todayEarnings)} tone="positive" />
+              <Stat label="Total investment earnings" value={displayMoney(overview.earnings.totalInvestmentEarnings)} tone="positive" />
+              <Stat
+                label="Today's ROI"
+                value={overview.earnings.todayRoiPercent === null ? "Unavailable" : `${overview.earnings.todayRoiPercent}%`}
+                tone={overview.earnings.todayRoiPercent?.startsWith("-") ? "negative" : "neutral"}
+              />
+              <Stat
+                label="Overall return"
+                value={overview.earnings.overallReturnPercent === null ? "Unavailable" : `${overview.earnings.overallReturnPercent}%`}
+                tone={overview.earnings.overallReturnPercent?.startsWith("-") ? "negative" : "positive"}
+              />
             </StatStrip>
             <StatStrip>
               <Stat label="Total deposited" value={displayMoney(overview.totals.totalDeposited)} />
@@ -408,6 +505,8 @@ export function AdminBalancePanel() {
               <Stat label="Pending withdrawals" value={`${overview.totals.pendingWithdrawalCount} · ${displayMoney(overview.totals.pendingWithdrawalAmount)}`} tone="gold" />
               <Stat label="Active investments" value={String(overview.totals.activeInvestmentCount)} />
             </StatStrip>
+            <p className="text-[10px] text-[#6B7280]">{overview.portfolio.formula}</p>
+            <p className="text-[10px] text-[#6B7280]">{overview.earnings.note}</p>
             {!overview.investment.valuationComplete ? (
               <p className="text-[10px] text-[#6B7280]">
                 Some positions are not yet independently valued and are shown at principal.
@@ -450,9 +549,10 @@ export function AdminBalancePanel() {
               <p className="text-xs font-medium text-[#F5F5F7]">Apply a balance adjustment</p>
             </div>
             <p className="mt-1 text-[11px] leading-relaxed text-[#9CA3AF]">
-              Every adjustment posts a balanced double-entry ledger record and updates the user's
-              available balance or invested principal. Available balance, invested principal,
-              investment valuation, and realised profit are always kept separate.
+              Every adjustment posts a balanced double-entry ledger record and updates the specific
+              value it targets. Available balance, invested principal, investment valuation, pending
+              earnings, and realised profit are always kept separate. Pending earnings are never
+              credited to the available balance until a settlement is authorised.
             </p>
 
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -472,7 +572,7 @@ export function AdminBalancePanel() {
                   </option>
                 ))}
               </select>
-              {type === "correction" ? (
+              {needsDirection(type) ? (
                 <select
                   value={direction}
                   onChange={(event) => {
@@ -481,8 +581,8 @@ export function AdminBalancePanel() {
                   }}
                   className={inputClass}
                 >
-                  <option value="credit">Increase available balance</option>
-                  <option value="debit">Decrease available balance</option>
+                  <option value="credit">{directionLabel(type, "credit")}</option>
+                  <option value="debit">{directionLabel(type, "debit")}</option>
                 </select>
               ) : null}
               <input
@@ -512,7 +612,7 @@ export function AdminBalancePanel() {
                   ))}
                 </select>
               ) : null}
-              {needsPosition ? (
+              {positionRequired ? (
                 <select
                   value={positionId}
                   onChange={(event) => {
@@ -547,20 +647,42 @@ export function AdminBalancePanel() {
             />
 
             <div className="mt-3 flex flex-wrap items-center gap-4 rounded-xl border border-[#26272B] bg-[#0F0F10] px-3 py-2 text-[11px]">
-              <p className="text-[#9CA3AF]">
-                Available{" "}
-                <span className="financial-figure text-[#F5F5F7]">{displayMoney(fromUnits(availableBefore))}</span>
-                {" → "}
-                <span className={`financial-figure ${insufficient ? "text-[#EA3943]" : "text-[#16C784]"}`}>
-                  {displayMoney(fromUnits(availableAfter))}
-                </span>
-              </p>
+              {effect.availableDelta !== 0n ? (
+                <p className="text-[#9CA3AF]">
+                  Available{" "}
+                  <span className="financial-figure text-[#F5F5F7]">{displayMoney(fromUnits(availableBefore))}</span>
+                  {" → "}
+                  <span className={`financial-figure ${insufficient ? "text-[#EA3943]" : "text-[#16C784]"}`}>
+                    {displayMoney(fromUnits(availableAfter))}
+                  </span>
+                </p>
+              ) : null}
               {effect.principalDelta !== 0n ? (
                 <p className="text-[#9CA3AF]">
                   Invested principal{" "}
                   <span className="financial-figure text-[#F5F5F7]">{displayMoney(fromUnits(principalBefore))}</span>
                   {" → "}
                   <span className="financial-figure text-[#C6A15B]">{displayMoney(fromUnits(principalAfter))}</span>
+                </p>
+              ) : null}
+              {effect.valuationDelta !== 0n ? (
+                <p className="text-[#9CA3AF]">
+                  Position valuation{" "}
+                  <span className="financial-figure text-[#F5F5F7]">{displayMoney(fromUnits(valuationBefore))}</span>
+                  {" → "}
+                  <span className={`financial-figure ${valuationAfter < 0n ? "text-[#EA3943]" : "text-[#C6A15B]"}`}>
+                    {displayMoney(fromUnits(valuationAfter))}
+                  </span>
+                </p>
+              ) : null}
+              {effect.earningsDelta !== 0n ? (
+                <p className="text-[#9CA3AF]">
+                  Pending earnings{" "}
+                  <span className="financial-figure text-[#F5F5F7]">{displayMoney(fromUnits(earningsBefore))}</span>
+                  {" → "}
+                  <span className={`financial-figure ${earningsAfter < 0n ? "text-[#EA3943]" : "text-[#C6A15B]"}`}>
+                    {displayMoney(fromUnits(earningsAfter))}
+                  </span>
                 </p>
               ) : null}
             </div>
@@ -581,12 +703,19 @@ export function AdminBalancePanel() {
                 <p className="text-[11px] text-[#9CA3AF]">
                   {BALANCE_ADJUSTMENT_LABEL[type]} of{" "}
                   <span className="financial-figure text-[#F5F5F7]">{displayMoney(amount.trim())}</span> for{" "}
-                  {overview.account.email}. Available balance{" "}
-                  {displayMoney(fromUnits(availableBefore))} → {displayMoney(fromUnits(availableAfter))}
-                  {effect.principalDelta !== 0n
-                    ? `, invested principal ${displayMoney(fromUnits(principalBefore))} → ${displayMoney(fromUnits(principalAfter))}`
+                  {overview.account.email}.
+                  {effect.availableDelta !== 0n
+                    ? ` Available balance ${displayMoney(fromUnits(availableBefore))} → ${displayMoney(fromUnits(availableAfter))}.`
                     : ""}
-                  .
+                  {effect.principalDelta !== 0n
+                    ? ` Invested principal ${displayMoney(fromUnits(principalBefore))} → ${displayMoney(fromUnits(principalAfter))}.`
+                    : ""}
+                  {effect.valuationDelta !== 0n
+                    ? ` Position valuation ${displayMoney(fromUnits(valuationBefore))} → ${displayMoney(fromUnits(valuationAfter))}.`
+                    : ""}
+                  {effect.earningsDelta !== 0n
+                    ? ` Pending earnings ${displayMoney(fromUnits(earningsBefore))} → ${displayMoney(fromUnits(earningsAfter))}.`
+                    : ""}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -681,7 +810,7 @@ export function AdminBalancePanel() {
           <div className="px-4 py-4">
             <EmptyState
               title="No adjustments recorded"
-              description="Every credit, debit, allocation, deallocation, correction, and reversal appears here."
+              description="Every credit, debit, allocation, deallocation, correction, valuation correction, pending earnings, realised earnings, and reversal appears here."
             />
           </div>
         ) : (
@@ -699,6 +828,12 @@ export function AdminBalancePanel() {
                     {row.userName || row.userEmail || row.userId} · balance {displayMoney(row.balanceBefore)} →{" "}
                     {displayMoney(row.balanceAfter)} · principal {displayMoney(row.principalBefore)} →{" "}
                     {displayMoney(row.principalAfter)}
+                    {row.valuationBefore !== null && row.valuationAfter !== null
+                      ? ` · valuation ${displayMoney(row.valuationBefore)} → ${displayMoney(row.valuationAfter)}`
+                      : ""}
+                    {row.earningsBefore !== null && row.earningsAfter !== null
+                      ? ` · pending earnings ${displayMoney(row.earningsBefore)} → ${displayMoney(row.earningsAfter)}`
+                      : ""}
                   </p>
                   <p className="mt-0.5 break-words text-[10px] text-[#6B7280]">
                     {row.reason}

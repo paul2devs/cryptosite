@@ -17,8 +17,40 @@
 
 export const BRAND = {
   name: "NexaCrypto",
-  supportEmail: "support@nexacrypto.app"
+  positioning: "Digital Asset Investment Platform",
+  description:
+    "NexaCrypto is a digital asset investment platform designed to help users manage their digital asset portfolios, explore investment opportunities and monitor their account activity.",
+  tagline: "Manage your digital asset portfolio with clarity.",
+  supportEmail: "support@nexacrypto.app",
+  telegram: "https://t.me/+17624566897",
+  x: "https://x.com",
+  /**
+   * Official X/Twitter handle. Leave empty until the account is configured so
+   * `twitter:site` is only emitted once a real account exists.
+   */
+  twitterHandle: "",
+  /**
+   * Canonical production origin. Runtime code prefers the live window origin so
+   * canonical and social URLs always match the domain actually being served;
+   * this value is the fallback for static rendering and non-browser contexts.
+   */
+  url: "https://cryptosite-seven.vercel.app"
 } as const;
+
+/**
+ * Default keyword set for public pages. Kept factual and aligned with the
+ * official positioning; never claims regulatory status or guaranteed returns.
+ */
+export const DEFAULT_KEYWORDS = [
+  "nexacrypto",
+  "digital asset investment platform",
+  "digital asset portfolio",
+  "portfolio management",
+  "investment management",
+  "digital asset wallet",
+  "account security",
+  "investment performance"
+] as const;
 
 /**
  * Canonical labels for recurring financial concepts. Use these instead of
@@ -46,8 +78,8 @@ export const TERMINOLOGY = {
  * otherwise imply a guarantee, an audited status or an instant payout.
  */
 export const DISCLOSURES = {
-  custodial:
-    "NexaCrypto is a custodial platform: crypto assets you deposit are held in platform-operated wallets, and balances are tracked in your account ledger.",
+  platformWallets:
+    "NexaCrypto is a digital asset investment platform: the assets you deposit are held in platform-operated wallets and every balance is tracked in your account ledger.",
   noGuarantee:
     "Nothing on this platform is a promise of future returns. Projected figures are shown for context and are never credited as earnings.",
   depositsNotCredited:

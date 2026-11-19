@@ -172,6 +172,7 @@ export function LeaderboardPage() {
         title="Leaderboards – platform activity"
         description="Explore confirmed deposit activity across NexaCrypto: top depositors, top earners, highest streaks and fastest growing accounts."
         path="/leaderboards"
+        robots="noindex,nofollow"
       />
       <section className="space-y-2">
         <h1 className="display-font text-2xl font-semibold tracking-tight text-[#F5F5F7] sm:text-3xl">

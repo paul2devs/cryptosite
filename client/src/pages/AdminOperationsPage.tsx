@@ -213,7 +213,7 @@ export function AdminOperationsPage() {
 
   return (
     <div className="page-responsive space-y-6 pb-16">
-      <Seo title="Operations" description="Platform operational monitoring" path="/admin/operations" />
+      <Seo title="Operations" description="Platform operational monitoring" path="/admin/operations" robots="noindex,nofollow" />
       <div>
         <p className="text-[11px] uppercase tracking-[0.16em] text-[#9CA3AF]">Platform operations</p>
         <h1 className="display-font text-2xl font-semibold text-[#F5F5F7]">Operations</h1>

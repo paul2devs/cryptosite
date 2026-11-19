@@ -9,6 +9,9 @@ export type BalanceAdjustmentType =
   | "investment_allocation"
   | "investment_deallocation"
   | "correction"
+  | "valuation_correction"
+  | "pending_earnings"
+  | "realised_earnings"
   | "reversal";
 
 export type BalanceAdjustmentDirection = "credit" | "debit";
@@ -20,7 +23,10 @@ export const REQUESTABLE_ADJUSTMENT_TYPES: BalanceAdjustmentType[] = [
   "debit",
   "investment_allocation",
   "investment_deallocation",
-  "correction"
+  "correction",
+  "valuation_correction",
+  "pending_earnings",
+  "realised_earnings"
 ];
 
 export const BALANCE_ADJUSTMENT_TYPES: BalanceAdjustmentType[] = [
@@ -34,6 +40,9 @@ export const BALANCE_ADJUSTMENT_LABEL: Record<BalanceAdjustmentType, string> = {
   investment_allocation: "Investment allocation",
   investment_deallocation: "Investment deallocation",
   correction: "Correction",
+  valuation_correction: "Valuation correction",
+  pending_earnings: "Pending earnings adjustment",
+  realised_earnings: "Realised earnings adjustment",
   reversal: "Reversal"
 };
 
@@ -65,12 +74,17 @@ export interface LedgerLegPlan {
 export interface AdjustmentPlan {
   availableDelta: bigint;
   principalDelta: bigint;
-  ledger: LedgerLegPlan;
+  // A direct change to an investment position's own valuation. Valuation corrections
+  // move this value instead of cash and therefore produce no cash ledger legs.
+  valuationDelta: bigint;
+  // `null` for adjustments that do not move wallet cash (valuation corrections).
+  ledger: LedgerLegPlan | null;
 }
 
-// Resolves how an adjustment moves the user's available balance and invested principal,
-// and the balanced double-entry ledger legs that record it. Only corrections consult
-// `direction`; every other type has a fixed, unambiguous financial effect.
+// Resolves how an adjustment moves the user's available balance, invested principal and
+// investment valuation, and the balanced double-entry ledger legs that record it. Every
+// type except `correction` and the three earnings/valuation corrections has a fixed,
+// unambiguous financial effect; those consult the requested `direction`.
 export function planAdjustment(input: {
   type: BalanceAdjustmentType;
   direction: BalanceAdjustmentDirection;
@@ -82,12 +96,14 @@ export function planAdjustment(input: {
       return {
         availableDelta: amount,
         principalDelta: 0n,
+        valuationDelta: 0n,
         ledger: { debit: "adjustments", credit: "available_balance", transactionType: "account_adjustment" }
       };
     case "debit":
       return {
         availableDelta: -amount,
         principalDelta: 0n,
+        valuationDelta: 0n,
         ledger: { debit: "available_balance", credit: "adjustments", transactionType: "account_adjustment" }
       };
     case "correction":
@@ -95,29 +111,79 @@ export function planAdjustment(input: {
         ? {
             availableDelta: amount,
             principalDelta: 0n,
+            valuationDelta: 0n,
             ledger: { debit: "adjustments", credit: "available_balance", transactionType: "account_adjustment" }
           }
         : {
             availableDelta: -amount,
             principalDelta: 0n,
+            valuationDelta: 0n,
             ledger: { debit: "available_balance", credit: "adjustments", transactionType: "account_adjustment" }
           };
     case "investment_allocation":
       return {
         availableDelta: -amount,
         principalDelta: amount,
+        valuationDelta: 0n,
         ledger: { debit: "available_balance", credit: "invested_principal", transactionType: "investment_allocation" }
       };
     case "investment_deallocation":
       return {
         availableDelta: amount,
         principalDelta: -amount,
+        valuationDelta: 0n,
         ledger: { debit: "invested_principal", credit: "available_balance", transactionType: "investment_redemption" }
       };
+    // Corrects a single investment position's own valuation. It never touches the wallet
+    // or the principal, and it posts no cash ledger legs. The underlying position is the
+    // source of truth, so the derived portfolio total is corrected through its component
+    // rather than being overwritten.
+    case "valuation_correction":
+      return {
+        availableDelta: 0n,
+        principalDelta: 0n,
+        valuationDelta: input.direction === "debit" ? -amount : amount,
+        ledger: null
+      };
+    // Moves the pending earnings figure between the pending settlement account and the
+    // adjustment account. It deliberately never credits the available wallet balance:
+    // pending earnings stay unsettled until the settlement workflow authorises a payout.
+    case "pending_earnings":
+      return input.direction === "debit"
+        ? {
+            availableDelta: 0n,
+            principalDelta: 0n,
+            valuationDelta: 0n,
+            ledger: { debit: "pending_settlement", credit: "adjustments", transactionType: "pending_earnings_adjustment" }
+          }
+        : {
+            availableDelta: 0n,
+            principalDelta: 0n,
+            valuationDelta: 0n,
+            ledger: { debit: "adjustments", credit: "pending_settlement", transactionType: "pending_earnings_adjustment" }
+          };
+    // Settlement-style adjustment of realised earnings. An increase credits the available
+    // wallet balance the way a verified profit distribution does; a decrease reverses that
+    // movement. This is an administrative correction, never presented as investment profit.
+    case "realised_earnings":
+      return input.direction === "debit"
+        ? {
+            availableDelta: -amount,
+            principalDelta: 0n,
+            valuationDelta: 0n,
+            ledger: { debit: "available_balance", credit: "realized_earnings", transactionType: "earnings_correction" }
+          }
+        : {
+            availableDelta: amount,
+            principalDelta: 0n,
+            valuationDelta: 0n,
+            ledger: { debit: "realized_earnings", credit: "available_balance", transactionType: "profit_distribution" }
+          };
     default:
       return {
         availableDelta: 0n,
         principalDelta: 0n,
+        valuationDelta: 0n,
         ledger: { debit: "adjustments", credit: "available_balance", transactionType: "adjustment_reversal" }
       };
   }
@@ -141,6 +207,12 @@ export function invertAdjustment(input: {
       return { type: "investment_deallocation", direction: "credit" };
     case "investment_deallocation":
       return { type: "investment_allocation", direction: "debit" };
+    case "valuation_correction":
+      return { type: "valuation_correction", direction: flip(input.direction) };
+    case "pending_earnings":
+      return { type: "pending_earnings", direction: flip(input.direction) };
+    case "realised_earnings":
+      return { type: "realised_earnings", direction: flip(input.direction) };
     default:
       return { type: "correction", direction: flip(input.direction) };
   }
@@ -148,7 +220,8 @@ export function invertAdjustment(input: {
 
 // Plans the ledger legs for reversing a prior adjustment. Balance-only reversals are
 // recorded under the dedicated `adjustment_reversal` ledger type so the audit trail is
-// explicit; reversed principal moves keep their investment ledger type.
+// explicit; reversed principal moves keep their investment ledger type, and valuation
+// corrections (which never touch the cash ledger) stay ledger-less.
 export function planReversal(input: {
   type: BalanceAdjustmentType;
   direction: BalanceAdjustmentDirection;
@@ -160,11 +233,15 @@ export function planReversal(input: {
   return {
     availableDelta: base.availableDelta,
     principalDelta: base.principalDelta,
-    ledger: {
-      debit: base.ledger.debit,
-      credit: base.ledger.credit,
-      transactionType: isPrincipalMove ? base.ledger.transactionType : "adjustment_reversal"
-    }
+    valuationDelta: base.valuationDelta,
+    ledger:
+      base.ledger === null
+        ? null
+        : {
+            debit: base.ledger.debit,
+            credit: base.ledger.credit,
+            transactionType: isPrincipalMove ? base.ledger.transactionType : "adjustment_reversal"
+          }
   };
 }
 
@@ -172,7 +249,7 @@ export function directionForAdjustment(
   type: BalanceAdjustmentType,
   requested: string | null | undefined
 ): BalanceAdjustmentDirection {
-  if (type === "correction") {
+  if (type === "correction" || type === "valuation_correction" || type === "pending_earnings" || type === "realised_earnings") {
     return requested === "debit" ? "debit" : "credit";
   }
   if (type === "debit" || type === "investment_allocation") return "debit";

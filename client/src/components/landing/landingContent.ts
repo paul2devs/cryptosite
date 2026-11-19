@@ -428,7 +428,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "what-is-nexacrypto",
     question: "What is NexaCrypto?",
     answer:
-      "NexaCrypto is a custodial digital asset platform. You deposit supported crypto, the platform verifies each deposit on-chain before crediting it, and you manage your balances, membership progression, investment levels and eligible rewards from a single dashboard."
+      "NexaCrypto is a digital asset investment platform. You deposit supported crypto, the platform verifies each deposit on-chain before crediting it, and you manage your balances, membership progression, investment levels and eligible rewards from a single dashboard."
   },
   {
     id: "what-can-i-do",

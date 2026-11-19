@@ -448,7 +448,10 @@ router.post(
       "debit",
       "investment_allocation",
       "investment_deallocation",
-      "correction"
+      "correction",
+      "valuation_correction",
+      "pending_earnings",
+      "realised_earnings"
     ]),
     body("amount").isString().isLength({ min: 1 }),
     body("reason").isString().isLength({ min: 3 }),

@@ -53,8 +53,8 @@ const SCALE = 8;
     const remove = (0, balanceAdjustmentRules_1.planAdjustment)({ type: "correction", direction: "debit", amountUnits: (0, money_1.parseDecimal)("3", SCALE) });
     assert_1.default.equal(add.availableDelta, (0, money_1.parseDecimal)("3", SCALE));
     assert_1.default.equal(remove.availableDelta, (0, money_1.parseDecimal)("-3", SCALE));
-    assert_1.default.equal(add.ledger.debit, "adjustments");
-    assert_1.default.equal(remove.ledger.debit, "available_balance");
+    assert_1.default.equal(add.ledger?.debit, "adjustments");
+    assert_1.default.equal(remove.ledger?.debit, "available_balance");
 });
 (0, node_test_1.test)("investment allocation moves funds from available balance into principal", () => {
     const plan = (0, balanceAdjustmentRules_1.planAdjustment)({ type: "investment_allocation", direction: "debit", amountUnits: (0, money_1.parseDecimal)("100", SCALE) });
@@ -92,7 +92,7 @@ const SCALE = 8;
     const plan = (0, balanceAdjustmentRules_1.planReversal)({ type: "credit", direction: "credit", amountUnits: (0, money_1.parseDecimal)("40", SCALE) });
     assert_1.default.equal(plan.availableDelta, (0, money_1.parseDecimal)("-40", SCALE));
     assert_1.default.equal(plan.principalDelta, 0n);
-    assert_1.default.equal(plan.ledger.transactionType, "adjustment_reversal");
+    assert_1.default.equal(plan.ledger?.transactionType, "adjustment_reversal");
     assert_1.default.deepEqual(plan.ledger, {
         debit: "available_balance",
         credit: "adjustments",
@@ -117,4 +117,74 @@ const SCALE = 8;
     assert_1.default.equal((0, balanceAdjustmentRules_1.directionForAdjustment)("correction", "debit"), "debit");
     assert_1.default.equal((0, balanceAdjustmentRules_1.directionForAdjustment)("correction", "credit"), "credit");
     assert_1.default.equal((0, balanceAdjustmentRules_1.directionForAdjustment)("correction", null), "credit");
+});
+(0, node_test_1.test)("accepts the valuation, pending earnings and realised earnings types", () => {
+    assert_1.default.equal((0, balanceAdjustmentRules_1.isBalanceAdjustmentType)("valuation_correction"), true);
+    assert_1.default.equal((0, balanceAdjustmentRules_1.isBalanceAdjustmentType)("pending_earnings"), true);
+    assert_1.default.equal((0, balanceAdjustmentRules_1.isBalanceAdjustmentType)("realised_earnings"), true);
+});
+(0, node_test_1.test)("valuation correction moves only the position valuation and posts no cash ledger legs", () => {
+    const up = (0, balanceAdjustmentRules_1.planAdjustment)({ type: "valuation_correction", direction: "credit", amountUnits: (0, money_1.parseDecimal)("50", SCALE) });
+    const down = (0, balanceAdjustmentRules_1.planAdjustment)({ type: "valuation_correction", direction: "debit", amountUnits: (0, money_1.parseDecimal)("50", SCALE) });
+    assert_1.default.equal(up.availableDelta, 0n);
+    assert_1.default.equal(up.principalDelta, 0n);
+    assert_1.default.equal(up.valuationDelta, (0, money_1.parseDecimal)("50", SCALE));
+    assert_1.default.equal(down.valuationDelta, (0, money_1.parseDecimal)("-50", SCALE));
+    assert_1.default.equal(up.ledger, null);
+    assert_1.default.equal(down.ledger, null);
+});
+(0, node_test_1.test)("pending earnings adjustments never credit the available wallet balance", () => {
+    const credit = (0, balanceAdjustmentRules_1.planAdjustment)({ type: "pending_earnings", direction: "credit", amountUnits: (0, money_1.parseDecimal)("7", SCALE) });
+    const debit = (0, balanceAdjustmentRules_1.planAdjustment)({ type: "pending_earnings", direction: "debit", amountUnits: (0, money_1.parseDecimal)("7", SCALE) });
+    assert_1.default.equal(credit.availableDelta, 0n);
+    assert_1.default.equal(debit.availableDelta, 0n);
+    assert_1.default.equal(credit.principalDelta, 0n);
+    assert_1.default.equal(debit.principalDelta, 0n);
+    assert_1.default.deepEqual(credit.ledger, {
+        debit: "adjustments",
+        credit: "pending_settlement",
+        transactionType: "pending_earnings_adjustment"
+    });
+    assert_1.default.deepEqual(debit.ledger, {
+        debit: "pending_settlement",
+        credit: "adjustments",
+        transactionType: "pending_earnings_adjustment"
+    });
+});
+(0, node_test_1.test)("realised earnings increase settles into available balance and decrease reverses it", () => {
+    const increase = (0, balanceAdjustmentRules_1.planAdjustment)({ type: "realised_earnings", direction: "credit", amountUnits: (0, money_1.parseDecimal)("9", SCALE) });
+    const decrease = (0, balanceAdjustmentRules_1.planAdjustment)({ type: "realised_earnings", direction: "debit", amountUnits: (0, money_1.parseDecimal)("9", SCALE) });
+    assert_1.default.equal(increase.availableDelta, (0, money_1.parseDecimal)("9", SCALE));
+    assert_1.default.equal(decrease.availableDelta, (0, money_1.parseDecimal)("-9", SCALE));
+    assert_1.default.deepEqual(increase.ledger, {
+        debit: "realized_earnings",
+        credit: "available_balance",
+        transactionType: "profit_distribution"
+    });
+    assert_1.default.deepEqual(decrease.ledger, {
+        debit: "available_balance",
+        credit: "realized_earnings",
+        transactionType: "earnings_correction"
+    });
+});
+(0, node_test_1.test)("reversing a valuation correction inverts only the valuation delta", () => {
+    const plan = (0, balanceAdjustmentRules_1.planReversal)({ type: "valuation_correction", direction: "credit", amountUnits: (0, money_1.parseDecimal)("30", SCALE) });
+    assert_1.default.equal(plan.availableDelta, 0n);
+    assert_1.default.equal(plan.principalDelta, 0n);
+    assert_1.default.equal(plan.valuationDelta, (0, money_1.parseDecimal)("-30", SCALE));
+    assert_1.default.equal(plan.ledger, null);
+});
+(0, node_test_1.test)("inverting the new types flips only the requested direction", () => {
+    assert_1.default.deepEqual((0, balanceAdjustmentRules_1.invertAdjustment)({ type: "valuation_correction", direction: "credit" }), {
+        type: "valuation_correction",
+        direction: "debit"
+    });
+    assert_1.default.deepEqual((0, balanceAdjustmentRules_1.invertAdjustment)({ type: "pending_earnings", direction: "debit" }), {
+        type: "pending_earnings",
+        direction: "credit"
+    });
+    assert_1.default.deepEqual((0, balanceAdjustmentRules_1.invertAdjustment)({ type: "realised_earnings", direction: "credit" }), {
+        type: "realised_earnings",
+        direction: "debit"
+    });
 });

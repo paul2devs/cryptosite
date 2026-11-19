@@ -55,7 +55,7 @@ export function LandingHero() {
         <div className="grid items-center gap-14 lg:grid-cols-[minmax(0,44fr)_minmax(0,56fr)] lg:gap-16">
           <div className="min-w-0">
             <HeroReveal>
-              <p className="nx-eyebrow">Managed investments · Investment levels</p>
+              <p className="nx-eyebrow">Digital Asset Investment Platform</p>
             </HeroReveal>
 
             <HeroReveal delay={0.08}>
@@ -68,9 +68,10 @@ export function LandingHero() {
 
             <HeroReveal delay={0.16}>
               <p className="mt-7 max-w-[34rem] text-[15px] leading-relaxed text-[#B4B7BF] sm:text-[17px]">
-                Explore managed investment options built on your confirmed deposits. Your invested
-                principal is tracked across ten investment levels, and you follow current value,
-                accrued earnings and membership progress from one place.
+                NexaCrypto is a digital asset investment platform. Explore managed investment
+                options built on your confirmed deposits, track your digital asset portfolio
+                across ten investment levels, and follow current value, accrued earnings and
+                membership progress from one place.
               </p>
             </HeroReveal>
 
@@ -117,7 +118,7 @@ export function LandingHero() {
 
             <HeroReveal delay={0.3}>
               <p className="mt-8 max-w-md text-[10px] leading-relaxed text-[#6B7280] lg:-mr-16 xl:-mr-24">
-                {DISCLOSURES.custodial}
+                {DISCLOSURES.platformWallets}
               </p>
             </HeroReveal>
           </div>

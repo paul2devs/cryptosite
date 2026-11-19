@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexacrypto-static-v4";
+const CACHE_NAME = "nexacrypto-static-v5";
 const ASSET_PATTERNS = [/\\/assets\\//, /\\.css$/, /\\.js$/, /\\.svg$/, /\\.png$/, /\\.jpg$/, /\\.woff2?$/];
 
 self.addEventListener("install", (event) => {

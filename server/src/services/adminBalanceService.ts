@@ -16,11 +16,16 @@ import { generateReference } from "../domain/transactionRules";
 import { AdminAuditLog } from "../models/AdminAuditLog";
 import { BalanceAdjustment } from "../models/BalanceAdjustment";
 import { Deposit } from "../models/Deposit";
+import { EarningsLog } from "../models/EarningsLog";
 import { InvestmentPosition } from "../models/InvestmentPosition";
+import { MembershipTier } from "../models/MembershipTier";
 import { User } from "../models/User";
+import { UserMembership } from "../models/UserMembership";
 import { Withdrawal } from "../models/Withdrawal";
 import { trackUserActivity } from "./activityService";
 import { ledgerBalancesForUser, postBalancedEntry } from "./financialOperationsService";
+import { syncUserInvestmentLevel } from "./investmentLevelService";
+import { syncUserMembership } from "./membershipService";
 import { getPerformanceOverview } from "./performanceService";
 
 const AMOUNT_SCALE = 8;
@@ -61,6 +66,14 @@ function sumPrincipals(positions: PositionLike[]): bigint {
   return positions.reduce((total, position) => total + decimal(position.principal), 0n);
 }
 
+// Reads the user's pending earnings figure from the JSONB column, tolerating a null or
+// missing shape without ever inventing a value.
+function pendingEarningsOf(user: User): bigint {
+  const raw = (user.pending_earnings as { total?: unknown } | null | undefined)?.total;
+  if (raw === undefined || raw === null) return 0n;
+  return decimal(raw);
+}
+
 // A single, reusable position mutation so allocation and deallocation keep the
 // position's principal and valuation in step with the ledger.
 async function movePosition(
@@ -81,6 +94,29 @@ async function movePosition(
   }
   instance.status = nextPrincipal === 0n ? "closed" : "active";
   instance.last_calculated_at = instance.last_calculated_at ?? null;
+  await instance.save({ transaction });
+  return instance;
+}
+
+// Applies an authorised valuation correction to a single position. The position is the
+// source of truth for the derived portfolio value, so the correction is written onto the
+// component (never the derived total). The position is marked admin-verified because the
+// correction is a recorded, auditable valuation, not a silent overwrite.
+async function applyValuationCorrection(
+  positionId: string,
+  valuationDelta: bigint,
+  transaction: Transaction
+): Promise<InvestmentPosition> {
+  const instance = await InvestmentPosition.findByPk(positionId, { transaction, lock: transaction.LOCK.UPDATE });
+  if (!instance) throw new Error("The investment position to correct was not found.");
+  const base = decimal(instance.current_valuation ?? instance.principal);
+  const next = base + valuationDelta;
+  if (next < 0n) {
+    throw new Error("The correction would make the position valuation negative.");
+  }
+  instance.current_valuation = formatDecimal(next, AMOUNT_SCALE);
+  instance.verification_status = "verified";
+  instance.last_calculated_at = new Date();
   await instance.save({ transaction });
   return instance;
 }
@@ -122,6 +158,10 @@ function serializeAdjustment(row: BalanceAdjustment) {
     balanceAfter: String(row.balance_after),
     principalBefore: String(row.principal_before),
     principalAfter: String(row.principal_after),
+    valuationBefore: row.valuation_before === null ? null : String(row.valuation_before),
+    valuationAfter: row.valuation_after === null ? null : String(row.valuation_after),
+    earningsBefore: row.earnings_before === null ? null : String(row.earnings_before),
+    earningsAfter: row.earnings_after === null ? null : String(row.earnings_after),
     positionId: row.position_id,
     reason: row.reason,
     note: row.note,
@@ -133,19 +173,40 @@ function serializeAdjustment(row: BalanceAdjustment) {
   };
 }
 
-// Full, separated financial picture for one user. Available balance, invested
-// principal, current valuation and realised profit are reported independently so
-// no single number is presented as if it were another.
+// Full, separated financial picture for one user. Available balance, invested principal,
+// current valuation, pending earnings and realised profit are reported independently so
+// no single number is presented as if it were another. The total portfolio value is a
+// derived figure (wallet + current investment value) and never a stored number.
 export async function financialOverviewForUser(userId: string) {
   const user = await User.findByPk(userId);
   if (!user) throw new Error("User not found");
-  const [ledger, overview, positions, deposits, withdrawals] = await Promise.all([
+
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+
+  const [
+    ledger,
+    overview,
+    positions,
+    deposits,
+    withdrawals,
+    todayEarningsRaw,
+    totalEarningsRaw,
+    membership,
+    recentAdjustments
+  ] = await Promise.all([
     ledgerBalancesForUser(userId),
     getPerformanceOverview(userId, "all"),
     InvestmentPosition.findAll({ where: { user_id: userId }, order: [["created_at", "DESC"]] }),
     Deposit.findAll({ where: { user_id: userId } }),
-    Withdrawal.findAll({ where: { user_id: userId } })
+    Withdrawal.findAll({ where: { user_id: userId } }),
+    EarningsLog.sum("earned_amount", { where: { user_id: userId, timestamp: { [Op.gte]: startOfDay } } }),
+    EarningsLog.sum("earned_amount", { where: { user_id: userId } }),
+    UserMembership.findByPk(userId),
+    BalanceAdjustment.findAll({ where: { user_id: userId }, order: [["created_at", "DESC"]], limit: 10 })
   ]);
+
+  const tier = membership?.tier_id ? await MembershipTier.findByPk(membership.tier_id) : null;
 
   const approvedDeposits = deposits.filter((row) => row.status === "Approved");
   const completedWithdrawals = withdrawals.filter(
@@ -160,6 +221,12 @@ export async function financialOverviewForUser(userId: string) {
   );
   const activePositions = positions.filter((position) => position.status === "active");
 
+  const available = decimal(user.withdrawable_balance);
+  const locked = decimal(user.locked_balance);
+  const currentInvestmentValue = decimal(overview.overview.currentInvestmentValue);
+  const pendingEarnings = pendingEarningsOf(user);
+  const totalPortfolioValue = available + locked + currentInvestmentValue;
+
   return {
     account: {
       userId: user.user_id,
@@ -172,6 +239,16 @@ export async function financialOverviewForUser(userId: string) {
       available: amount(user.withdrawable_balance),
       locked: amount(user.locked_balance),
       ledgerAvailable: ledger.totals.available_balance ?? "0.00000000"
+    },
+    portfolio: {
+      totalPortfolioValue: formatDecimal(totalPortfolioValue, AMOUNT_SCALE),
+      available: amount(user.withdrawable_balance),
+      locked: amount(user.locked_balance),
+      currentInvestmentValue: overview.overview.currentInvestmentValue,
+      investedPrincipal: overview.overview.investedPrincipal,
+      pendingEarnings: formatDecimal(pendingEarnings, AMOUNT_SCALE),
+      formula:
+        "totalPortfolioValue = available balance + locked balance + current investment value. Pending earnings are reported separately and are not included until settled."
     },
     totals: {
       totalDeposited: amount(
@@ -198,25 +275,77 @@ export async function financialOverviewForUser(userId: string) {
       totalRealisedProfitLoss: overview.overview.totalRealizedProfitLoss,
       overallReturnPercent: overview.overview.overallReturnPercent
     },
-    positions: activePositions.map((position) => ({
+    earnings: {
+      pendingEarnings: formatDecimal(pendingEarnings, AMOUNT_SCALE),
+      todayEarnings: amount(todayEarningsRaw ?? 0),
+      totalInvestmentEarnings: amount(totalEarningsRaw ?? 0),
+      todayProfitLoss: overview.overview.todayProfitLoss,
+      todayRoiPercent: overview.overview.todayRoiPercent,
+      todayStatus: overview.overview.todayStatus,
+      totalRealisedProfitLoss: overview.overview.totalRealizedProfitLoss,
+      totalUnrealisedProfitLoss: overview.overview.totalUnrealizedProfitLoss,
+      overallReturnPercent: overview.overview.overallReturnPercent,
+      note:
+        "Pending earnings are accrued but unsettled. They are never credited to the available wallet balance until the settlement workflow authorises a payout."
+    },
+    membership: membership
+      ? {
+          tierId: membership.tier_id,
+          tierName: tier?.name ?? null,
+          qualifyingAmount: String(membership.qualifying_amount),
+          source: membership.manual_tier_id ? "admin" : "automatic",
+          manualReason: membership.manual_reason,
+          achievedAt: membership.achieved_at
+        }
+      : {
+          tierId: null,
+          tierName: null,
+          qualifyingAmount: "0.00",
+          source: "unqualified",
+          manualReason: null,
+          achievedAt: null
+        },
+    positions: positions.map((position) => ({
       positionId: position.position_id,
       asset: position.asset,
       principal: String(position.principal),
       currentValuation: position.current_valuation === null ? null : String(position.current_valuation),
       verificationStatus: position.verification_status,
+      status: position.status,
       strategy: position.strategy,
-      depositId: position.deposit_id
+      depositId: position.deposit_id,
+      createdAt: position.created_at
     })),
+    recentAdjustments: recentAdjustments.map((row) => serializeAdjustment(row)),
     ledgerTotals: ledger.totals
   };
+}
+
+// Recalculates the derived membership and investment level after a committed adjustment.
+// A failure here never fails the adjustment itself (which is already stored and audited);
+// it is logged so the next recalculation pass can repair the derived state.
+async function syncDerivedState(userId: string, type: BalanceAdjustmentType): Promise<void> {
+  try {
+    if (type === "investment_allocation" || type === "investment_deallocation") {
+      await syncUserInvestmentLevel(userId, "Administrator adjusted invested principal");
+    }
+    await syncUserMembership(userId, "Administrator adjustment recalculated membership qualification");
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[admin-balance] post-adjustment recalculation failed for user ${userId}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
 }
 
 async function findExistingAdjustment(idempotencyKey: string): Promise<BalanceAdjustment | null> {
   return BalanceAdjustment.findOne({ where: { idempotency_key: idempotencyKey } });
 }
 
-// Applies one administrator balance or investment adjustment atomically. The user
-// row is locked for the whole write so two concurrent adjustments can never read
+// Applies one administrator balance, principal, valuation or earnings adjustment atomically.
+// The user row is locked for the whole write so two concurrent adjustments can never read
 // the same starting balance, and the idempotency key makes a double submit a no-op.
 export async function applyAdjustment(adminId: string, input: ApplyAdjustmentInput) {
   if (!isBalanceAdjustmentType(input.type) || input.type === "reversal") {
@@ -255,6 +384,7 @@ export async function applyAdjustment(adminId: string, input: ApplyAdjustmentInp
         lock: transaction.LOCK.UPDATE
       });
       const principalBefore = sumPrincipals(positions);
+      const earningsBefore = pendingEarningsOf(user);
 
       const plan = planAdjustment({ type, direction, amountUnits });
       const balanceAfter = balanceBefore + plan.availableDelta;
@@ -262,15 +392,19 @@ export async function applyAdjustment(adminId: string, input: ApplyAdjustmentInp
         throw new Error("Insufficient available balance for this adjustment.");
       }
 
+      // Resolve the target position for any adjustment that changes principal or valuation.
       let target: PositionLike | null = null;
-      if (plan.principalDelta > 0n) {
+      if (plan.principalDelta > 0n || plan.valuationDelta !== 0n) {
         if (input.positionId) {
           target = positions.find((position) => position.position_id === input.positionId) ?? null;
           if (!target) {
             throw new Error("The selected investment position was not found for this user.");
           }
+        } else if (plan.valuationDelta !== 0n) {
+          throw new Error("Select which investment position to correct.");
         }
-      } else if (plan.principalDelta < 0n) {
+      }
+      if (plan.principalDelta < 0n) {
         const candidates = input.positionId
           ? positions.filter((position) => position.position_id === input.positionId)
           : positions;
@@ -288,20 +422,45 @@ export async function applyAdjustment(adminId: string, input: ApplyAdjustmentInp
         throw new Error("The deallocation exceeds the invested principal.");
       }
 
-      await postBalancedEntry({
-        userId: user.user_id,
-        asset,
-        amount: normalizedAmount,
-        transactionType: plan.ledger.transactionType,
-        sourceType: SOURCE_TYPE,
-        sourceId: adjustmentId,
-        debit: plan.ledger.debit,
-        credit: plan.ledger.credit,
-        transaction
-      });
+      let valuationBefore: bigint | null = null;
+      let valuationAfter: bigint | null = null;
+      if (plan.valuationDelta !== 0n && target) {
+        valuationBefore = decimal(target.current_valuation ?? target.principal);
+        valuationAfter = valuationBefore + plan.valuationDelta;
+        if (valuationAfter < 0n) {
+          throw new Error("The correction would make the position valuation negative.");
+        }
+      }
+
+      let earningsAfter: bigint | null = null;
+      if (type === "pending_earnings") {
+        earningsAfter = earningsBefore + (direction === "debit" ? -amountUnits : amountUnits);
+        if (earningsAfter < 0n) {
+          throw new Error("The correction would make pending earnings negative.");
+        }
+      }
+
+      if (plan.ledger) {
+        await postBalancedEntry({
+          userId: user.user_id,
+          asset,
+          amount: normalizedAmount,
+          transactionType: plan.ledger.transactionType,
+          sourceType: SOURCE_TYPE,
+          sourceId: adjustmentId,
+          debit: plan.ledger.debit,
+          credit: plan.ledger.credit,
+          transaction
+        });
+      }
 
       if (plan.availableDelta !== 0n) {
         user.withdrawable_balance = Number(formatDecimal(balanceAfter, AMOUNT_SCALE));
+      }
+      if (type === "pending_earnings" && earningsAfter !== null) {
+        user.pending_earnings = { total: Number(formatDecimal(earningsAfter, AMOUNT_SCALE)) };
+      }
+      if (plan.availableDelta !== 0n || type === "pending_earnings") {
         await user.save({ transaction });
       }
 
@@ -310,6 +469,9 @@ export async function applyAdjustment(adminId: string, input: ApplyAdjustmentInp
         const position = target
           ? await movePosition(target, plan.principalDelta, transaction)
           : await createAllocationPosition(user.user_id, asset, plan.principalDelta, transaction);
+        positionId = position.position_id;
+      } else if (plan.valuationDelta !== 0n && target) {
+        const position = await applyValuationCorrection(target.position_id, plan.valuationDelta, transaction);
         positionId = position.position_id;
       }
 
@@ -326,6 +488,10 @@ export async function applyAdjustment(adminId: string, input: ApplyAdjustmentInp
           balance_after: formatDecimal(balanceAfter, AMOUNT_SCALE),
           principal_before: formatDecimal(principalBefore, AMOUNT_SCALE),
           principal_after: formatDecimal(principalAfter, AMOUNT_SCALE),
+          valuation_before: valuationBefore === null ? null : formatDecimal(valuationBefore, AMOUNT_SCALE),
+          valuation_after: valuationAfter === null ? null : formatDecimal(valuationAfter, AMOUNT_SCALE),
+          earnings_before: type === "pending_earnings" ? formatDecimal(earningsBefore, AMOUNT_SCALE) : null,
+          earnings_after: earningsAfter === null ? null : formatDecimal(earningsAfter, AMOUNT_SCALE),
           position_id: positionId,
           reason,
           note: String(input.note ?? "").trim() || null,
@@ -354,7 +520,11 @@ export async function applyAdjustment(adminId: string, input: ApplyAdjustmentInp
             reference: created.reference,
             positionId,
             balanceBefore: formatDecimal(balanceBefore, AMOUNT_SCALE),
-            balanceAfter: formatDecimal(balanceAfter, AMOUNT_SCALE)
+            balanceAfter: formatDecimal(balanceAfter, AMOUNT_SCALE),
+            valuationBefore: valuationBefore === null ? null : formatDecimal(valuationBefore, AMOUNT_SCALE),
+            valuationAfter: valuationAfter === null ? null : formatDecimal(valuationAfter, AMOUNT_SCALE),
+            earningsBefore: type === "pending_earnings" ? formatDecimal(earningsBefore, AMOUNT_SCALE) : null,
+            earningsAfter: earningsAfter === null ? null : formatDecimal(earningsAfter, AMOUNT_SCALE)
           }
         },
         { transaction }
@@ -376,6 +546,7 @@ export async function applyAdjustment(adminId: string, input: ApplyAdjustmentInp
     amount: String(record.amount),
     reference: record.reference
   });
+  await syncDerivedState(record.user_id, record.type);
 
   return {
     adjustment: serializeAdjustment(record),
@@ -416,6 +587,7 @@ export async function reverseAdjustment(
       lock: transaction.LOCK.UPDATE
     });
     const principalBefore = sumPrincipals(positions);
+    const earningsBefore = pendingEarningsOf(user);
     const amountUnits = decimal(original.amount);
 
     const plan = planReversal({
@@ -449,20 +621,51 @@ export async function reverseAdjustment(
       throw new Error("Reversing this adjustment would exceed the invested principal.");
     }
 
-    await postBalancedEntry({
-      userId: user.user_id,
-      asset: original.asset,
-      amount: formatDecimal(amountUnits, AMOUNT_SCALE),
-      transactionType: plan.ledger.transactionType,
-      sourceType: SOURCE_TYPE,
-      sourceId: reversalId,
-      debit: plan.ledger.debit,
-      credit: plan.ledger.credit,
-      transaction
-    });
+    // Valuation reversals restore the position's valuation from the recorded delta.
+    let valuationBefore: bigint | null = null;
+    let valuationAfter: bigint | null = null;
+    if (plan.valuationDelta !== 0n) {
+      if (!original.position_id) throw new Error("The corrected investment position is no longer available.");
+      const position = await InvestmentPosition.findByPk(original.position_id, { transaction, lock: transaction.LOCK.UPDATE });
+      if (!position) throw new Error("The corrected investment position is no longer available.");
+      valuationBefore = decimal(position.current_valuation ?? position.principal);
+      valuationAfter = valuationBefore + plan.valuationDelta;
+      if (valuationAfter < 0n) {
+        throw new Error("Reversing this adjustment would make the position valuation negative.");
+      }
+    }
+
+    // Pending-earnings reversals restore the recorded before/after earnings figure.
+    let earningsAfter: bigint | null = null;
+    if (original.type === "pending_earnings" && original.earnings_before !== null && original.earnings_after !== null) {
+      const delta = decimal(original.earnings_after) - decimal(original.earnings_before);
+      earningsAfter = earningsBefore - delta;
+      if (earningsAfter < 0n) {
+        throw new Error("Reversing this adjustment would make pending earnings negative.");
+      }
+    }
+
+    if (plan.ledger) {
+      await postBalancedEntry({
+        userId: user.user_id,
+        asset: original.asset,
+        amount: formatDecimal(amountUnits, AMOUNT_SCALE),
+        transactionType: plan.ledger.transactionType,
+        sourceType: SOURCE_TYPE,
+        sourceId: reversalId,
+        debit: plan.ledger.debit,
+        credit: plan.ledger.credit,
+        transaction
+      });
+    }
 
     if (plan.availableDelta !== 0n) {
       user.withdrawable_balance = Number(formatDecimal(balanceAfter, AMOUNT_SCALE));
+    }
+    if (earningsAfter !== null) {
+      user.pending_earnings = { total: Number(formatDecimal(earningsAfter, AMOUNT_SCALE)) };
+    }
+    if (plan.availableDelta !== 0n || earningsAfter !== null) {
       await user.save({ transaction });
     }
 
@@ -471,6 +674,9 @@ export async function reverseAdjustment(
       const position = target
         ? await movePosition(target, plan.principalDelta, transaction)
         : await createAllocationPosition(user.user_id, original.asset, plan.principalDelta, transaction);
+      positionId = position.position_id;
+    } else if (plan.valuationDelta !== 0n && original.position_id) {
+      const position = await applyValuationCorrection(original.position_id, plan.valuationDelta, transaction);
       positionId = position.position_id;
     }
 
@@ -487,6 +693,10 @@ export async function reverseAdjustment(
         balance_after: formatDecimal(balanceAfter, AMOUNT_SCALE),
         principal_before: formatDecimal(principalBefore, AMOUNT_SCALE),
         principal_after: formatDecimal(principalAfter, AMOUNT_SCALE),
+        valuation_before: valuationBefore === null ? null : formatDecimal(valuationBefore, AMOUNT_SCALE),
+        valuation_after: valuationAfter === null ? null : formatDecimal(valuationAfter, AMOUNT_SCALE),
+        earnings_before: original.type === "pending_earnings" ? formatDecimal(earningsBefore, AMOUNT_SCALE) : null,
+        earnings_after: earningsAfter === null ? null : formatDecimal(earningsAfter, AMOUNT_SCALE),
         position_id: positionId,
         reason: trimmed,
         note: String(note ?? "").trim() || null,
@@ -532,6 +742,7 @@ export async function reverseAdjustment(
     reversalOf: record.reversal_of,
     reference: record.reference
   });
+  await syncDerivedState(record.user_id, "reversal");
 
   return {
     adjustment: serializeAdjustment(record),

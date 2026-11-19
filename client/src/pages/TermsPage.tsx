@@ -5,7 +5,7 @@ export function TermsPage() {
     <div className="page-responsive borderless-ui auth-background flex min-h-screen w-full items-start justify-center py-8 sm:py-10">
       <Seo
         title="Terms of use"
-        description="Review the terms of use governing access to the NexaCrypto custodial crypto deposit and reward platform."
+        description="Review the terms of use governing access to the NexaCrypto digital asset investment platform."
         path="/terms"
       />
       <div className="w-full max-w-4xl px-4 sm:px-6 lg:px-8">
@@ -21,11 +21,12 @@ export function TermsPage() {
           <div className="space-y-5 text-sm text-slate-200/70">
             <section>
               <h2 className="mb-1 text-sm font-semibold text-slate-100">
-                1. Custodial service
+                1. Platform-operated wallets
               </h2>
               <p>
-                NexaCrypto is a centralized, custodial platform. When you deposit
-                digital assets, you authorize us and our regulated partners to hold those
+                NexaCrypto is a digital asset investment platform that operates
+                centralized, platform-operated wallets. When you deposit
+                digital assets, you authorize us and our partners to hold those
                 assets on your behalf in pooled or omnibus wallets. You retain beneficial
                 ownership of your assets, but you do not have a claim to any specific
                 blockchain address.

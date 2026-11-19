@@ -19,6 +19,7 @@ export function InvestmentLevelsPage() {
         title="Investment Levels"
         description="Your NexaCrypto investment level, progression, requirements, benefits, level comparison, and investment level history based on approved, verified invested principal."
         path="/investment-levels"
+        robots="noindex,nofollow"
       />
 
       <div className="flex flex-wrap items-start justify-between gap-3">

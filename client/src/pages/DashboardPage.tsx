@@ -34,6 +34,7 @@ export function DashboardPage() {
         title="Dashboard – portfolio, performance and progression"
         description="Your NexaCrypto overview: live portfolio value, verified performance, membership, investment level progression, rewards, recent activity and live market prices."
         path="/"
+        robots="noindex,nofollow"
       />
 
       <PortfolioOverview

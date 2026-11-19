@@ -318,6 +318,7 @@ export function WithdrawPage() {
         title="Withdraw funds – secure payouts on supported networks"
         description="Request withdrawals from your matured balance on supported crypto assets and networks, with transparent maturity terms, fees, and on-chain verification."
         path="/withdraw"
+        robots="noindex,nofollow"
       />
 
       <WithdrawPageHeader

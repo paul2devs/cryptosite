@@ -185,7 +185,10 @@ router.post("/admin/balance/adjustments", auth_1.authenticate, auth_1.requireAdm
         "debit",
         "investment_allocation",
         "investment_deallocation",
-        "correction"
+        "correction",
+        "valuation_correction",
+        "pending_earnings",
+        "realised_earnings"
     ]),
     (0, express_validator_1.body)("amount").isString().isLength({ min: 1 }),
     (0, express_validator_1.body)("reason").isString().isLength({ min: 3 }),

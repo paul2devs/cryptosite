@@ -1,17 +1,36 @@
 {
-  "name": "NexaCrypto",
-  "short_name": "Nexa",
-  "description": "Custodial crypto deposits with levels, multipliers, streaks and rewards.",
+  "name": "NexaCrypto — Digital Asset Investment Platform",
+  "short_name": "NexaCrypto",
+  "description": "NexaCrypto is a digital asset investment platform to manage your digital asset portfolio, explore investment opportunities and monitor your account activity.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0F0F10",
   "theme_color": "#0F0F10",
   "icons": [
     {
-      "src": "/social-preview.svg",
-      "sizes": "512x512",
+      "src": "/favicon.svg",
+      "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

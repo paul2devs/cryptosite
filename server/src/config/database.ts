@@ -547,10 +547,28 @@ async function reconcileInvestmentPositionsSchema(): Promise<void> {
  */
 async function reconcileBalanceAdjustmentSchema(): Promise<void> {
   const queryInterface = sequelize.getQueryInterface();
+  let definition: Record<string, unknown>;
   try {
-    await queryInterface.describeTable("balance_adjustments");
+    definition = await queryInterface.describeTable("balance_adjustments");
   } catch {
     return;
+  }
+
+  // Additive columns for the newer adjustment categories (valuation corrections and
+  // earnings adjustments). They are nullable so every existing row keeps working.
+  const additiveColumns: Array<{ name: string }> = [
+    { name: "valuation_before" },
+    { name: "valuation_after" },
+    { name: "earnings_before" },
+    { name: "earnings_after" }
+  ];
+  for (const column of additiveColumns) {
+    if (column.name in definition) continue;
+    await queryInterface.addColumn("balance_adjustments", column.name, {
+      type: DataTypes.DECIMAL(36, 8),
+      allowNull: true,
+      defaultValue: null
+    });
   }
 
   const indexes: Array<{ name: string; statement: string }> = [

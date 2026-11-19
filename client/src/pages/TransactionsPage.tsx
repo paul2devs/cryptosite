@@ -33,6 +33,7 @@ export function TransactionsPage() {
         title="Transactions – deposits, withdrawals and ledger history"
         description="Review every recorded transaction on your account: deposits, withdrawals, allocations, distributions, fees and adjustments, with status, references and on-chain details."
         path="/transactions"
+        robots="noindex,nofollow"
       />
 
       <header className="flex flex-wrap items-start justify-between gap-4">

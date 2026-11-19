@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CircleUser, Copy, Trash2 } from "lucide-react";
+import { Seo } from "../components/Seo";
 import {
   Divider,
   ListRow,
@@ -311,6 +312,12 @@ export function SettingsPage() {
 
   return (
     <div className="page-responsive space-y-8 pb-12">
+      <Seo
+        title="Account settings"
+        description="Manage your NexaCrypto profile, account security, wallet address, notification preferences and language settings."
+        path="/settings"
+        robots="noindex,nofollow"
+      />
       <header className="min-w-0 space-y-2">
         <h1 className="display-font text-2xl font-semibold tracking-tight text-[#F5F5F7]">
           {t("settings_title")}

@@ -7,6 +7,9 @@ export type BalanceAdjustmentType =
   | "investment_allocation"
   | "investment_deallocation"
   | "correction"
+  | "valuation_correction"
+  | "pending_earnings"
+  | "realised_earnings"
   | "reversal";
 
 export type BalanceAdjustmentDirection = "credit" | "debit";
@@ -18,7 +21,10 @@ export const REQUESTABLE_ADJUSTMENT_TYPES: BalanceAdjustmentType[] = [
   "debit",
   "investment_allocation",
   "investment_deallocation",
-  "correction"
+  "correction",
+  "valuation_correction",
+  "pending_earnings",
+  "realised_earnings"
 ];
 
 export const BALANCE_ADJUSTMENT_LABEL: Record<BalanceAdjustmentType, string> = {
@@ -27,8 +33,28 @@ export const BALANCE_ADJUSTMENT_LABEL: Record<BalanceAdjustmentType, string> = {
   investment_allocation: "Investment allocation",
   investment_deallocation: "Investment deallocation",
   correction: "Correction",
+  valuation_correction: "Valuation correction",
+  pending_earnings: "Pending earnings adjustment",
+  realised_earnings: "Realised earnings adjustment",
   reversal: "Reversal"
 };
+
+// Types that change the wallet cash. These never post pending earnings into the
+// available balance until a settlement authorises it.
+export const WALLET_ADJUSTMENT_TYPES: BalanceAdjustmentType[] = [
+  "credit",
+  "debit",
+  "investment_allocation",
+  "investment_deallocation",
+  "correction",
+  "realised_earnings"
+];
+
+// Types that require a target investment position.
+export const POSITION_ADJUSTMENT_TYPES: BalanceAdjustmentType[] = [
+  "investment_deallocation",
+  "valuation_correction"
+];
 
 export interface BalancePositionView {
   positionId: string;
@@ -36,8 +62,19 @@ export interface BalancePositionView {
   principal: string;
   currentValuation: string | null;
   verificationStatus: string;
+  status: "active" | "closed";
   strategy: string;
   depositId: string | null;
+  createdAt?: string;
+}
+
+export interface BalanceMembershipView {
+  tierId: string | null;
+  tierName: string | null;
+  qualifyingAmount: string;
+  source: "automatic" | "admin" | "unqualified";
+  manualReason: string | null;
+  achievedAt: string | null;
 }
 
 export interface BalanceOverview {
@@ -52,6 +89,15 @@ export interface BalanceOverview {
     available: string;
     locked: string;
     ledgerAvailable: string;
+  };
+  portfolio: {
+    totalPortfolioValue: string;
+    available: string;
+    locked: string;
+    currentInvestmentValue: string;
+    investedPrincipal: string;
+    pendingEarnings: string;
+    formula: string;
   };
   totals: {
     totalDeposited: string;
@@ -70,7 +116,21 @@ export interface BalanceOverview {
     totalRealisedProfitLoss: string;
     overallReturnPercent: string | null;
   };
+  earnings: {
+    pendingEarnings: string;
+    todayEarnings: string;
+    totalInvestmentEarnings: string;
+    todayProfitLoss: string | null;
+    todayRoiPercent: string | null;
+    todayStatus: string;
+    totalRealisedProfitLoss: string;
+    totalUnrealisedProfitLoss: string | null;
+    overallReturnPercent: string | null;
+    note: string;
+  };
+  membership: BalanceMembershipView;
   positions: BalancePositionView[];
+  recentAdjustments: BalanceAdjustmentRecord[];
   ledgerTotals: Record<string, string>;
 }
 
@@ -87,6 +147,10 @@ export interface BalanceAdjustmentRecord {
   balanceAfter: string;
   principalBefore: string;
   principalAfter: string;
+  valuationBefore: string | null;
+  valuationAfter: string | null;
+  earningsBefore: string | null;
+  earningsAfter: string | null;
   positionId: string | null;
   reason: string;
   note: string | null;
@@ -131,6 +195,9 @@ const TONE: Record<BalanceAdjustmentType, Tone> = {
   investment_allocation: "gold",
   investment_deallocation: "gold",
   correction: "neutral",
+  valuation_correction: "gold",
+  pending_earnings: "neutral",
+  realised_earnings: "positive",
   reversal: "negative"
 };
 

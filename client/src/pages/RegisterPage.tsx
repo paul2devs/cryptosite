@@ -83,9 +83,9 @@ export function RegisterPage() {
     <>
       <Seo
         title="Create account"
-        description="Open a NexaCrypto account to start depositing BTC, ETH, SOL and stablecoins into a custodial wallet with transparent membership progression and rewards."
+        description="Open a NexaCrypto account to start building a digital asset portfolio with transparent membership progression, investment plans and rewards."
         path="/register"
-        robots="index,follow"
+        robots="noindex,nofollow"
       />
       <AuthShell
         eyebrow="Create your account"
