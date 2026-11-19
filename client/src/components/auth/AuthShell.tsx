@@ -39,12 +39,6 @@ export function AuthShell({
       <Atmosphere variant="dual" />
       <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-12 sm:px-6 sm:py-16 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-20">
         <section className="hidden max-w-md flex-col space-y-7 lg:flex">
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.svg" alt="NexaCrypto" className="h-8 w-8 rounded-full object-cover" />
-            <span className="display-font text-sm font-semibold tracking-tight text-[#F5F5F7]">
-              NexaCrypto
-            </span>
-          </div>
           <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#C6A15B]">{eyebrow}</p>
           <h1 className="display-font text-[34px] font-semibold leading-[1.1] tracking-tight text-[#F5F5F7] xl:text-[42px]">
             {headline}
@@ -62,12 +56,6 @@ export function AuthShell({
 
         <section className="w-full">
           <div className="mx-auto w-full max-w-md">
-            <div className="mb-6 flex items-center gap-2.5 lg:hidden">
-              <img src="/logo.svg" alt="NexaCrypto" className="h-8 w-8 rounded-full object-cover" />
-              <span className="display-font text-sm font-semibold tracking-tight text-[#F5F5F7]">
-                NexaCrypto
-              </span>
-            </div>
             <div className="glass rounded-3xl p-6 sm:p-8">
               <h2 className="display-font text-2xl font-semibold tracking-tight text-[#F5F5F7]">
                 {title}
