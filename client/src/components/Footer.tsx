@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { FaTelegramPlane, FaTwitter, FaDiscord } from "react-icons/fa";
+import { FaTelegramPlane } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 import { BRAND, DISCLOSURES } from "../constants/copy";
 
 export function Footer() {
@@ -53,11 +54,8 @@ export function Footer() {
               <a href={BRAND.telegram} target="_blank" rel="noreferrer" aria-label="Telegram" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] hover:bg-[#1F2023] transition-colors">
                 <FaTelegramPlane className="h-3.5 w-3.5" aria-hidden="true" />
               </a>
-              <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] hover:bg-[#1F2023] transition-colors">
-                <FaTwitter className="h-3.5 w-3.5" aria-hidden="true" />
-              </a>
-              <a href="https://discord.com" target="_blank" rel="noreferrer" aria-label="Discord" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] hover:bg-[#1F2023] transition-colors">
-                <FaDiscord className="h-3.5 w-3.5" aria-hidden="true" />
+              <a href={BRAND.x} target="_blank" rel="noreferrer" aria-label="X" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#17181A] text-[#F5F5F7] hover:bg-[#1F2023] transition-colors">
+                <FaXTwitter className="h-3.5 w-3.5" aria-hidden="true" />
               </a>
             </div>
             <p className="break-words text-[11px] leading-5 text-[#6B7280]">

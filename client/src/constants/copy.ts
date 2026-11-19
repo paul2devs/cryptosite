@@ -23,18 +23,18 @@ export const BRAND = {
   tagline: "Manage your digital asset portfolio with clarity.",
   supportEmail: "support@nexacrypto.app",
   telegram: "https://t.me/+17624566897",
-  x: "https://x.com",
+  x: "https://x.com/nexo",
   /**
    * Official X/Twitter handle. Leave empty until the account is configured so
    * `twitter:site` is only emitted once a real account exists.
    */
   twitterHandle: "",
   /**
-   * Canonical production origin. Runtime code prefers the live window origin so
-   * canonical and social URLs always match the domain actually being served;
-   * this value is the fallback for static rendering and non-browser contexts.
+   * Canonical production origin. Referral links and static metadata resolve
+   * against this value; local development keeps the live window origin so the
+   * invite code still round-trips through the local registration flow.
    */
-  url: "https://cryptosite-seven.vercel.app"
+  url: "https://nexocrypto.org"
 } as const;
 
 /**

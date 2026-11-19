@@ -26,4 +26,4 @@ Disallow: /settings
 Disallow: /referrals
 Disallow: /admin
 
-Sitemap: https://cryptosite-seven.vercel.app/sitemap.xml
+Sitemap: https://nexocrypto.org/sitemap.xml

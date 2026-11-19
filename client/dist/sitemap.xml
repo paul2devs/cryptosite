@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://cryptosite-seven.vercel.app/landing</loc>
+    <loc>https://nexocrypto.org/landing</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://cryptosite-seven.vercel.app/terms</loc>
+    <loc>https://nexocrypto.org/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://cryptosite-seven.vercel.app/privacy</loc>
+    <loc>https://nexocrypto.org/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://cryptosite-seven.vercel.app/cookies</loc>
+    <loc>https://nexocrypto.org/cookies</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>

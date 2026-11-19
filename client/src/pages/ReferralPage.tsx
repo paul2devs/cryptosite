@@ -15,10 +15,12 @@ import {
   ArrowRight,
   Clock
 } from "lucide-react";
-import { FaWhatsapp, FaTwitter } from "react-icons/fa";
+import { FaWhatsapp } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 import type { RootState } from "../store";
 import { api } from "../utils/api";
 import { Seo } from "../components/Seo";
+import { buildReferralLink } from "../utils/referralLink";
 
 type ReferralRewardStatus = "pending" | "earned" | "blocked";
 
@@ -79,9 +81,7 @@ export function ReferralPage() {
     if (!data?.referralCode) {
       return null;
     }
-    return `${window.location.origin}/register?ref=${encodeURIComponent(
-      data.referralCode
-    )}`;
+    return buildReferralLink(data.referralCode);
   }, [data?.referralCode]);
 
   useEffect(() => {
@@ -377,7 +377,7 @@ export function ReferralPage() {
                   disabled={!link}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#17181A] px-3 py-2 text-[11px] text-[#F5F5F7] hover:bg-[#1F2023] disabled:opacity-50"
                 >
-                  <FaTwitter className="h-3.5 w-3.5 text-[#F5F5F7]" />
+                  <FaXTwitter className="h-3.5 w-3.5 text-[#F5F5F7]" />
                   <span>X</span>
                 </button>
                 <button
