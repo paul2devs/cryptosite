@@ -96,5 +96,5 @@ async function sendAccountEventEmail(args) {
     const text = [args.heading, "", args.message, detailLines ? `\n${detailLines}` : ""]
         .join("\n")
         .trim();
-    await (0, emailClient_1.sendEmail)({ to: args.to, subject, html, text });
+    await (0, emailClient_1.sendEmail)({ to: args.to, subject, html, text, idempotencyKey: args.idempotencyKey });
 }

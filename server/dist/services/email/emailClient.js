@@ -1,7 +1,4 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isEmailEnabled = isEmailEnabled;
 exports.isEmailOutboxEnabled = isEmailOutboxEnabled;
@@ -10,9 +7,9 @@ exports.getEmailOutbox = getEmailOutbox;
 exports.clearEmailOutbox = clearEmailOutbox;
 exports.getAppBaseUrl = getAppBaseUrl;
 exports.getMailFrom = getMailFrom;
-exports.getTransporter = getTransporter;
+exports.getResendClient = getResendClient;
 exports.sendEmail = sendEmail;
-const nodemailer_1 = __importDefault(require("nodemailer"));
+const resend_1 = require("resend");
 function getBoolEnv(name, defaultValue) {
     const raw = process.env[name];
     if (!raw)
@@ -31,7 +28,7 @@ function requireEmailEnv(name) {
     }
     return String(value).trim();
 }
-let cachedTransporter = null;
+let cachedResend = null;
 let cachedFrom = null;
 function isEmailEnabled() {
     return getBoolEnv("EMAIL_ENABLED", false);
@@ -76,42 +73,51 @@ function getMailFrom() {
     cachedFrom = from;
     return from;
 }
-function getTransporter() {
-    if (cachedTransporter)
-        return cachedTransporter;
-    const host = requireEmailEnv("SMTP_HOST");
-    const port = Number(process.env.SMTP_PORT || "587");
-    const secure = String(process.env.SMTP_SECURE || "").toLowerCase() === "true" || port === 465;
-    const user = requireEmailEnv("SMTP_USER");
-    const pass = requireEmailEnv("SMTP_PASS");
-    const pool = getBoolEnv("SMTP_POOL", true);
-    const maxConnections = Number(process.env.SMTP_MAX_CONNECTIONS || "5");
-    const maxMessages = Number(process.env.SMTP_MAX_MESSAGES || "100");
-    cachedTransporter = nodemailer_1.default.createTransport({
-        host,
-        port,
-        secure,
-        auth: { user, pass },
-        pool,
-        maxConnections: Number.isFinite(maxConnections) ? maxConnections : 5,
-        maxMessages: Number.isFinite(maxMessages) ? maxMessages : 100
-    });
-    return cachedTransporter;
+/**
+ * Lazily constructs the single shared Resend client. The API key is read only
+ * from the backend environment (`RESEND_API_KEY`) and is never logged, echoed
+ * or returned to callers — a missing key fails fast rather than silently
+ * dropping mail.
+ */
+function getResendClient() {
+    if (cachedResend)
+        return cachedResend;
+    const apiKey = requireEmailEnv("RESEND_API_KEY");
+    cachedResend = new resend_1.Resend(apiKey);
+    return cachedResend;
 }
+/**
+ * Sends one transactional email through Resend.
+ *
+ * Unlike the old SMTP transport, Resend reports failures in its resolved
+ * response rather than throwing, so the `error` field is inspected explicitly
+ * and converted into a thrown error. This keeps the contract callers rely on
+ * (`sendEmail` resolves only on a real delivery hand-off, rejects otherwise),
+ * which is what the notification delivery ledger uses to record an accurate
+ * status and decide whether a retry is safe.
+ */
 async function sendEmail(payload) {
     // Capture a development copy first (no-op in production), so local flows can
-    // be completed even when no SMTP provider is configured.
+    // be completed even when no provider is configured.
     recordEmailInOutbox(payload);
     if (!isEmailEnabled()) {
         return;
     }
-    const transporter = getTransporter();
+    const resend = getResendClient();
     const from = getMailFrom();
-    await transporter.sendMail({
+    const { data, error } = await resend.emails.send({
         from,
         to: payload.to,
         subject: payload.subject,
         html: payload.html,
         text: payload.text
-    });
+    }, payload.idempotencyKey ? { idempotencyKey: payload.idempotencyKey } : undefined);
+    if (error) {
+        // Normalise Resend's structured error into an Error so upstream delivery
+        // bookkeeping records a failure (and retries) instead of a false success.
+        throw new Error(`Resend rejected the email (${error.name}): ${error.message}`);
+    }
+    if (!data || !data.id) {
+        throw new Error("Resend returned no message id; treating the send as failed.");
+    }
 }

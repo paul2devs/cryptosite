@@ -1,10 +1,17 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 export interface EmailSendRequest {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  /**
+   * Optional stable idempotency key. When supplied it is forwarded to Resend as
+   * the `Idempotency-Key` header, so a retried send (for example by a background
+   * job that runs twice) is de-duplicated by the provider rather than delivering
+   * the same message again.
+   */
+  idempotencyKey?: string;
 }
 
 function getBoolEnv(name: string, defaultValue: boolean): boolean {
@@ -24,7 +31,7 @@ function requireEmailEnv(name: string): string {
   return String(value).trim();
 }
 
-let cachedTransporter: any | null = null;
+let cachedResend: Resend | null = null;
 let cachedFrom: string | null = null;
 
 export function isEmailEnabled(): boolean {
@@ -34,7 +41,7 @@ export function isEmailEnabled(): boolean {
 /**
  * Development-only outbox. When enabled (and never in production) every
  * outgoing message is captured in memory so a developer can complete the
- * verification flow end to end without configuring an SMTP provider. It is
+ * verification flow end to end without configuring an email provider. It is
  * strictly opt-in through `EMAIL_DEV_OUTBOX_ENABLED` and exposes nothing unless
  * the developer asks for it.
  */
@@ -92,49 +99,58 @@ export function getMailFrom(): string {
   return from;
 }
 
-export function getTransporter(): any {
-  if (cachedTransporter) return cachedTransporter;
-
-  const host = requireEmailEnv("SMTP_HOST");
-  const port = Number(process.env.SMTP_PORT || "587");
-  const secure = String(process.env.SMTP_SECURE || "").toLowerCase() === "true" || port === 465;
-  const user = requireEmailEnv("SMTP_USER");
-  const pass = requireEmailEnv("SMTP_PASS");
-  const pool = getBoolEnv("SMTP_POOL", true);
-  const maxConnections = Number(process.env.SMTP_MAX_CONNECTIONS || "5");
-  const maxMessages = Number(process.env.SMTP_MAX_MESSAGES || "100");
-
-  cachedTransporter = nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: { user, pass },
-    pool,
-    maxConnections: Number.isFinite(maxConnections) ? maxConnections : 5,
-    maxMessages: Number.isFinite(maxMessages) ? maxMessages : 100
-  });
-
-  return cachedTransporter;
+/**
+ * Lazily constructs the single shared Resend client. The API key is read only
+ * from the backend environment (`RESEND_API_KEY`) and is never logged, echoed
+ * or returned to callers — a missing key fails fast rather than silently
+ * dropping mail.
+ */
+export function getResendClient(): Resend {
+  if (cachedResend) return cachedResend;
+  const apiKey = requireEmailEnv("RESEND_API_KEY");
+  cachedResend = new Resend(apiKey);
+  return cachedResend;
 }
 
+/**
+ * Sends one transactional email through Resend.
+ *
+ * Unlike the old SMTP transport, Resend reports failures in its resolved
+ * response rather than throwing, so the `error` field is inspected explicitly
+ * and converted into a thrown error. This keeps the contract callers rely on
+ * (`sendEmail` resolves only on a real delivery hand-off, rejects otherwise),
+ * which is what the notification delivery ledger uses to record an accurate
+ * status and decide whether a retry is safe.
+ */
 export async function sendEmail(payload: EmailSendRequest): Promise<void> {
   // Capture a development copy first (no-op in production), so local flows can
-  // be completed even when no SMTP provider is configured.
+  // be completed even when no provider is configured.
   recordEmailInOutbox(payload);
 
   if (!isEmailEnabled()) {
     return;
   }
 
-  const transporter = getTransporter();
+  const resend = getResendClient();
   const from = getMailFrom();
 
-  await transporter.sendMail({
-    from,
-    to: payload.to,
-    subject: payload.subject,
-    html: payload.html,
-    text: payload.text
-  });
-}
+  const { data, error } = await resend.emails.send(
+    {
+      from,
+      to: payload.to,
+      subject: payload.subject,
+      html: payload.html,
+      text: payload.text
+    },
+    payload.idempotencyKey ? { idempotencyKey: payload.idempotencyKey } : undefined
+  );
 
+  if (error) {
+    // Normalise Resend's structured error into an Error so upstream delivery
+    // bookkeeping records a failure (and retries) instead of a false success.
+    throw new Error(`Resend rejected the email (${error.name}): ${error.message}`);
+  }
+  if (!data || !data.id) {
+    throw new Error("Resend returned no message id; treating the send as failed.");
+  }
+}

@@ -112,7 +112,7 @@ function validateRuntimeEnv() {
     }
     const emailEnabled = ["1", "true", "yes", "on"].includes(String(process.env.EMAIL_ENABLED || "").trim().toLowerCase());
     if (emailEnabled) {
-        const missing = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"].filter((name) => !process.env[name] || String(process.env[name]).trim().length === 0);
+        const missing = ["RESEND_API_KEY"].filter((name) => !process.env[name] || String(process.env[name]).trim().length === 0);
         if (missing.length > 0) {
             warnings.push({
                 name: missing[0],

@@ -124,7 +124,7 @@ export function validateRuntimeEnv(): EnvWarning[] {
     String(process.env.EMAIL_ENABLED || "").trim().toLowerCase()
   );
   if (emailEnabled) {
-    const missing = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"].filter(
+    const missing = ["RESEND_API_KEY"].filter(
       (name) => !process.env[name] || String(process.env[name]).trim().length === 0
     );
     if (missing.length > 0) {

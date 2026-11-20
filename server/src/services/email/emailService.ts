@@ -119,6 +119,8 @@ export async function sendAccountEventEmail(args: {
   statusTone?: AccountEventTone;
   ctaLabel?: string;
   ctaPath?: string;
+  /** Stable key forwarded to the provider so a retried send is not duplicated. */
+  idempotencyKey?: string;
 }): Promise<void> {
   const { subject, html } = renderAccountEventEmail(args);
   const detailLines = (args.details ?? [])
@@ -127,6 +129,6 @@ export async function sendAccountEventEmail(args: {
   const text = [args.heading, "", args.message, detailLines ? `\n${detailLines}` : ""]
     .join("\n")
     .trim();
-  await sendEmail({ to: args.to, subject, html, text });
+  await sendEmail({ to: args.to, subject, html, text, idempotencyKey: args.idempotencyKey });
 }
 

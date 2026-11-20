@@ -138,7 +138,8 @@ export async function dispatchNotificationEmail(args: {
       statusLabel: args.email.statusLabel,
       statusTone: args.email.statusTone,
       ctaLabel: args.email.ctaLabel,
-      ctaPath: args.email.ctaPath
+      ctaPath: args.email.ctaPath,
+      idempotencyKey: key
     });
     await finalize(delivery, "sent");
   } catch (error) {
