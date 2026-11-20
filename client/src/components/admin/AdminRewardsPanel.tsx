@@ -81,6 +81,7 @@ interface GrantFormState {
   amount: string;
   asset: string;
   expiresAt: string;
+  countAsInvestmentEarnings: boolean;
   reason: string;
 }
 
@@ -92,6 +93,7 @@ const EMPTY_GRANT_FORM: GrantFormState = {
   amount: "",
   asset: "USDT",
   expiresAt: "",
+  countAsInvestmentEarnings: true,
   reason: ""
 };
 
@@ -279,9 +281,14 @@ export function AdminRewardsPanel() {
         amount: grantForm.amount.trim() || null,
         asset: grantForm.asset.trim() || null,
         expiresAt: grantForm.expiresAt || null,
+        countAsInvestmentEarnings: grantForm.countAsInvestmentEarnings,
         reason: grantForm.reason.trim()
       });
-      setNotice("Reward granted and posted to the promotional_credits ledger.");
+      setNotice(
+        grantForm.countAsInvestmentEarnings
+          ? "Reward granted, posted to the promotional_credits ledger, and added to the user's pending investment earnings."
+          : "Reward granted and posted to the promotional_credits ledger."
+      );
       setGrantForm(EMPTY_GRANT_FORM);
       await load();
       await loadGrants(grantsPage);
@@ -593,7 +600,8 @@ export function AdminRewardsPanel() {
         <p className="mt-1 text-[11px] leading-relaxed text-[#9CA3AF]">
           Every grant posts a balanced ledger entry to the user's promotional credits, is recorded in
           the platform audit log, and notifies the user. Rewards are never counted as investment
-          principal or trading profit.
+          principal. By default a grant is also added to the user's pending (unsettled) investment
+          earnings; clear the option below to keep it as a promotional credit only.
         </p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <input value={grantForm.userId} onChange={(event) => patchGrant({ userId: event.target.value })} placeholder="User id (UUID)" className={inputClass} />
@@ -622,12 +630,20 @@ export function AdminRewardsPanel() {
           <input type="date" value={grantForm.expiresAt} onChange={(event) => patchGrant({ expiresAt: event.target.value })} className={inputClass} />
           <input value={grantForm.reason} onChange={(event) => patchGrant({ reason: event.target.value })} placeholder="Audit reason (required)" className={`${inputClass} md:col-span-2`} />
         </div>
-        <div className="mt-3 flex justify-end">
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <label className="inline-flex items-center gap-2 text-[11px] text-[#9CA3AF]">
+            <input
+              type="checkbox"
+              checked={grantForm.countAsInvestmentEarnings}
+              onChange={(event) => patchGrant({ countAsInvestmentEarnings: event.target.checked })}
+            />
+            Add to the user's investment earnings (pending settlement)
+          </label>
           <button
             type="button"
             onClick={submitGrant}
             disabled={busy !== null}
-            className="btn btn-sm btn-primary w-full sm:w-auto"
+            className="btn btn-sm btn-primary ml-auto w-full sm:w-auto"
           >
             {busy === "grant" ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> : null}
             Grant reward

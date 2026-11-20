@@ -37,6 +37,8 @@ const blockchainVerificationService_1 = require("./blockchainVerificationService
 const depositQuoteService_1 = require("./depositQuoteService");
 const financialOperationsService_1 = require("./financialOperationsService");
 const emailService_1 = require("./email/emailService");
+const depositValuation_1 = require("../domain/depositValuation");
+const marketDataService_1 = require("./marketDataService");
 /** A deposit that has not received a matching transfer yet. */
 exports.UNPAID_DEPOSIT_STATUSES = ["PENDING"];
 /** A deposit that still requires attention (payment, confirmations or review). */
@@ -78,6 +80,31 @@ function depositExpiryHours() {
 }
 function duplicateWindowSeconds() {
     return readPositiveNumberEnv("DEPOSIT_DUPLICATE_WINDOW_SECONDS", DEFAULT_DUPLICATE_WINDOW_SECONDS);
+}
+/**
+ * Best-effort USD valuation of a verified received quantity.
+ *
+ * Stablecoins are valued at par and need no price. Volatile assets keep their
+ * received quantity and use a market price only to record a separate USD figure;
+ * if the price provider is unavailable the quantity is still preserved and the
+ * USD value is left as "unavailable". This never blocks approval and never
+ * substitutes a market price for the amount actually received.
+ */
+async function resolveDepositUsdValue(cryptoType, quantity) {
+    const symbol = (0, depositValuation_1.depositAssetSymbol)(cryptoType);
+    let price = null;
+    if (symbol && symbol !== "USDT") {
+        try {
+            const prices = await (0, marketDataService_1.getAllMarketPrices)();
+            const point = prices[symbol];
+            price = point && Number.isFinite(point.price) ? point.price : null;
+        }
+        catch {
+            price = null;
+        }
+    }
+    const valuation = (0, depositValuation_1.valueDepositInUsd)({ cryptoType, quantity, price });
+    return { usd: valuation.usd, basis: valuation.basis };
 }
 /**
  * A failure the controller can translate into a clean HTTP response. The
@@ -732,6 +759,11 @@ async function approveDeposit(adminId, depositId, reason) {
     const auditReason = reason.trim().length > 0
         ? reason.trim()
         : "Deposit approved after independent on-chain verification.";
+    // The independently verified on-chain amount is the source of truth for the
+    // credit; the originally requested amount is preserved separately. A separate
+    // USD figure is recorded best-effort and a price outage never blocks approval.
+    const receivedQuantity = verification.amount;
+    const usdValuation = await resolveDepositUsdValue(existing.crypto_type, receivedQuantity);
     const outcome = await (async () => {
         try {
             return await database_1.sequelize.transaction(async (transaction) => {
@@ -762,6 +794,9 @@ async function approveDeposit(adminId, depositId, reason) {
                 const previous = detailedStatusOf(deposit);
                 deposit.tx_hash = verification.txHash;
                 deposit.received_amount = verification.amount;
+                if (usdValuation.usd !== null) {
+                    deposit.usd_amount = Number(usdValuation.usd);
+                }
                 deposit.confirmation_count = verification.confirmations;
                 deposit.verification_result = verification;
                 deposit.network = verification.network || deposit.network;
@@ -788,6 +823,8 @@ async function approveDeposit(adminId, depositId, reason) {
                         network: deposit.network,
                         expectedAmount: Number(deposit.amount),
                         receivedAmount: verification.amount,
+                        usdBasis: usdValuation.basis,
+                        usdAmount: usdValuation.usd,
                         txHash: verification.txHash,
                         confirmations: verification.confirmations
                     }

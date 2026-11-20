@@ -52,6 +52,10 @@ export function PortfolioSummary({
 
   const unrealized = totals?.unrealizedProfitLoss ?? null;
   const unrealizedRoi = totals?.unrealizedRoiPercent ?? null;
+  const todayProfitLoss = totals?.todayProfitLoss ?? null;
+  const todayRoi = totals?.todayRoiPercent ?? null;
+  const overallReturn = totals?.overallReturnPercent ?? null;
+  const periodReturn = totals?.periodReturnPercent ?? null;
   const hasLocked = (totals?.lockedBalance ?? 0) > 0;
 
   return (
@@ -92,6 +96,11 @@ export function PortfolioSummary({
                   hint="Confirmed deposit principal"
                 />
                 <SummaryMetric
+                  label="Pending earnings"
+                  value={maskValue(hidden, formatUsd(totals?.pendingEarnings ?? 0))}
+                  hint="Accrued, not yet settled"
+                />
+                <SummaryMetric
                   label="Available cash"
                   value={maskValue(hidden, formatUsd(totals?.availableBalance ?? 0))}
                   hint={
@@ -99,12 +108,6 @@ export function PortfolioSummary({
                       ? `${maskValue(hidden, formatUsd(totals.lockedBalance))} locked`
                       : "Withdrawable now"
                   }
-                />
-                <SummaryMetric
-                  label="Realised P/L"
-                  value={maskValue(hidden, formatSignedUsd(totals?.realizedEarnings ?? 0))}
-                  hint="Settled to your ledger"
-                  tone={toneFromValue(totals?.realizedEarnings ?? 0)}
                 />
                 <SummaryMetric
                   label="Unrealised P/L"
@@ -121,6 +124,55 @@ export function PortfolioSummary({
                         : `${formatPercent(unrealizedRoi, { signed: true })} · not withdrawable`
                   }
                   tone={toneFromValue(unrealized)}
+                />
+              </StatStrip>
+            </div>
+
+            <div className="mt-5 border-t border-[#1F2023] pt-5">
+              <StatStrip>
+                <SummaryMetric
+                  label="Today's P/L"
+                  value={
+                    todayProfitLoss === null
+                      ? "Unavailable"
+                      : maskValue(hidden, formatSignedUsd(todayProfitLoss))
+                  }
+                  hint="Verified daily performance"
+                  tone={toneFromValue(todayProfitLoss)}
+                />
+                <SummaryMetric
+                  label="Today's ROI"
+                  value={
+                    todayRoi === null ? "Unavailable" : formatPercent(todayRoi, { signed: true })
+                  }
+                  hint="Daily return on principal"
+                  tone={toneFromValue(todayRoi)}
+                />
+                <SummaryMetric
+                  label="Realised P/L"
+                  value={maskValue(hidden, formatSignedUsd(totals?.realizedEarnings ?? 0))}
+                  hint="Settled to your ledger"
+                  tone={toneFromValue(totals?.realizedEarnings ?? 0)}
+                />
+                <SummaryMetric
+                  label="Overall return"
+                  value={
+                    overallReturn === null
+                      ? "Unavailable"
+                      : formatPercent(overallReturn, { signed: true })
+                  }
+                  hint="Capital-weighted return"
+                  tone={toneFromValue(overallReturn)}
+                />
+                <SummaryMetric
+                  label="Period ROI"
+                  value={
+                    periodReturn === null
+                      ? "Unavailable"
+                      : formatPercent(periodReturn, { signed: true })
+                  }
+                  hint="Time-weighted for the selected range"
+                  tone={toneFromValue(periodReturn)}
                 />
               </StatStrip>
             </div>

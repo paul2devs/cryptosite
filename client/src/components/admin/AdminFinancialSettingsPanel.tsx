@@ -45,6 +45,15 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+// Period ROI follows the same simple-interest model as the daily plan:
+// period ROI = daily rate × period days. Returns "" when the inputs are not
+// yet a valid pair so the field never shows a fabricated figure.
+function derivedPeriodRoi(dailyRate: string, days: number): string {
+  const rate = Number(dailyRate);
+  if (!Number.isFinite(rate) || !Number.isFinite(days) || days <= 0) return "";
+  return String(Number((rate * days).toFixed(6)));
+}
+
 export function AdminFinancialSettingsPanel() {
   const [response, setResponse] = useState<PlatformSettingsResponse | null>(null);
   const [bonus, setBonus] = useState<BonusSettings | null>(null);
@@ -52,6 +61,8 @@ export function AdminFinancialSettingsPanel() {
   const [reconciliation, setReconciliation] = useState<ReconciliationSettings | null>(null);
   const [templates, setTemplates] = useState<NotificationTemplates | null>(null);
   const [assetsInput, setAssetsInput] = useState("");
+  const [periodDaysInput, setPeriodDaysInput] = useState("");
+  const [periodRoiInput, setPeriodRoiInput] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +75,13 @@ export function AdminFinancialSettingsPanel() {
     setReconciliation(next.settings.reconciliation);
     setTemplates(next.settings.notifications);
     setAssetsInput(next.settings.bonus.eligibleAssets ? next.settings.bonus.eligibleAssets.join(", ") : "");
+    setPeriodDaysInput(String(next.settings.performance.illustrativePeriodDays));
+    setPeriodRoiInput(
+      derivedPeriodRoi(
+        next.settings.performance.illustrativeDailyRatePercent,
+        next.settings.performance.illustrativePeriodDays
+      )
+    );
   }, []);
 
   const load = useCallback(async () => {
@@ -136,9 +154,44 @@ export function AdminFinancialSettingsPanel() {
     );
   };
 
+  const changeDailyRate = (value: string) => {
+    if (!performance) return;
+    setPerformance({ ...performance, illustrativeDailyRatePercent: value });
+    setPeriodRoiInput(derivedPeriodRoi(value, Number(periodDaysInput)));
+  };
+
+  const changePeriodDays = (value: string) => {
+    if (!performance) return;
+    setPeriodDaysInput(value);
+    setPeriodRoiInput(derivedPeriodRoi(performance.illustrativeDailyRatePercent, Number(value)));
+  };
+
+  // Editing the period ROI back-solves the daily rate so the two stay
+  // consistent for the configured period length.
+  const changePeriodRoi = (value: string) => {
+    if (!performance) return;
+    setPeriodRoiInput(value);
+    const days = Number(periodDaysInput);
+    const roi = Number(value);
+    if (Number.isFinite(roi) && Number.isFinite(days) && days > 0) {
+      setPerformance({ ...performance, illustrativeDailyRatePercent: (roi / days).toFixed(6) });
+    }
+  };
+
   const savePerformance = () => {
     if (!performance) return;
-    void persist("performance", "performance", "settings", performance, "Daily investment performance engine configuration.");
+    const days = Number(periodDaysInput);
+    void persist(
+      "performance",
+      "performance",
+      "settings",
+      {
+        ...performance,
+        illustrativePeriodDays:
+          Number.isFinite(days) && days >= 1 ? Math.trunc(days) : performance.illustrativePeriodDays
+      },
+      "Daily investment performance engine configuration."
+    );
   };
 
   const saveReconciliation = () => {
@@ -254,12 +307,20 @@ export function AdminFinancialSettingsPanel() {
         <Panel>
           <p className="text-xs font-medium text-[#F5F5F7]">Daily performance engine</p>
           <p className="mt-1 text-[11px] leading-relaxed text-[#9CA3AF]">
-            Controls the scheduled daily calculation. The projected daily rate is displayed to users as a
-            projection only, it is never credited and is not a guaranteed return.
+            Controls the scheduled daily calculation. The daily rate is what the earnings engine applies to
+            eligible invested principal; the period ROI is the projected return for a whole period
+            (daily rate × period days) and is shown to users as a projection only. It is never credited and is
+            not a guaranteed return.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <Field label="Projected daily rate %">
-              <input value={performance.illustrativeDailyRatePercent} onChange={(event) => setPerformance({ ...performance, illustrativeDailyRatePercent: event.target.value })} className={inputClass} />
+              <input value={performance.illustrativeDailyRatePercent} onChange={(event) => changeDailyRate(event.target.value)} className={inputClass} />
+            </Field>
+            <Field label="Period length (days)">
+              <input value={periodDaysInput} onChange={(event) => changePeriodDays(event.target.value)} className={inputClass} />
+            </Field>
+            <Field label="Period ROI % (projected)">
+              <input value={periodRoiInput} onChange={(event) => changePeriodRoi(event.target.value)} className={inputClass} />
             </Field>
             <Field label="Require verified valuation">
               <label className="inline-flex items-center gap-2 py-1.5 text-[11px] text-[#9CA3AF]">
@@ -268,6 +329,10 @@ export function AdminFinancialSettingsPanel() {
               </label>
             </Field>
           </div>
+          <p className="mt-1 text-[10px] text-[#6B7280]">
+            Editing the daily rate recomputes the period ROI; editing the period ROI back-solves the daily rate
+            for the configured period length.
+          </p>
           <div className="mt-2">
             <Field label="Projection disclaimer">
               <textarea value={performance.illustrativeDisclaimer} onChange={(event) => setPerformance({ ...performance, illustrativeDisclaimer: event.target.value })} rows={3} className={inputClass} />

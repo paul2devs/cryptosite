@@ -108,7 +108,10 @@ async function postBalancedEntry(input) {
     await database_1.sequelize.transaction(write);
 }
 async function recordConfirmedDeposit(deposit) {
-    const amount = Number(deposit.amount).toFixed(8);
+    // The independently verified on-chain quantity is the amount credited. The
+    // originally requested amount (deposit.amount) stays on the record unchanged,
+    // and no market price is ever substituted for what was actually received.
+    const amount = Number(deposit.received_amount ?? deposit.amount).toFixed(8);
     await postBalancedEntry({
         userId: deposit.user_id,
         asset: deposit.crypto_type,
@@ -558,10 +561,12 @@ async function userPerformance(userId, range) {
         note: overview.note,
         projection: {
             dailyRatePercent: settings.illustrativeDailyRatePercent,
+            periodDays: settings.illustrativePeriodDays,
+            periodRoiPercent: (0, earningsRules_1.periodRoiPercent)(settings.illustrativeDailyRatePercent, settings.illustrativePeriodDays),
             disclaimer: settings.illustrativeDisclaimer,
             principal,
             projectedDailyEarnings: (0, earningsRules_1.projectedDailyEarnings)(principal, settings.illustrativeDailyRatePercent),
-            projected30DayEarnings: (0, earningsRules_1.projectedEarningsSeries)(principal, settings.illustrativeDailyRatePercent, 30),
+            projectedPeriodEarnings: (0, earningsRules_1.projectedEarningsSeries)(principal, settings.illustrativeDailyRatePercent, settings.illustrativePeriodDays),
             credited: false,
             guaranteed: false
         }

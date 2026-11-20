@@ -8,7 +8,6 @@ const User_1 = require("../models/User");
 const Notification_1 = require("../models/Notification");
 const marketDataService_1 = require("./marketDataService");
 const gamificationService_1 = require("./gamificationService");
-const depositLevelService_1 = require("./depositLevelService");
 const financialOperationsService_1 = require("./financialOperationsService");
 async function getPortfolioSummary(userId) {
     const user = await User_1.User.findByPk(userId);
@@ -121,16 +120,21 @@ async function getPortfolioSummary(userId) {
         }
     };
 }
+function toNumberOrNull(value) {
+    if (value === null || value === undefined)
+        return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
 async function getPortfolioOverview(userId, range) {
     const user = await User_1.User.findByPk(userId);
     if (!user) {
         throw new Error("User not found");
     }
-    const [summary, prices, progression, depositLevel, performance] = await Promise.all([
+    const [summary, prices, progression, performance] = await Promise.all([
         getPortfolioSummary(userId),
         (0, marketDataService_1.getAllMarketPrices)(),
         (0, gamificationService_1.getUserProgression)(user),
-        (0, depositLevelService_1.calculateDepositLevelForUser)(userId),
         (0, financialOperationsService_1.userPerformance)(userId, range)
     ]);
     const priceMap = {};
@@ -142,24 +146,29 @@ async function getPortfolioOverview(userId, range) {
     });
     const holdings = (0, portfolioRules_1.buildPortfolioHoldings)(summary.assets, priceMap);
     const allocation = (0, portfolioRules_1.computeAllocation)(holdings);
-    const realizedEarnings = Number(performance.realizedEarnings);
-    const unrealizedAvailable = performance.cumulative.status === "verified" && performance.cumulative.profitLoss !== null;
+    // Portfolio totals are derived from the single authoritative performance
+    // engine so the Portfolio and Performance sections can never disagree.
+    // Principal and current value come from verified investment positions
+    // (deposits sitting in the available wallet are never counted as invested),
+    // and realised/unrealised profit is taken straight from the verified
+    // performance history rather than re-derived from market prices.
+    const metrics = performance.metrics;
     return {
         currency: "USD",
         updatedAt: new Date().toISOString(),
         totals: {
-            totalValue: summary.totalCurrentValue,
-            investedPrincipal: depositLevel.totalDepositedUsd,
+            totalValue: toNumberOrNull(metrics.currentInvestmentValue) ?? 0,
+            investedPrincipal: toNumberOrNull(metrics.investedPrincipal) ?? 0,
             availableBalance: progression.withdrawableBalance ?? 0,
             lockedBalance: progression.lockedBalance ?? 0,
             pendingEarnings: progression.pendingEarningsTotal ?? summary.pendingEarnings,
-            realizedEarnings: Number.isFinite(realizedEarnings) ? realizedEarnings : 0,
-            unrealizedProfitLoss: unrealizedAvailable
-                ? Number(performance.cumulative.profitLoss)
-                : null,
-            unrealizedRoiPercent: unrealizedAvailable && performance.cumulative.roiPercent !== null
-                ? Number(performance.cumulative.roiPercent)
-                : null
+            realizedEarnings: toNumberOrNull(metrics.totalRealizedProfitLoss) ?? 0,
+            unrealizedProfitLoss: toNumberOrNull(metrics.totalUnrealizedProfitLoss),
+            unrealizedRoiPercent: toNumberOrNull(metrics.overallReturnPercent),
+            todayProfitLoss: toNumberOrNull(metrics.todayProfitLoss),
+            todayRoiPercent: toNumberOrNull(metrics.todayRoiPercent),
+            overallReturnPercent: toNumberOrNull(metrics.overallReturnPercent),
+            periodReturnPercent: toNumberOrNull(metrics.periodReturnPercent)
         },
         holdings,
         allocation,

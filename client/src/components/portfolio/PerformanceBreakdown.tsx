@@ -104,7 +104,10 @@ export function PerformanceBreakdown({
               label="Current position value"
               value={maskValue(hidden, formatUsd(totals?.totalValue ?? 0))}
             />
-            <BreakdownRow label="Cost basis" value="Unavailable" valueClassName="text-[#6B7280]" />
+            <BreakdownRow
+              label="Cost basis"
+              value={maskValue(hidden, formatUsd(totals?.investedPrincipal ?? 0))}
+            />
             <BreakdownRow
               label="Unrealised ROI"
               value={

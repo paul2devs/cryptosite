@@ -156,6 +156,7 @@ router.post("/admin/rewards/grants", auth_1.authenticate, auth_1.requireAdmin, [
     (0, express_validator_1.body)("amount").optional({ nullable: true }).isString(),
     (0, express_validator_1.body)("asset").optional({ nullable: true }).isString(),
     (0, express_validator_1.body)("expiresAt").optional({ nullable: true }).isISO8601(),
+    (0, express_validator_1.body)("countAsInvestmentEarnings").optional({ nullable: true }).isBoolean(),
     (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })
 ], operationsController_1.adminGrantReward);
 router.post("/admin/rewards/grants/:userRewardId/revoke", auth_1.authenticate, auth_1.requireAdmin, [(0, express_validator_1.param)("userRewardId").isUUID(), (0, express_validator_1.body)("reason").isString().isLength({ min: 3 })], operationsController_1.adminRevokeReward);

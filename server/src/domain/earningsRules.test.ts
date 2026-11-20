@@ -6,8 +6,10 @@ import {
   describeDailyEarnings,
   describeRealisedEarnings,
   earningsDirection,
+  earningsPeriodDays,
   isFutureSnapshot,
   isPerformanceDayEligible,
+  periodRoiPercent,
   projectedDailyEarnings,
   projectedEarningsSeries
 } from "./earningsRules";
@@ -101,4 +103,22 @@ test("projects an illustrative daily series without crediting it", () => {
   assert.equal(projectedDailyEarnings("10000.00000000", "3.000000"), "300.00000000");
   assert.equal(projectedEarningsSeries("10000.00000000", "3.000000", 5), "1500.00000000");
   assert.equal(projectedEarningsSeries("10000.00000000", "3.000000", 0), "0.00000000");
+});
+
+test("derives the projected period ROI from the daily rate and period length", () => {
+  assert.equal(periodRoiPercent("3.000000", 30), "90.000000");
+  assert.equal(periodRoiPercent("2.5", 12), "30.000000");
+  // A malformed rate falls back to the platform default; a bad day count to the default period.
+  assert.equal(periodRoiPercent("not-a-rate", 30), "90.000000");
+  assert.equal(periodRoiPercent("3.000000", 0), "90.000000");
+});
+
+test("normalises a configured period length to a whole number of days", () => {
+  assert.equal(earningsPeriodDays(45), 45);
+  assert.equal(earningsPeriodDays("14"), 14);
+  assert.equal(earningsPeriodDays(30.9), 30);
+  assert.equal(earningsPeriodDays(0), 30);
+  assert.equal(earningsPeriodDays(-5), 30);
+  assert.equal(earningsPeriodDays(null), 30);
+  assert.equal(earningsPeriodDays(undefined), 30);
 });

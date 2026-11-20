@@ -289,32 +289,86 @@ function sumAmounts(rows) {
     const total = rows.reduce((accumulator, row) => accumulator + (0, money_1.parseDecimal)((0, rewardRules_1.normalizeRewardAmount)(row.amount), rewardRules_1.REWARD_AMOUNT_SCALE), 0n);
     return (0, money_1.formatDecimal)(total, rewardRules_1.REWARD_AMOUNT_SCALE);
 }
+// Reads the user's pending earnings figure from the JSONB column without ever
+// inventing a value. This is the same field the earnings engine and the
+// administrator pending-earnings adjustment operate on.
+function pendingEarningsUnits(user) {
+    const raw = user.pending_earnings?.total;
+    if (raw === undefined || raw === null)
+        return 0n;
+    return (0, money_1.parseDecimal)(String(raw), rewardRules_1.REWARD_AMOUNT_SCALE);
+}
+function rewardEarningsCredited(row) {
+    return Boolean(row.metadata?.earningsCredited);
+}
 async function issueReward(input) {
     const amount = (0, rewardRules_1.normalizeRewardAmount)(input.amount);
-    if ((0, money_1.parseDecimal)(amount, rewardRules_1.REWARD_AMOUNT_SCALE) <= 0n)
+    const amountUnits = (0, money_1.parseDecimal)(amount, rewardRules_1.REWARD_AMOUNT_SCALE);
+    if (amountUnits <= 0n)
         return null;
     const userRewardId = (0, crypto_1.randomUUID)();
     const reference = (0, transactionRules_1.generateReference)(rewardRules_1.REWARD_GRANT_SOURCE_TYPE, userRewardId);
     const ledgerKey = (0, ledgerRules_1.buildLedgerIdempotencyKey)(rewardRules_1.REWARD_GRANT_SOURCE_TYPE, userRewardId, rewardRules_1.REWARD_HOLDING_ACCOUNT);
     let row;
     try {
-        row = await UserReward_1.UserReward.create({
-            user_reward_id: userRewardId,
-            user_id: input.user.user_id,
-            reward_id: input.rewardId,
-            reward_name: input.name,
-            category: input.category,
-            amount,
-            asset: input.asset,
-            status: "available",
-            reference,
-            ledger_idempotency_key: ledgerKey,
-            grant_source: input.grantSource,
-            grant_reason: input.reason,
-            granted_by: input.grantedBy,
-            granted_at: new Date(),
-            expires_at: input.expiresAt,
-            metadata: { requirementType: input.requirementType, description: input.description }
+        row = await database_1.sequelize.transaction(async (transaction) => {
+            const created = await UserReward_1.UserReward.create({
+                user_reward_id: userRewardId,
+                user_id: input.user.user_id,
+                reward_id: input.rewardId,
+                reward_name: input.name,
+                category: input.category,
+                amount,
+                asset: input.asset,
+                status: "available",
+                reference,
+                ledger_idempotency_key: ledgerKey,
+                grant_source: input.grantSource,
+                grant_reason: input.reason,
+                granted_by: input.grantedBy,
+                granted_at: new Date(),
+                expires_at: input.expiresAt,
+                metadata: {
+                    requirementType: input.requirementType,
+                    description: input.description,
+                    earningsCredited: input.countAsEarnings
+                }
+            }, { transaction });
+            await (0, financialOperationsService_1.postBalancedEntry)({
+                userId: input.user.user_id,
+                asset: input.asset,
+                amount,
+                transactionType: rewardRules_1.REWARD_GRANT_TRANSACTION_TYPE,
+                sourceType: rewardRules_1.REWARD_GRANT_SOURCE_TYPE,
+                sourceId: userRewardId,
+                debit: rewardRules_1.REWARD_RELEASE_ACCOUNT,
+                credit: rewardRules_1.REWARD_HOLDING_ACCOUNT,
+                transaction
+            });
+            if (input.countAsEarnings) {
+                // Move the same amount into the pending settlement account and increase
+                // the user's pending earnings figure so the reward is reported as
+                // investment earnings. It stays unsettled and non-withdrawable.
+                await (0, financialOperationsService_1.postBalancedEntry)({
+                    userId: input.user.user_id,
+                    asset: input.asset,
+                    amount,
+                    transactionType: rewardRules_1.REWARD_EARNINGS_TRANSACTION_TYPE,
+                    sourceType: rewardRules_1.REWARD_EARNINGS_SOURCE_TYPE,
+                    sourceId: userRewardId,
+                    debit: rewardRules_1.REWARD_EARNINGS_RELEASE_ACCOUNT,
+                    credit: rewardRules_1.REWARD_EARNINGS_HOLDING_ACCOUNT,
+                    transaction
+                });
+                const owner = await User_1.User.findByPk(input.user.user_id, { transaction, lock: transaction.LOCK.UPDATE });
+                if (owner) {
+                    owner.pending_earnings = {
+                        total: Number((0, money_1.formatDecimal)(pendingEarningsUnits(owner) + amountUnits, rewardRules_1.REWARD_AMOUNT_SCALE))
+                    };
+                    await owner.save({ transaction });
+                }
+            }
+            return created;
         });
     }
     catch (error) {
@@ -322,16 +376,6 @@ async function issueReward(input) {
             return null;
         throw error;
     }
-    await (0, financialOperationsService_1.postBalancedEntry)({
-        userId: input.user.user_id,
-        asset: input.asset,
-        amount,
-        transactionType: rewardRules_1.REWARD_GRANT_TRANSACTION_TYPE,
-        sourceType: rewardRules_1.REWARD_GRANT_SOURCE_TYPE,
-        sourceId: userRewardId,
-        debit: rewardRules_1.REWARD_RELEASE_ACCOUNT,
-        credit: rewardRules_1.REWARD_HOLDING_ACCOUNT
-    });
     await (0, financialNotificationService_1.notifyFinancialEvent)({
         userId: input.user.user_id,
         type: "reward_granted",
@@ -389,7 +433,10 @@ async function syncUserRewards(userId) {
             grantedBy: null,
             reason: `Automatically granted: ${rewardRules_1.REWARD_REQUIREMENT_LABEL[requirementOf(reward.requirement_type)]} requirement satisfied.`,
             expiresAt: reward.expires_at,
-            requirementType: requirementOf(reward.requirement_type)
+            requirementType: requirementOf(reward.requirement_type),
+            // Automated milestone rewards stay promotional credits only; crediting
+            // investment earnings is an explicit administrator decision.
+            countAsEarnings: false
         });
         if (created)
             grantedIds.push(reward.reward_id);
@@ -744,7 +791,10 @@ async function grantRewardToUser(adminId, input) {
         grantedBy: adminId,
         reason: input.reason.trim(),
         expiresAt,
-        requirementType
+        requirementType,
+        // An administrator grant counts as investment earnings by default. Passing
+        // countAsInvestmentEarnings: false keeps it as a promotional credit only.
+        countAsEarnings: input.countAsInvestmentEarnings !== false
     });
     if (!created)
         throw new Error("This user already holds this reward.");
@@ -760,7 +810,8 @@ async function grantRewardToUser(adminId, input) {
             name,
             amount,
             asset,
-            category
+            category,
+            countAsInvestmentEarnings: input.countAsInvestmentEarnings !== false
         }
     });
     return created;
@@ -790,6 +841,30 @@ async function revokeUserReward(adminId, userRewardId, reason) {
             credit: rewardRules_1.REWARD_RELEASE_ACCOUNT,
             transaction
         });
+        if (rewardEarningsCredited(found)) {
+            // The grant also credited the user's unsettled investment earnings; the
+            // reversal must unwind that leg and lower the pending earnings figure so
+            // the reported earnings stay consistent with the ledger.
+            await (0, financialOperationsService_1.postBalancedEntry)({
+                userId: found.user_id,
+                asset: found.asset,
+                amount,
+                transactionType: rewardRules_1.REWARD_EARNINGS_TRANSACTION_TYPE,
+                sourceType: rewardRules_1.REWARD_EARNINGS_REVERSAL_SOURCE_TYPE,
+                sourceId: userRewardId,
+                debit: rewardRules_1.REWARD_EARNINGS_HOLDING_ACCOUNT,
+                credit: rewardRules_1.REWARD_EARNINGS_RELEASE_ACCOUNT,
+                transaction
+            });
+            const owner = await User_1.User.findByPk(found.user_id, { transaction, lock: transaction.LOCK.UPDATE });
+            if (owner) {
+                const remaining = pendingEarningsUnits(owner) - (0, money_1.parseDecimal)(amount, rewardRules_1.REWARD_AMOUNT_SCALE);
+                owner.pending_earnings = {
+                    total: Number((0, money_1.formatDecimal)(remaining > 0n ? remaining : 0n, rewardRules_1.REWARD_AMOUNT_SCALE))
+                };
+                await owner.save({ transaction });
+            }
+        }
         found.status = "revoked";
         found.revoked_by = adminId;
         found.revoked_at = new Date();

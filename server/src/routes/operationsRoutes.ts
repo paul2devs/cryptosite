@@ -380,6 +380,7 @@ router.post(
     body("amount").optional({ nullable: true }).isString(),
     body("asset").optional({ nullable: true }).isString(),
     body("expiresAt").optional({ nullable: true }).isISO8601(),
+    body("countAsInvestmentEarnings").optional({ nullable: true }).isBoolean(),
     body("reason").isString().isLength({ min: 3 })
   ],
   adminGrantReward

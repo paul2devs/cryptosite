@@ -56,12 +56,25 @@ export const REWARD_REDEMPTION_SOURCE_TYPE = "redeem";
 export const REWARD_REVERSAL_SOURCE_TYPE = "reward_reversal";
 export const REWARD_REVERSAL_TRANSACTION_TYPE = "adjustment_reversal";
 
-// A granted reward is held in the promotional_credits account so it is never
-// counted as deposited principal or trading profit. Redeeming it moves the value
-// into available_balance, and a reversal returns it to the adjustments account.
+// A granted reward is held in the promotional_credits account so it never
+// inflates deposited principal. Redeeming it moves the value into
+// available_balance, and a reversal returns it to the adjustments account.
+//
+// An administrator may additionally credit the granted reward to the user's
+// investment earnings. When they do, a second balanced entry moves the same
+// amount from the adjustments account into pending_settlement, and the user's
+// pending earnings figure is increased by it. That amount is unsettled
+// investment earnings: it is never withdrawable cash until the settlement
+// workflow authorises a payout, and it is reversed when the reward is revoked.
 export const REWARD_RELEASE_ACCOUNT = "adjustments";
 export const REWARD_HOLDING_ACCOUNT = "promotional_credits";
 export const REWARD_SETTLEMENT_ACCOUNT = "available_balance";
+
+export const REWARD_EARNINGS_TRANSACTION_TYPE = "reward_earnings";
+export const REWARD_EARNINGS_SOURCE_TYPE = "reward_earnings";
+export const REWARD_EARNINGS_REVERSAL_SOURCE_TYPE = "reward_earnings_reversal";
+export const REWARD_EARNINGS_RELEASE_ACCOUNT = "adjustments";
+export const REWARD_EARNINGS_HOLDING_ACCOUNT = "pending_settlement";
 
 export const REWARD_STATUSES: RewardStatus[] = ["available", "pending", "redeemed", "expired", "revoked"];
 
@@ -195,7 +208,7 @@ export function rewardStatusLabel(status: RewardStatus): string {
 
 export const REWARD_RULES = {
   fundingModel:
-    "Rewards are funded from the platform adjustments account and held as promotional credits. They are never sourced from investment principal and never counted as trading profit.",
+    "Rewards are funded from the platform adjustments account and held as promotional credits. They are never sourced from investment principal. When an administrator grants a reward, the same amount may also be credited to the user's unsettled investment earnings (pending settlement), where it is reported as investment earnings but remains non-withdrawable until the settlement workflow authorises a payout.",
   redemptionModel:
     "Redeeming an available reward moves its value from promotional_credits into your available balance. A reward can only be redeemed once, and only while it is available and unexpired.",
   eligibilityModel:

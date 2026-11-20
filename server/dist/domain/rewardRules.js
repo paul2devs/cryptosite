@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.REWARD_RULES = exports.REWARD_STATUSES = exports.REWARD_SETTLEMENT_ACCOUNT = exports.REWARD_HOLDING_ACCOUNT = exports.REWARD_RELEASE_ACCOUNT = exports.REWARD_REVERSAL_TRANSACTION_TYPE = exports.REWARD_REVERSAL_SOURCE_TYPE = exports.REWARD_REDEMPTION_SOURCE_TYPE = exports.REWARD_GRANT_SOURCE_TYPE = exports.REWARD_REDEMPTION_TRANSACTION_TYPE = exports.REWARD_GRANT_TRANSACTION_TYPE = exports.ZERO_REQUIREMENT = exports.ZERO_REWARD = exports.REWARD_AMOUNT_SCALE = exports.REWARD_REQUIREMENT_UNIT = exports.REWARD_REQUIREMENT_LABEL = exports.REWARD_CATEGORY_DESCRIPTION = exports.REWARD_CATEGORY_LABEL = exports.REWARD_CATEGORIES = void 0;
+exports.REWARD_RULES = exports.REWARD_STATUSES = exports.REWARD_EARNINGS_HOLDING_ACCOUNT = exports.REWARD_EARNINGS_RELEASE_ACCOUNT = exports.REWARD_EARNINGS_REVERSAL_SOURCE_TYPE = exports.REWARD_EARNINGS_SOURCE_TYPE = exports.REWARD_EARNINGS_TRANSACTION_TYPE = exports.REWARD_SETTLEMENT_ACCOUNT = exports.REWARD_HOLDING_ACCOUNT = exports.REWARD_RELEASE_ACCOUNT = exports.REWARD_REVERSAL_TRANSACTION_TYPE = exports.REWARD_REVERSAL_SOURCE_TYPE = exports.REWARD_REDEMPTION_SOURCE_TYPE = exports.REWARD_GRANT_SOURCE_TYPE = exports.REWARD_REDEMPTION_TRANSACTION_TYPE = exports.REWARD_GRANT_TRANSACTION_TYPE = exports.ZERO_REQUIREMENT = exports.ZERO_REWARD = exports.REWARD_AMOUNT_SCALE = exports.REWARD_REQUIREMENT_UNIT = exports.REWARD_REQUIREMENT_LABEL = exports.REWARD_CATEGORY_DESCRIPTION = exports.REWARD_CATEGORY_LABEL = exports.REWARD_CATEGORIES = void 0;
 exports.isRewardCategory = isRewardCategory;
 exports.isRewardRequirementType = isRewardRequirementType;
 exports.isRewardStatus = isRewardStatus;
@@ -49,12 +49,24 @@ exports.REWARD_GRANT_SOURCE_TYPE = "reward";
 exports.REWARD_REDEMPTION_SOURCE_TYPE = "redeem";
 exports.REWARD_REVERSAL_SOURCE_TYPE = "reward_reversal";
 exports.REWARD_REVERSAL_TRANSACTION_TYPE = "adjustment_reversal";
-// A granted reward is held in the promotional_credits account so it is never
-// counted as deposited principal or trading profit. Redeeming it moves the value
-// into available_balance, and a reversal returns it to the adjustments account.
+// A granted reward is held in the promotional_credits account so it never
+// inflates deposited principal. Redeeming it moves the value into
+// available_balance, and a reversal returns it to the adjustments account.
+//
+// An administrator may additionally credit the granted reward to the user's
+// investment earnings. When they do, a second balanced entry moves the same
+// amount from the adjustments account into pending_settlement, and the user's
+// pending earnings figure is increased by it. That amount is unsettled
+// investment earnings: it is never withdrawable cash until the settlement
+// workflow authorises a payout, and it is reversed when the reward is revoked.
 exports.REWARD_RELEASE_ACCOUNT = "adjustments";
 exports.REWARD_HOLDING_ACCOUNT = "promotional_credits";
 exports.REWARD_SETTLEMENT_ACCOUNT = "available_balance";
+exports.REWARD_EARNINGS_TRANSACTION_TYPE = "reward_earnings";
+exports.REWARD_EARNINGS_SOURCE_TYPE = "reward_earnings";
+exports.REWARD_EARNINGS_REVERSAL_SOURCE_TYPE = "reward_earnings_reversal";
+exports.REWARD_EARNINGS_RELEASE_ACCOUNT = "adjustments";
+exports.REWARD_EARNINGS_HOLDING_ACCOUNT = "pending_settlement";
 exports.REWARD_STATUSES = ["available", "pending", "redeemed", "expired", "revoked"];
 function isRewardCategory(value) {
     return typeof value === "string" && exports.REWARD_CATEGORIES.includes(value);
@@ -165,7 +177,7 @@ function rewardStatusLabel(status) {
     return "Unavailable";
 }
 exports.REWARD_RULES = {
-    fundingModel: "Rewards are funded from the platform adjustments account and held as promotional credits. They are never sourced from investment principal and never counted as trading profit.",
+    fundingModel: "Rewards are funded from the platform adjustments account and held as promotional credits. They are never sourced from investment principal. When an administrator grants a reward, the same amount may also be credited to the user's unsettled investment earnings (pending settlement), where it is reported as investment earnings but remains non-withdrawable until the settlement workflow authorises a payout.",
     redemptionModel: "Redeeming an available reward moves its value from promotional_credits into your available balance. A reward can only be redeemed once, and only while it is available and unexpired.",
     eligibilityModel: "Eligibility uses confirmed, verified deposits, verified invested principal, assigned membership tier, and referred accounts. Only measures the platform can independently verify are used.",
     expiryModel: "A reward expires only when an explicit expiry date is configured for it. No reward uses artificial scarcity or fabricated countdowns."

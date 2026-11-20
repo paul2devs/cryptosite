@@ -1,6 +1,6 @@
 import { Op, Transaction, UniqueConstraintError } from "sequelize";
 import { sequelize } from "../config/database";
-import { projectedDailyEarnings, projectedEarningsSeries } from "../domain/earningsRules";
+import { periodRoiPercent, projectedDailyEarnings, projectedEarningsSeries } from "../domain/earningsRules";
 import { formatDecimal, parseDecimal } from "../domain/money";
 import { buildLedgerIdempotencyKey } from "../domain/ledgerRules";
 import { calculateDailyPerformance, sumVerifiedPerformance } from "../domain/performanceRules";
@@ -110,7 +110,10 @@ export async function postBalancedEntry(input: {
 }
 
 export async function recordConfirmedDeposit(deposit: Deposit) {
-  const amount = Number(deposit.amount).toFixed(8);
+  // The independently verified on-chain quantity is the amount credited. The
+  // originally requested amount (deposit.amount) stays on the record unchanged,
+  // and no market price is ever substituted for what was actually received.
+  const amount = Number(deposit.received_amount ?? deposit.amount).toFixed(8);
   await postBalancedEntry({
     userId: deposit.user_id,
     asset: deposit.crypto_type,
@@ -568,10 +571,19 @@ export async function userPerformance(userId: string, range: string) {
     note: overview.note,
     projection: {
       dailyRatePercent: settings.illustrativeDailyRatePercent,
+      periodDays: settings.illustrativePeriodDays,
+      periodRoiPercent: periodRoiPercent(
+        settings.illustrativeDailyRatePercent,
+        settings.illustrativePeriodDays
+      ),
       disclaimer: settings.illustrativeDisclaimer,
       principal,
       projectedDailyEarnings: projectedDailyEarnings(principal, settings.illustrativeDailyRatePercent),
-      projected30DayEarnings: projectedEarningsSeries(principal, settings.illustrativeDailyRatePercent, 30),
+      projectedPeriodEarnings: projectedEarningsSeries(
+        principal,
+        settings.illustrativeDailyRatePercent,
+        settings.illustrativePeriodDays
+      ),
       credited: false,
       guaranteed: false
     }

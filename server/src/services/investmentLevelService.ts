@@ -1,6 +1,12 @@
 import { Op, Transaction } from "sequelize";
 import { sequelize } from "../config/database";
-import { formatDecimal, multiplyDecimal, parseDecimal } from "../domain/money";
+import {
+  USD_SCALE,
+  depositAssetSymbol,
+  isStablecoinDeposit,
+  valueDepositInUsd
+} from "../domain/depositValuation";
+import { formatDecimal, parseDecimal } from "../domain/money";
 import {
   isApproachingNextLevel,
   isLevelDowngrade,
@@ -110,12 +116,6 @@ export function getInvestmentLevelRules(): InvestmentLevelRules {
   return INVESTMENT_LEVEL_RULES;
 }
 
-function assetSymbol(cryptoType: string): "BTC" | "ETH" | "SOL" | "USDT" | null {
-  if (cryptoType === "BTC" || cryptoType === "ETH" || cryptoType === "SOL") return cryptoType;
-  if (cryptoType === "ERC20" || cryptoType === "TRC20" || cryptoType === "USDT_ERC20" || cryptoType === "USDT_TRC20") return "USDT";
-  return null;
-}
-
 function toRange(level: InvestmentLevel): InvestmentLevelRange {
   return {
     id: level.level_config_id,
@@ -180,6 +180,25 @@ export async function ensureDefaultInvestmentLevelBenefits(): Promise<void> {
   }
 }
 
+function toTwoDecimals(amountUnits: bigint): bigint {
+  const divisor = 10n ** BigInt(USD_SCALE - 2);
+  const half = divisor / 2n;
+  const negative = amountUnits < 0n;
+  const absolute = negative ? -amountUnits : amountUnits;
+  const rounded = (absolute + half) / divisor;
+  return negative ? -rounded : rounded;
+}
+
+/**
+ * USD value of the user's approved, verified invested principal.
+ *
+ * Valuation never depends on a live price being available at read time:
+ *   - stablecoins are valued at par (100 USDT = $100, no market conversion);
+ *   - volatile assets use the USD value stored when the deposit was approved,
+ *     and only fall back to a live price when none was stored;
+ *   - a volatile deposit that cannot be valued is excluded and reported as
+ *     incomplete instead of collapsing the whole total to zero.
+ */
 export async function calculateQualifyingInvestment(
   userId: string
 ): Promise<{ amount: string | null; complete: boolean }> {
@@ -188,18 +207,40 @@ export async function calculateQualifyingInvestment(
     getAllMarketPrices()
   ]);
   let total = 0n;
+  let complete = true;
   const seen = new Set<string>();
   for (const deposit of deposits) {
     if (seen.has(deposit.deposit_id)) continue;
     seen.add(deposit.deposit_id);
-    const symbol = assetSymbol(deposit.crypto_type);
-    const price = symbol ? prices[symbol]?.price : null;
-    if (!symbol || price === undefined || price === null || !Number.isFinite(price) || price <= 0) {
-      return { amount: null, complete: false };
+    const quantity =
+      deposit.received_amount === null || deposit.received_amount === undefined
+        ? deposit.amount
+        : deposit.received_amount;
+    if (isStablecoinDeposit(deposit.crypto_type)) {
+      const valuation = valueDepositInUsd({ cryptoType: deposit.crypto_type, quantity });
+      if (valuation.usd !== null) {
+        total += parseDecimal(valuation.usd, USD_SCALE);
+        continue;
+      }
+      complete = false;
+      continue;
     }
-    total += multiplyDecimal(Number(deposit.amount).toFixed(8), Number(price).toFixed(8), 8, 8, 2);
+    const symbol = depositAssetSymbol(deposit.crypto_type);
+    const livePrice = symbol ? prices[symbol]?.price : undefined;
+    const storedUsd =
+      deposit.usd_amount === null || deposit.usd_amount === undefined ? null : deposit.usd_amount;
+    if (storedUsd !== null && Number.isFinite(storedUsd) && storedUsd > 0) {
+      total += parseDecimal(Number(storedUsd).toFixed(USD_SCALE), USD_SCALE);
+      continue;
+    }
+    const valuation = valueDepositInUsd({ cryptoType: deposit.crypto_type, quantity, price: livePrice ?? null });
+    if (valuation.usd !== null) {
+      total += parseDecimal(valuation.usd, USD_SCALE);
+      continue;
+    }
+    complete = false;
   }
-  return { amount: formatDecimal(total, 2), complete: true };
+  return { amount: formatDecimal(toTwoDecimals(total), 2), complete };
 }
 
 async function countBenefitsForLevel(level: InvestmentLevel, levels: InvestmentLevel[]): Promise<number> {

@@ -12,6 +12,7 @@ exports.listPlatformSettings = listPlatformSettings;
 exports.resetPlatformSettings = resetPlatformSettings;
 const AdminAuditLog_1 = require("../models/AdminAuditLog");
 const PlatformSetting_1 = require("../models/PlatformSetting");
+const earningsRules_1 = require("../domain/earningsRules");
 exports.PERFORMANCE_ILLUSTRATIVE_DISCLAIMER = "Projected figures only. A modelled daily percentage applied to invested principal is not a guaranteed or manufactured return and is never credited. Only independently verified valuations produce reportable performance.";
 exports.DEFAULT_BONUS_SETTINGS = {
     active: true,
@@ -24,6 +25,7 @@ exports.DEFAULT_BONUS_SETTINGS = {
 exports.DEFAULT_PERFORMANCE_SETTINGS = {
     automaticDailyCalculation: true,
     illustrativeDailyRatePercent: "3.000000",
+    illustrativePeriodDays: earningsRules_1.DEFAULT_EARNINGS_PERIOD_DAYS,
     illustrativeDisclaimer: exports.PERFORMANCE_ILLUSTRATIVE_DISCLAIMER,
     requireVerifiedValuation: true
 };
@@ -98,6 +100,7 @@ async function getPerformanceSettings() {
     return {
         automaticDailyCalculation: asBoolean(raw.automaticDailyCalculation, exports.DEFAULT_PERFORMANCE_SETTINGS.automaticDailyCalculation),
         illustrativeDailyRatePercent: asString(raw.illustrativeDailyRatePercent, exports.DEFAULT_PERFORMANCE_SETTINGS.illustrativeDailyRatePercent),
+        illustrativePeriodDays: (0, earningsRules_1.earningsPeriodDays)(raw.illustrativePeriodDays),
         illustrativeDisclaimer: asString(raw.illustrativeDisclaimer, exports.DEFAULT_PERFORMANCE_SETTINGS.illustrativeDisclaimer),
         requireVerifiedValuation: asBoolean(raw.requireVerifiedValuation, exports.DEFAULT_PERFORMANCE_SETTINGS.requireVerifiedValuation)
     };

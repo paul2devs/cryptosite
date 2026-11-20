@@ -182,6 +182,7 @@ export interface RewardGrantInput {
   asset?: string | null;
   expiresAt?: string | null;
   reason: string;
+  countAsInvestmentEarnings?: boolean;
 }
 
 export interface RewardCampaignPerformance {

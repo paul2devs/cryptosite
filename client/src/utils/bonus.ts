@@ -100,6 +100,7 @@ export interface BonusSettings {
 export interface PerformanceSettings {
   automaticDailyCalculation: boolean;
   illustrativeDailyRatePercent: string;
+  illustrativePeriodDays: number;
   illustrativeDisclaimer: string;
   requireVerifiedValuation: boolean;
 }

@@ -49,6 +49,8 @@ import {
 import { buildDepositQuote } from "./depositQuoteService";
 import { recordConfirmedDeposit } from "./financialOperationsService";
 import { sendDepositStatusEmail } from "./email/emailService";
+import { depositAssetSymbol, valueDepositInUsd } from "../domain/depositValuation";
+import { getAllMarketPrices } from "./marketDataService";
 
 /** A deposit that has not received a matching transfer yet. */
 export const UNPAID_DEPOSIT_STATUSES: DepositDetailedStatus[] = ["PENDING"];
@@ -101,6 +103,34 @@ function duplicateWindowSeconds(): number {
     "DEPOSIT_DUPLICATE_WINDOW_SECONDS",
     DEFAULT_DUPLICATE_WINDOW_SECONDS
   );
+}
+
+/**
+ * Best-effort USD valuation of a verified received quantity.
+ *
+ * Stablecoins are valued at par and need no price. Volatile assets keep their
+ * received quantity and use a market price only to record a separate USD figure;
+ * if the price provider is unavailable the quantity is still preserved and the
+ * USD value is left as "unavailable". This never blocks approval and never
+ * substitutes a market price for the amount actually received.
+ */
+async function resolveDepositUsdValue(
+  cryptoType: string,
+  quantity: number
+): Promise<{ usd: string | null; basis: "stablecoin_par" | "market_price" | "unavailable" }> {
+  const symbol = depositAssetSymbol(cryptoType);
+  let price: number | null = null;
+  if (symbol && symbol !== "USDT") {
+    try {
+      const prices = await getAllMarketPrices();
+      const point = prices[symbol];
+      price = point && Number.isFinite(point.price) ? point.price : null;
+    } catch {
+      price = null;
+    }
+  }
+  const valuation = valueDepositInUsd({ cryptoType, quantity, price });
+  return { usd: valuation.usd, basis: valuation.basis };
 }
 
 /**
@@ -1024,6 +1054,12 @@ export async function approveDeposit(
       ? reason.trim()
       : "Deposit approved after independent on-chain verification.";
 
+  // The independently verified on-chain amount is the source of truth for the
+  // credit; the originally requested amount is preserved separately. A separate
+  // USD figure is recorded best-effort and a price outage never blocks approval.
+  const receivedQuantity = verification.amount;
+  const usdValuation = await resolveDepositUsdValue(existing.crypto_type, receivedQuantity);
+
   const outcome = await (async () => {
     try {
       return await sequelize.transaction(async (transaction) => {
@@ -1060,6 +1096,9 @@ export async function approveDeposit(
         const previous = detailedStatusOf(deposit);
         deposit.tx_hash = verification.txHash;
         deposit.received_amount = verification.amount;
+        if (usdValuation.usd !== null) {
+          deposit.usd_amount = Number(usdValuation.usd);
+        }
         deposit.confirmation_count = verification.confirmations;
         deposit.verification_result = verification;
         deposit.network = verification.network || deposit.network;
@@ -1088,6 +1127,8 @@ export async function approveDeposit(
               network: deposit.network,
               expectedAmount: Number(deposit.amount),
               receivedAmount: verification.amount,
+              usdBasis: usdValuation.basis,
+              usdAmount: usdValuation.usd,
               txHash: verification.txHash,
               confirmations: verification.confirmations
             }

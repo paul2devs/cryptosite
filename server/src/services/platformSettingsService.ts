@@ -1,5 +1,6 @@
 import { AdminAuditLog } from "../models/AdminAuditLog";
 import { PlatformSetting, type PlatformSettingCategory } from "../models/PlatformSetting";
+import { DEFAULT_EARNINGS_PERIOD_DAYS, earningsPeriodDays } from "../domain/earningsRules";
 
 export interface BonusSettings {
   active: boolean;
@@ -13,6 +14,9 @@ export interface BonusSettings {
 export interface PerformanceSettings {
   automaticDailyCalculation: boolean;
   illustrativeDailyRatePercent: string;
+  // Length, in days, of a projected investment period. Together with the daily
+  // rate it defines the projected period ROI (daily rate × period days).
+  illustrativePeriodDays: number;
   illustrativeDisclaimer: string;
   requireVerifiedValuation: boolean;
 }
@@ -51,6 +55,7 @@ export const DEFAULT_BONUS_SETTINGS: BonusSettings = {
 export const DEFAULT_PERFORMANCE_SETTINGS: PerformanceSettings = {
   automaticDailyCalculation: true,
   illustrativeDailyRatePercent: "3.000000",
+  illustrativePeriodDays: DEFAULT_EARNINGS_PERIOD_DAYS,
   illustrativeDisclaimer: PERFORMANCE_ILLUSTRATIVE_DISCLAIMER,
   requireVerifiedValuation: true
 };
@@ -134,6 +139,9 @@ export async function getPerformanceSettings(): Promise<PerformanceSettings> {
   return {
     automaticDailyCalculation: asBoolean(raw.automaticDailyCalculation, DEFAULT_PERFORMANCE_SETTINGS.automaticDailyCalculation),
     illustrativeDailyRatePercent: asString(raw.illustrativeDailyRatePercent, DEFAULT_PERFORMANCE_SETTINGS.illustrativeDailyRatePercent),
+    illustrativePeriodDays: earningsPeriodDays(
+      raw.illustrativePeriodDays as number | string | null | undefined
+    ),
     illustrativeDisclaimer: asString(raw.illustrativeDisclaimer, DEFAULT_PERFORMANCE_SETTINGS.illustrativeDisclaimer),
     requireVerifiedValuation: asBoolean(raw.requireVerifiedValuation, DEFAULT_PERFORMANCE_SETTINGS.requireVerifiedValuation)
   };

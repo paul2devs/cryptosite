@@ -89,3 +89,19 @@ const earningsRules_1 = require("./earningsRules");
     assert_1.default.equal((0, earningsRules_1.projectedEarningsSeries)("10000.00000000", "3.000000", 5), "1500.00000000");
     assert_1.default.equal((0, earningsRules_1.projectedEarningsSeries)("10000.00000000", "3.000000", 0), "0.00000000");
 });
+(0, node_test_1.test)("derives the projected period ROI from the daily rate and period length", () => {
+    assert_1.default.equal((0, earningsRules_1.periodRoiPercent)("3.000000", 30), "90.000000");
+    assert_1.default.equal((0, earningsRules_1.periodRoiPercent)("2.5", 12), "30.000000");
+    // A malformed rate falls back to the platform default; a bad day count to the default period.
+    assert_1.default.equal((0, earningsRules_1.periodRoiPercent)("not-a-rate", 30), "90.000000");
+    assert_1.default.equal((0, earningsRules_1.periodRoiPercent)("3.000000", 0), "90.000000");
+});
+(0, node_test_1.test)("normalises a configured period length to a whole number of days", () => {
+    assert_1.default.equal((0, earningsRules_1.earningsPeriodDays)(45), 45);
+    assert_1.default.equal((0, earningsRules_1.earningsPeriodDays)("14"), 14);
+    assert_1.default.equal((0, earningsRules_1.earningsPeriodDays)(30.9), 30);
+    assert_1.default.equal((0, earningsRules_1.earningsPeriodDays)(0), 30);
+    assert_1.default.equal((0, earningsRules_1.earningsPeriodDays)(-5), 30);
+    assert_1.default.equal((0, earningsRules_1.earningsPeriodDays)(null), 30);
+    assert_1.default.equal((0, earningsRules_1.earningsPeriodDays)(undefined), 30);
+});

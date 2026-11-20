@@ -36,6 +36,10 @@ export interface PortfolioTotalsView {
   realizedEarnings: number;
   unrealizedProfitLoss: number | null;
   unrealizedRoiPercent: number | null;
+  todayProfitLoss: number | null;
+  todayRoiPercent: number | null;
+  overallReturnPercent: number | null;
+  periodReturnPercent: number | null;
 }
 
 export interface PortfolioPerformanceView {

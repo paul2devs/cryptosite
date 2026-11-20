@@ -44,7 +44,9 @@ async function calculateDepositLevelForUser(userId) {
         InvestmentLevel_1.InvestmentLevel.findAll({ order: [["level_number", "ASC"]] })
     ]);
     const ranges = levels.map(toRange);
-    const totalUsd = qualification.complete && qualification.amount !== null ? toNumber(qualification.amount) : 0;
+    // Surface the known USD value even when a volatile deposit could not be
+    // valued, so a single unpriced asset never collapses the whole figure to zero.
+    const totalUsd = qualification.amount !== null ? toNumber(qualification.amount) : 0;
     return getDepositLevelDetailsFromTotal(totalUsd, ranges);
 }
 async function refreshUserDepositLevel(user) {

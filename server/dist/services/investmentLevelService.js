@@ -19,6 +19,7 @@ exports.clearInvestmentLevelOverride = clearInvestmentLevelOverride;
 exports.recalculateUserInvestmentLevel = recalculateUserInvestmentLevel;
 const sequelize_1 = require("sequelize");
 const database_1 = require("../config/database");
+const depositValuation_1 = require("../domain/depositValuation");
 const money_1 = require("../domain/money");
 const investmentLevelRules_1 = require("../domain/investmentLevelRules");
 const AdminAuditLog_1 = require("../models/AdminAuditLog");
@@ -86,13 +87,6 @@ const INVESTMENT_LEVEL_RULES = {
 function getInvestmentLevelRules() {
     return INVESTMENT_LEVEL_RULES;
 }
-function assetSymbol(cryptoType) {
-    if (cryptoType === "BTC" || cryptoType === "ETH" || cryptoType === "SOL")
-        return cryptoType;
-    if (cryptoType === "ERC20" || cryptoType === "TRC20" || cryptoType === "USDT_ERC20" || cryptoType === "USDT_TRC20")
-        return "USDT";
-    return null;
-}
 function toRange(level) {
     return {
         id: level.level_config_id,
@@ -154,25 +148,63 @@ async function ensureDefaultInvestmentLevelBenefits() {
         });
     }
 }
+function toTwoDecimals(amountUnits) {
+    const divisor = 10n ** BigInt(depositValuation_1.USD_SCALE - 2);
+    const half = divisor / 2n;
+    const negative = amountUnits < 0n;
+    const absolute = negative ? -amountUnits : amountUnits;
+    const rounded = (absolute + half) / divisor;
+    return negative ? -rounded : rounded;
+}
+/**
+ * USD value of the user's approved, verified invested principal.
+ *
+ * Valuation never depends on a live price being available at read time:
+ *   - stablecoins are valued at par (100 USDT = $100, no market conversion);
+ *   - volatile assets use the USD value stored when the deposit was approved,
+ *     and only fall back to a live price when none was stored;
+ *   - a volatile deposit that cannot be valued is excluded and reported as
+ *     incomplete instead of collapsing the whole total to zero.
+ */
 async function calculateQualifyingInvestment(userId) {
     const [deposits, prices] = await Promise.all([
         Deposit_1.Deposit.findAll({ where: { user_id: userId, status: "Approved" } }),
         (0, marketDataService_1.getAllMarketPrices)()
     ]);
     let total = 0n;
+    let complete = true;
     const seen = new Set();
     for (const deposit of deposits) {
         if (seen.has(deposit.deposit_id))
             continue;
         seen.add(deposit.deposit_id);
-        const symbol = assetSymbol(deposit.crypto_type);
-        const price = symbol ? prices[symbol]?.price : null;
-        if (!symbol || price === undefined || price === null || !Number.isFinite(price) || price <= 0) {
-            return { amount: null, complete: false };
+        const quantity = deposit.received_amount === null || deposit.received_amount === undefined
+            ? deposit.amount
+            : deposit.received_amount;
+        if ((0, depositValuation_1.isStablecoinDeposit)(deposit.crypto_type)) {
+            const valuation = (0, depositValuation_1.valueDepositInUsd)({ cryptoType: deposit.crypto_type, quantity });
+            if (valuation.usd !== null) {
+                total += (0, money_1.parseDecimal)(valuation.usd, depositValuation_1.USD_SCALE);
+                continue;
+            }
+            complete = false;
+            continue;
         }
-        total += (0, money_1.multiplyDecimal)(Number(deposit.amount).toFixed(8), Number(price).toFixed(8), 8, 8, 2);
+        const symbol = (0, depositValuation_1.depositAssetSymbol)(deposit.crypto_type);
+        const livePrice = symbol ? prices[symbol]?.price : undefined;
+        const storedUsd = deposit.usd_amount === null || deposit.usd_amount === undefined ? null : deposit.usd_amount;
+        if (storedUsd !== null && Number.isFinite(storedUsd) && storedUsd > 0) {
+            total += (0, money_1.parseDecimal)(Number(storedUsd).toFixed(depositValuation_1.USD_SCALE), depositValuation_1.USD_SCALE);
+            continue;
+        }
+        const valuation = (0, depositValuation_1.valueDepositInUsd)({ cryptoType: deposit.crypto_type, quantity, price: livePrice ?? null });
+        if (valuation.usd !== null) {
+            total += (0, money_1.parseDecimal)(valuation.usd, depositValuation_1.USD_SCALE);
+            continue;
+        }
+        complete = false;
     }
-    return { amount: (0, money_1.formatDecimal)(total, 2), complete: true };
+    return { amount: (0, money_1.formatDecimal)(toTwoDecimals(total), 2), complete };
 }
 async function countBenefitsForLevel(level, levels) {
     const numberById = new Map(levels.map((row) => [row.level_config_id, row.level_number]));
