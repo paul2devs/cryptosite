@@ -12,7 +12,8 @@ const Notification_1 = require("../models/Notification");
 const behaviorService_1 = require("../services/behaviorService");
 const activityService_1 = require("../services/activityService");
 const financialOperationsService_1 = require("../services/financialOperationsService");
-const emailService_1 = require("../services/email/emailService");
+const notificationDispatchService_1 = require("../services/notificationDispatchService");
+const transactionRules_1 = require("../domain/transactionRules");
 const withdrawalService_1 = require("../services/withdrawalService");
 async function createWithdrawal(req, res) {
     if (!req.user) {
@@ -37,16 +38,34 @@ async function createWithdrawal(req, res) {
         if (!result.duplicate) {
             const user = await User_1.User.findByPk(req.user.userId);
             if (user) {
+                const asset = withdrawal.asset || "USD";
+                const reference = (0, transactionRules_1.generateReference)("withdrawal", withdrawal.withdrawal_id);
+                const message = "Withdrawal request submitted. Your request is currently under review.";
                 await Notification_1.Notification.create({
                     type: "withdrawal_created",
-                    message: "Withdrawal request submitted",
+                    message,
                     user_id: req.user.userId
                 });
-                (0, emailService_1.sendWithdrawalStatusEmail)({
-                    to: user.email,
-                    name: user.name,
-                    status: "Pending",
-                    amount: Number(withdrawal.amount)
+                await (0, notificationDispatchService_1.dispatchNotificationEmail)({
+                    user,
+                    type: "withdrawal_created",
+                    message,
+                    email: {
+                        sourceId: withdrawal.withdrawal_id,
+                        subject: `Withdrawal submitted: ${Number(withdrawal.amount)} ${asset}`,
+                        heading: "Withdrawal request received",
+                        preheader: "Your withdrawal request has been submitted and is now under review.",
+                        details: [
+                            { label: "Reference", value: reference },
+                            { label: "Amount", value: `${Number(withdrawal.amount)} ${asset}` },
+                            { label: "Asset", value: asset },
+                            { label: "Date", value: new Date().toISOString() }
+                        ],
+                        statusLabel: "Under review",
+                        statusTone: "gold",
+                        ctaLabel: "View withdrawals",
+                        ctaPath: "/transactions"
+                    }
                 });
                 await (0, behaviorService_1.recordWithdrawalAttempt)(user, Number(withdrawal.amount), true);
             }
@@ -134,7 +153,7 @@ async function updateWithdrawalStatus(req, res) {
         return;
     }
     try {
-        const withdrawal = await (0, financialOperationsService_1.reviewWithdrawal)(req.user.userId, id, detailed, "Status updated from the admin panel.");
+        const withdrawal = await (0, financialOperationsService_1.reviewWithdrawal)(req.user.userId, id, detailed, "Status updated during platform review.");
         res.status(200).json(withdrawal);
     }
     catch (error) {

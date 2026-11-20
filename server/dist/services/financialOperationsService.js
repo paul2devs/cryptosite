@@ -39,6 +39,7 @@ const Withdrawal_1 = require("../models/Withdrawal");
 const activityService_1 = require("./activityService");
 const bonusEngineService_1 = require("./bonusEngineService");
 const financialNotificationService_1 = require("./financialNotificationService");
+const notificationDispatchService_1 = require("./notificationDispatchService");
 const investmentLevelService_1 = require("./investmentLevelService");
 const membershipService_1 = require("./membershipService");
 const performanceService_1 = require("./performanceService");
@@ -142,7 +143,23 @@ async function recordConfirmedDeposit(deposit) {
         type: "deposit_confirmed",
         templateKey: "depositConfirmation",
         variables: { amount, asset: deposit.crypto_type, reference: depositReference },
-        fallbackMessage: `Deposit ${amount} ${deposit.crypto_type} confirmed. Reference ${depositReference}.`
+        fallbackMessage: `Deposit ${amount} ${deposit.crypto_type} confirmed. Reference ${depositReference}.`,
+        email: {
+            sourceId: deposit.deposit_id,
+            subject: `Deposit credited: ${deposit.crypto_type} ${amount}`,
+            heading: "Deposit approved and credited",
+            preheader: "Your deposit has been verified and your wallet has been credited.",
+            details: [
+                { label: "Transaction reference", value: depositReference },
+                { label: "Amount", value: `${amount} ${deposit.crypto_type}` },
+                { label: "Asset", value: deposit.crypto_type },
+                { label: "Date", value: new Date().toISOString() }
+            ],
+            statusLabel: "Approved",
+            statusTone: "positive",
+            ctaLabel: "View wallet",
+            ctaPath: "/portfolio"
+        }
     });
     if (positionCreated) {
         await (0, financialNotificationService_1.notifyFinancialEvent)({
@@ -155,7 +172,24 @@ async function recordConfirmedDeposit(deposit) {
                 position: position.position_id,
                 reference: depositReference
             },
-            fallbackMessage: `Investment allocation of ${amount} ${deposit.crypto_type} recorded against position ${position.position_id}. Reference ${depositReference}.`
+            fallbackMessage: `Investment allocation of ${amount} ${deposit.crypto_type} recorded against position ${position.position_id}. Reference ${depositReference}.`,
+            email: {
+                sourceId: position.position_id,
+                subject: `Investment position created: ${deposit.crypto_type} ${amount}`,
+                heading: "Investment position created",
+                preheader: "A new investment position has been allocated to your account.",
+                details: [
+                    { label: "Transaction reference", value: depositReference },
+                    { label: "Position", value: position.position_id },
+                    { label: "Amount", value: `${amount} ${deposit.crypto_type}` },
+                    { label: "Asset", value: deposit.crypto_type },
+                    { label: "Date", value: new Date().toISOString() }
+                ],
+                statusLabel: "Active",
+                statusTone: "gold",
+                ctaLabel: "View portfolio",
+                ctaPath: "/portfolio"
+            }
         });
         await (0, activityService_1.trackUserActivity)(deposit.user_id, "investment_allocation", {
             position_id: position.position_id,
@@ -507,13 +541,62 @@ async function reviewWithdrawal(adminId, withdrawalId, status, reason, txHash) {
     });
     const owner = await User_1.User.findByPk(withdrawal.user_id);
     if (owner && notificationFlag(owner.account_settings, "withdrawal_updates")) {
+        const asset = withdrawal.asset || "USD";
+        const amount = Number(withdrawal.amount).toFixed(8);
+        const reference = (0, transactionRules_1.generateReference)("withdrawal", withdrawal.withdrawal_id);
+        const processed = status === "completed";
+        const failed = status === "rejected" || status === "failed" || status === "cancelled";
+        const userMessage = withdrawalStatusUserMessage(status, reference, amount, asset);
         await Notification_1.Notification.create({
             user_id: owner.user_id,
             type: "withdrawal_status",
-            message: `Withdrawal ${withdrawal.withdrawal_id} is ${status}. Reason: ${reason}`
+            message: userMessage
+        });
+        await (0, notificationDispatchService_1.dispatchNotificationEmail)({
+            user: owner,
+            type: "withdrawal_status",
+            message: userMessage,
+            email: {
+                sourceId: `${withdrawal.withdrawal_id}:${status}`,
+                subject: processed
+                    ? `Withdrawal processed: ${amount} ${asset}`
+                    : failed
+                        ? `Withdrawal not approved: ${amount} ${asset}`
+                        : `Withdrawal update: ${amount} ${asset}`,
+                heading: processed
+                    ? "Withdrawal processed"
+                    : failed
+                        ? "Withdrawal could not be approved"
+                        : "Withdrawal status updated",
+                preheader: "An update on your withdrawal request.",
+                details: [
+                    { label: "Reference", value: reference },
+                    { label: "Amount", value: `${amount} ${asset}` },
+                    { label: "Asset", value: asset },
+                    { label: "Date", value: new Date().toISOString() }
+                ],
+                statusLabel: processed ? "Completed" : failed ? "Rejected" : status,
+                statusTone: processed ? "positive" : failed ? "negative" : "gold",
+                ctaLabel: "View withdrawals",
+                ctaPath: "/transactions"
+            }
         });
     }
     return withdrawal;
+}
+/**
+ * Neutral, user-facing withdrawal status copy. The internal review reason is
+ * deliberately not echoed here so administrator notes and identities are never
+ * surfaced to the account holder.
+ */
+function withdrawalStatusUserMessage(status, reference, amount, asset) {
+    if (status === "completed") {
+        return `Your withdrawal of ${amount} ${asset} has been processed successfully. Reference ${reference}.`;
+    }
+    if (status === "rejected" || status === "failed" || status === "cancelled") {
+        return `Your withdrawal of ${amount} ${asset} could not be approved. Please review the withdrawal details or contact support. Reference ${reference}.`;
+    }
+    return `Your withdrawal of ${amount} ${asset} is now ${status}. Reference ${reference}.`;
 }
 async function listLedger(query) {
     if (query.entryId) {

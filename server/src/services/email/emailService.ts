@@ -4,13 +4,9 @@ import {
   renderPasswordResetRequestEmail,
   renderWelcomeEmail
 } from "./templates/account";
-import {
-  renderDepositStatusEmail,
-  renderLevelUpEmail,
-  renderReferralRewardEmail,
-  renderWithdrawalStatusEmail
-} from "./templates/activity";
+import { renderReferralRewardEmail } from "./templates/activity";
 import { renderVerificationEmail } from "./templates/verification";
+import { AccountEventEmailDetail, AccountEventTone, renderAccountEventEmail } from "./templates/events";
 import { getAppBaseUrl, isEmailEnabled } from "./emailClient";
 
 function safeFireAndForget(promise: Promise<void>): void {
@@ -90,29 +86,6 @@ export function sendPasswordChangedEmail(args: { to: string; name: string }): vo
   safeFireAndForget(sendEmail({ to: args.to, subject, html }));
 }
 
-export function sendDepositStatusEmail(args: {
-  to: string;
-  name: string;
-  status: "Approved" | "Rejected" | "Pending";
-  amount: number;
-  asset: string;
-}): void {
-  if (!isEmailEnabled()) return;
-  const { subject, html } = renderDepositStatusEmail(args);
-  safeFireAndForget(sendEmail({ to: args.to, subject, html }));
-}
-
-export function sendWithdrawalStatusEmail(args: {
-  to: string;
-  name: string;
-  status: "Approved" | "Rejected" | "Pending";
-  amount: number;
-}): void {
-  if (!isEmailEnabled()) return;
-  const { subject, html } = renderWithdrawalStatusEmail(args);
-  safeFireAndForget(sendEmail({ to: args.to, subject, html }));
-}
-
 export function sendReferralRewardEmail(args: {
   to: string;
   name: string;
@@ -124,14 +97,36 @@ export function sendReferralRewardEmail(args: {
   safeFireAndForget(sendEmail({ to: args.to, subject, html }));
 }
 
-export function sendLevelUpEmail(args: {
+/**
+ * Polymorphic account-event email (deposits, withdrawals, investments,
+ * earnings, rewards, membership and security events). Rendered through the one
+ * shared `renderAccountEventEmail` template so every financial/account email
+ * keeps NexaCrypto branding and a consistent layout.
+ *
+ * Unlike the fire-and-forget helpers above, this resolves/rejects with the real
+ * transport outcome so the caller can record an accurate delivery status and
+ * retry a failure — it is never used to gate a financial transaction.
+ */
+export async function sendAccountEventEmail(args: {
   to: string;
   name: string;
-  newLevel: number;
-  multiplierPreview?: number;
-}): void {
-  if (!isEmailEnabled()) return;
-  const { subject, html } = renderLevelUpEmail(args);
-  safeFireAndForget(sendEmail({ to: args.to, subject, html }));
+  subject: string;
+  heading: string;
+  preheader: string;
+  message: string;
+  details?: AccountEventEmailDetail[];
+  statusLabel?: string;
+  statusTone?: AccountEventTone;
+  ctaLabel?: string;
+  ctaPath?: string;
+}): Promise<void> {
+  const { subject, html } = renderAccountEventEmail(args);
+  const detailLines = (args.details ?? [])
+    .map((detail) => `${detail.label}: ${detail.value}`)
+    .join("\n");
+  const text = [args.heading, "", args.message, detailLines ? `\n${detailLines}` : ""]
+    .join("\n")
+    .trim();
+  await sendEmail({ to: args.to, subject, html, text });
 }
 

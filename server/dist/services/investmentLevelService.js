@@ -33,6 +33,7 @@ const UserInvestmentLevel_1 = require("../models/UserInvestmentLevel");
 const UserInvestmentLevelBenefit_1 = require("../models/UserInvestmentLevelBenefit");
 const activityService_1 = require("./activityService");
 const marketDataService_1 = require("./marketDataService");
+const notificationDispatchService_1 = require("./notificationDispatchService");
 const DEFAULT_LEVELS = [
     { number: 1, name: "Level 1", threshold: "1000.00", sort: 1, accent: "#8B7355", description: "Unlocked at $1,000 of invested principal: reduced platform fees on deposits and withdrawals." },
     { number: 2, name: "Level 2", threshold: "3000.00", sort: 2, accent: "#A98A5C", description: "Unlocked at $3,000: priority on-chain verification so your deposits confirm sooner." },
@@ -228,13 +229,38 @@ async function provisionLevelBenefits(userId, current, benefits, numberById, tra
         return;
     await UserInvestmentLevelBenefit_1.UserInvestmentLevelBenefit.bulkCreate(rows, { ignoreDuplicates: true, transaction });
 }
-async function notifyInvestmentLevelChange(userId, fromName, toName, amount, benefitCount) {
+async function notifyInvestmentLevelChange(userId, fromName, toName, amount, benefitCount, levelId) {
     const transition = fromName ? `You advanced from ${fromName} to ${toName}` : `You reached ${toName}`;
+    const message = clip(`${transition}. Your qualifying invested principal is $${amount}. ${benefitCount} investment level benefit${benefitCount === 1 ? "" : "s"} ${benefitCount === 1 ? "is" : "are"} now available on your account. Investment levels do not guarantee investment performance.`);
     await Notification_1.Notification.create({
         type: "investment_level_upgrade",
-        message: clip(`${transition}. Your qualifying invested principal is $${amount}. ${benefitCount} investment level benefit${benefitCount === 1 ? "" : "s"} ${benefitCount === 1 ? "is" : "are"} now available on your account. Investment levels do not guarantee investment performance.`),
+        message,
         user_id: userId
     });
+    const user = await User_1.User.findByPk(userId);
+    if (user) {
+        await (0, notificationDispatchService_1.dispatchNotificationEmail)({
+            user,
+            type: "investment_level_upgrade",
+            message,
+            email: {
+                sourceId: `${userId}:${levelId}`,
+                subject: `Investment level upgraded: ${toName}`,
+                heading: `Investment level ${toName} unlocked`,
+                preheader: "Your investment level has been upgraded.",
+                details: [
+                    { label: "New level", value: toName },
+                    { label: "Qualifying principal", value: `$${amount}` },
+                    { label: "Benefits available", value: String(benefitCount) },
+                    { label: "Date", value: new Date().toISOString() }
+                ],
+                statusLabel: "Upgraded",
+                statusTone: "gold",
+                ctaLabel: "View investment levels",
+                ctaPath: "/investment-levels"
+            }
+        });
+    }
 }
 async function notifyApproachingNextLevel(userId, next, remaining) {
     const type = `investment_level_approaching:${next.level_config_id}`;
@@ -330,7 +356,7 @@ async function syncUserInvestmentLevel(userId, reason = "Qualified from approved
         if (createdLevel) {
             const benefitCount = await countBenefitsForLevel(createdLevel, levels);
             await provisionLevelBenefits(userId, createdLevel, await InvestmentLevelBenefit_1.InvestmentLevelBenefit.findAll({ where: { active: true } }), numberById);
-            await notifyInvestmentLevelChange(userId, null, createdLevel.name, amount, benefitCount);
+            await notifyInvestmentLevelChange(userId, null, createdLevel.name, amount, benefitCount, createdLevel.level_config_id);
         }
         await (0, activityService_1.trackUserActivity)(userId, "configuration_change", {
             scope: "investment_level",
@@ -374,7 +400,7 @@ async function syncUserInvestmentLevel(userId, reason = "Qualified from approved
     if (upgradedLevel) {
         const benefitCount = await countBenefitsForLevel(upgradedLevel, levels);
         await provisionLevelBenefits(userId, upgradedLevel, await InvestmentLevelBenefit_1.InvestmentLevelBenefit.findAll({ where: { active: true } }), numberById);
-        await notifyInvestmentLevelChange(userId, currentLevel?.name ?? null, upgradedLevel.name, amount, benefitCount);
+        await notifyInvestmentLevelChange(userId, currentLevel?.name ?? null, upgradedLevel.name, amount, benefitCount, upgradedLevel.level_config_id);
     }
     await (0, activityService_1.trackUserActivity)(userId, "configuration_change", {
         scope: "investment_level",

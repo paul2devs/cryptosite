@@ -325,11 +325,11 @@ function providerFailure(cryptoType, txHash, error, context) {
     }
     if (kind === "configuration") {
         return buildResult(cryptoType, txHash, "provider_error", {
-            failureReason: "On-chain verification is unavailable because of a blockchain provider configuration problem. Your deposit stays pending and will be reconciled by an administrator."
+            failureReason: "On-chain verification is unavailable because of a blockchain provider configuration problem. Your deposit stays pending and will be reconciled through our platform review process."
         });
     }
     return buildResult(cryptoType, txHash, "provider_error", {
-        failureReason: "We could not reach the blockchain provider to verify this transaction right now. Your deposit stays pending and will be reconciled by an administrator."
+        failureReason: "We could not reach the blockchain provider to verify this transaction right now. Your deposit stays pending and will be reconciled through our platform review process."
     });
 }
 async function verifyBitcoinDeposit(params) {
@@ -749,7 +749,7 @@ async function verifyDepositOnChain(params) {
         });
     }
     if (!isBlockchainVerificationEnabled()) {
-        return unconfigured(params.cryptoType, params.txHash, "On-chain verification is disabled by configuration, so deposits must be reconciled by an administrator.");
+        return unconfigured(params.cryptoType, params.txHash, "On-chain verification is disabled by configuration, so deposits must be reconciled through our platform review process.");
     }
     // Reject a hash that cannot belong to this network before it reaches a
     // provider. Reporting "invalid hash" instead of a provider fault keeps a

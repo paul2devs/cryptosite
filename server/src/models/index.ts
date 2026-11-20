@@ -7,6 +7,7 @@ import "./EarningsLog";
 import "./EmailVerificationToken";
 import "./Level";
 import "./Notification";
+import "./NotificationDelivery";
 import "./PasswordResetToken";
 import "./Referral";
 import "./ReferralReward";

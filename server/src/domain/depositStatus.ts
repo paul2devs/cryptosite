@@ -67,7 +67,7 @@ const STATUS_VIEWS: Record<DepositDetailedStatus, DepositStatusView> = {
     label: "Awaiting approval",
     tone: "gold",
     message:
-      "We've verified your transaction on the blockchain. It is now awaiting administrator approval before your wallet is credited."
+      "We've verified your transaction on the blockchain. It is now awaiting platform verification before your wallet is credited."
   },
   COMPLETED: {
     label: "Completed",
@@ -78,7 +78,7 @@ const STATUS_VIEWS: Record<DepositDetailedStatus, DepositStatusView> = {
     label: "Rejected",
     tone: "negative",
     message:
-      "This deposit was rejected by an administrator. Quote your deposit reference to support if you believe this decision is incorrect."
+      "This deposit was rejected after platform review. Quote your deposit reference to support if you believe this decision is incorrect."
   },
   EXPIRED: {
     label: "Expired",

@@ -44,7 +44,7 @@ const depositStatus_1 = require("./depositStatus");
     assert_1.default.equal((0, depositStatus_1.describeDepositStatus)("EXPIRED").label, "Expired");
     assert_1.default.equal((0, depositStatus_1.describeDepositStatus)("FAILED").label, "Failed");
     // The awaiting-approval copy must tell the user the wallet is not credited yet.
-    assert_1.default.ok((0, depositStatus_1.depositStatusMessage)("AWAITING_ADMIN_APPROVAL").includes("administrator approval"));
+    assert_1.default.ok((0, depositStatus_1.depositStatusMessage)("AWAITING_ADMIN_APPROVAL").includes("platform verification"));
 });
 (0, node_test_1.test)("accepts legacy coarse statuses and unknown values without throwing", () => {
     assert_1.default.equal((0, depositStatus_1.describeDepositStatus)("Approved").label, "Completed");

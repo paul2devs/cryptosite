@@ -7,7 +7,8 @@ import { Notification } from "../models/Notification";
 import { recordWithdrawalAttempt } from "../services/behaviorService";
 import { trackUserActivity } from "../services/activityService";
 import { reviewWithdrawal } from "../services/financialOperationsService";
-import { sendWithdrawalStatusEmail } from "../services/email/emailService";
+import { dispatchNotificationEmail } from "../services/notificationDispatchService";
+import { generateReference } from "../domain/transactionRules";
 import {
   getUserWithdrawalSummary,
   reserveWithdrawal,
@@ -50,16 +51,34 @@ export async function createWithdrawal(
     if (!result.duplicate) {
       const user = await User.findByPk(req.user.userId);
       if (user) {
+        const asset = withdrawal.asset || "USD";
+        const reference = generateReference("withdrawal", withdrawal.withdrawal_id);
+        const message = "Withdrawal request submitted. Your request is currently under review.";
         await Notification.create({
           type: "withdrawal_created",
-          message: "Withdrawal request submitted",
+          message,
           user_id: req.user.userId
         });
-        sendWithdrawalStatusEmail({
-          to: user.email,
-          name: user.name,
-          status: "Pending",
-          amount: Number(withdrawal.amount)
+        await dispatchNotificationEmail({
+          user,
+          type: "withdrawal_created",
+          message,
+          email: {
+            sourceId: withdrawal.withdrawal_id,
+            subject: `Withdrawal submitted: ${Number(withdrawal.amount)} ${asset}`,
+            heading: "Withdrawal request received",
+            preheader: "Your withdrawal request has been submitted and is now under review.",
+            details: [
+              { label: "Reference", value: reference },
+              { label: "Amount", value: `${Number(withdrawal.amount)} ${asset}` },
+              { label: "Asset", value: asset },
+              { label: "Date", value: new Date().toISOString() }
+            ],
+            statusLabel: "Under review",
+            statusTone: "gold",
+            ctaLabel: "View withdrawals",
+            ctaPath: "/transactions"
+          }
         });
         await recordWithdrawalAttempt(user, Number(withdrawal.amount), true);
       }
@@ -172,7 +191,7 @@ export async function updateWithdrawalStatus(
       req.user.userId,
       id,
       detailed,
-      "Status updated from the admin panel."
+      "Status updated during platform review."
     );
     res.status(200).json(withdrawal);
   } catch (error) {

@@ -1,5 +1,6 @@
 import { Notification } from "../models/Notification";
 import { User } from "../models/User";
+import { dispatchNotificationEmail, NotificationEmailPayload } from "./notificationDispatchService";
 import { getNotificationTemplates } from "./platformSettingsService";
 
 export type FinancialNotificationType =
@@ -63,6 +64,13 @@ export async function notifyFinancialEvent(input: {
     | "withdrawalCompleted";
   variables: TemplateVariables;
   fallbackMessage: string;
+  /**
+   * Optional email half of the notification. When present (and the user has not
+   * opted out), the identical message is also delivered to the user's
+   * registered email address through the idempotent delivery ledger, so a
+   * retried or concurrent financial operation never sends a duplicate email.
+   */
+  email?: NotificationEmailPayload;
 }): Promise<Notification | null> {
   const user = await User.findByPk(input.userId);
   if (!user) return null;
@@ -70,9 +78,16 @@ export async function notifyFinancialEvent(input: {
   const templates = await getNotificationTemplates();
   const template = templates[input.templateKey] || input.fallbackMessage;
   const message = renderTemplate(template, input.variables).slice(0, 500);
-  const existing = await Notification.findOne({
+  let notification = await Notification.findOne({
     where: { user_id: input.userId, type: input.type, message }
   });
-  if (existing) return existing;
-  return Notification.create({ user_id: input.userId, type: input.type, message });
+  if (!notification) {
+    notification = await Notification.create({ user_id: input.userId, type: input.type, message });
+  }
+  if (input.email) {
+    // Best-effort and never throws: the in-app notification above is the source
+    // of truth and is always preserved even if the email cannot be sent.
+    await dispatchNotificationEmail({ user, type: input.type, message, email: input.email });
+  }
+  return notification;
 }

@@ -6,7 +6,7 @@ import { User } from "../models/User";
 import { getActiveBonusMultiplierForCrypto } from "./bonusService";
 import { emitLevelUpEvent } from "../realtime/socket";
 import { getUserActiveMultiplierFactor } from "./multiplierService";
-import { sendLevelUpEmail } from "./email/emailService";
+import { dispatchNotificationEmail } from "./notificationDispatchService";
 
 interface MultiplierComponents {
   baseMultiplier: number;
@@ -184,17 +184,32 @@ export async function applyDepositGamification(
   await deposit.save();
 
   if (user.level > previousLevel) {
+    const levelMessage = `You reached level ${user.level}`;
     await Notification.create({
       type: "level_up",
-      message: `You reached level ${user.level}`,
+      message: levelMessage,
       user_id: user.user_id
     });
     emitLevelUpEvent(user, user.level);
-    sendLevelUpEmail({
-      to: user.email,
-      name: user.name,
-      newLevel: user.level,
-      multiplierPreview: combinedMultiplier
+    await dispatchNotificationEmail({
+      user,
+      type: "level_up",
+      message: levelMessage,
+      email: {
+        sourceId: `${user.user_id}:${user.level}`,
+        subject: `Level up unlocked: Level ${user.level}`,
+        heading: `Level ${user.level} unlocked`,
+        preheader: "Your progression just increased. Multipliers and rewards have improved.",
+        details: [
+          { label: "New level", value: String(user.level) },
+          { label: "Multiplier preview", value: `x${combinedMultiplier.toFixed(2)}` },
+          { label: "Date", value: new Date().toISOString() }
+        ],
+        statusLabel: "Upgraded",
+        statusTone: "positive",
+        ctaLabel: "View rewards",
+        ctaPath: "/rewards"
+      }
     });
   }
 

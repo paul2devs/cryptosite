@@ -108,8 +108,8 @@ export function DepositVerificationStatus({ deposit }: { deposit: DepositRecord 
 
       {awaitingApproval ? (
         <p className="rounded-xl bg-[#C6A15B]/8 px-3 py-2.5 text-[11px] leading-relaxed text-[#F5F5F7]">
-          Awaiting verification and admin approval. Your wallet is credited only after an
-          administrator approves this deposit.
+          Awaiting platform verification. Your wallet is credited only after this deposit passes
+          platform review.
         </p>
       ) : null}
 

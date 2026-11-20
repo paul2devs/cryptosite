@@ -192,8 +192,8 @@ export function DepositInstructions({
           <div className="flex gap-2 rounded-xl bg-[#C6A15B]/8 px-3 py-3">
             <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#C6A15B]" aria-hidden="true" />
             <p className="text-[11px] leading-relaxed text-[#F5F5F7]">
-              Verified on-chain and now awaiting verification and admin approval. Your wallet is
-              credited only after an administrator approves this deposit.
+              Verified on-chain and now awaiting platform verification. Your wallet is
+              credited only after this deposit passes platform review.
             </p>
           </div>
         ) : null}

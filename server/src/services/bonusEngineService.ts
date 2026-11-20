@@ -212,7 +212,24 @@ export async function creditPromotionalBonus(deposit: Deposit): Promise<BonusCre
       campaign: decision.campaign.name,
       reference
     },
-    fallbackMessage: `Promotional bonus of ${bonusAmount} ${deposit.crypto_type} credited. Reference ${reference}.`
+    fallbackMessage: `Promotional bonus of ${bonusAmount} ${deposit.crypto_type} credited. Reference ${reference}.`,
+    email: {
+      sourceId: credit.credit_id,
+      subject: `Promotional bonus credited: ${bonusAmount} ${deposit.crypto_type}`,
+      heading: "Promotional bonus credited",
+      preheader: "A promotional bonus has been added to your account.",
+      details: [
+        { label: "Reference", value: reference },
+        { label: "Amount", value: `${bonusAmount} ${deposit.crypto_type}` },
+        { label: "Asset", value: deposit.crypto_type },
+        { label: "Campaign", value: decision.campaign.name },
+        { label: "Date", value: new Date().toISOString() }
+      ],
+      statusLabel: "Credited",
+      statusTone: "positive",
+      ctaLabel: "View rewards",
+      ctaPath: "/rewards"
+    }
   });
 
   await trackUserActivity(deposit.user_id, "promotional_bonus", {

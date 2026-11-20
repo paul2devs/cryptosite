@@ -22,6 +22,7 @@ import { Withdrawal } from "../models/Withdrawal";
 import { trackUserActivity } from "./activityService";
 import { creditPromotionalBonus } from "./bonusEngineService";
 import { notifyFinancialEvent } from "./financialNotificationService";
+import { dispatchNotificationEmail } from "./notificationDispatchService";
 import { syncUserInvestmentLevel } from "./investmentLevelService";
 import { syncUserMembership } from "./membershipService";
 import { getPerformanceOverview } from "./performanceService";
@@ -145,7 +146,23 @@ export async function recordConfirmedDeposit(deposit: Deposit) {
     type: "deposit_confirmed",
     templateKey: "depositConfirmation",
     variables: { amount, asset: deposit.crypto_type, reference: depositReference },
-    fallbackMessage: `Deposit ${amount} ${deposit.crypto_type} confirmed. Reference ${depositReference}.`
+    fallbackMessage: `Deposit ${amount} ${deposit.crypto_type} confirmed. Reference ${depositReference}.`,
+    email: {
+      sourceId: deposit.deposit_id,
+      subject: `Deposit credited: ${deposit.crypto_type} ${amount}`,
+      heading: "Deposit approved and credited",
+      preheader: "Your deposit has been verified and your wallet has been credited.",
+      details: [
+        { label: "Transaction reference", value: depositReference },
+        { label: "Amount", value: `${amount} ${deposit.crypto_type}` },
+        { label: "Asset", value: deposit.crypto_type },
+        { label: "Date", value: new Date().toISOString() }
+      ],
+      statusLabel: "Approved",
+      statusTone: "positive",
+      ctaLabel: "View wallet",
+      ctaPath: "/portfolio"
+    }
   });
 
   if (positionCreated) {
@@ -159,7 +176,24 @@ export async function recordConfirmedDeposit(deposit: Deposit) {
         position: position.position_id,
         reference: depositReference
       },
-      fallbackMessage: `Investment allocation of ${amount} ${deposit.crypto_type} recorded against position ${position.position_id}. Reference ${depositReference}.`
+      fallbackMessage: `Investment allocation of ${amount} ${deposit.crypto_type} recorded against position ${position.position_id}. Reference ${depositReference}.`,
+      email: {
+        sourceId: position.position_id,
+        subject: `Investment position created: ${deposit.crypto_type} ${amount}`,
+        heading: "Investment position created",
+        preheader: "A new investment position has been allocated to your account.",
+        details: [
+          { label: "Transaction reference", value: depositReference },
+          { label: "Position", value: position.position_id },
+          { label: "Amount", value: `${amount} ${deposit.crypto_type}` },
+          { label: "Asset", value: deposit.crypto_type },
+          { label: "Date", value: new Date().toISOString() }
+        ],
+        statusLabel: "Active",
+        statusTone: "gold",
+        ctaLabel: "View portfolio",
+        ctaPath: "/portfolio"
+      }
     });
     await trackUserActivity(deposit.user_id, "investment_allocation", {
       position_id: position.position_id,
@@ -518,13 +552,63 @@ export async function reviewWithdrawal(adminId: string, withdrawalId: string, st
   });
   const owner = await User.findByPk(withdrawal.user_id);
   if (owner && notificationFlag(owner.account_settings, "withdrawal_updates")) {
+    const asset = withdrawal.asset || "USD";
+    const amount = Number(withdrawal.amount).toFixed(8);
+    const reference = generateReference("withdrawal", withdrawal.withdrawal_id);
+    const processed = status === "completed";
+    const failed = status === "rejected" || status === "failed" || status === "cancelled";
+    const userMessage = withdrawalStatusUserMessage(status, reference, amount, asset);
     await Notification.create({
       user_id: owner.user_id,
       type: "withdrawal_status",
-      message: `Withdrawal ${withdrawal.withdrawal_id} is ${status}. Reason: ${reason}`
+      message: userMessage
+    });
+    await dispatchNotificationEmail({
+      user: owner,
+      type: "withdrawal_status",
+      message: userMessage,
+      email: {
+        sourceId: `${withdrawal.withdrawal_id}:${status}`,
+        subject: processed
+          ? `Withdrawal processed: ${amount} ${asset}`
+          : failed
+            ? `Withdrawal not approved: ${amount} ${asset}`
+            : `Withdrawal update: ${amount} ${asset}`,
+        heading: processed
+          ? "Withdrawal processed"
+          : failed
+            ? "Withdrawal could not be approved"
+            : "Withdrawal status updated",
+        preheader: "An update on your withdrawal request.",
+        details: [
+          { label: "Reference", value: reference },
+          { label: "Amount", value: `${amount} ${asset}` },
+          { label: "Asset", value: asset },
+          { label: "Date", value: new Date().toISOString() }
+        ],
+        statusLabel: processed ? "Completed" : failed ? "Rejected" : status,
+        statusTone: processed ? "positive" : failed ? "negative" : "gold",
+        ctaLabel: "View withdrawals",
+        ctaPath: "/transactions"
+      }
     });
   }
   return withdrawal;
+}
+
+/**
+ * Neutral, user-facing withdrawal status copy. The internal review reason is
+ * deliberately not echoed here so administrator notes and identities are never
+ * surfaced to the account holder.
+ */
+function withdrawalStatusUserMessage(status: string, reference: string, amount: string, asset: string): string {
+  if (status === "completed") {
+    return `Your withdrawal of ${amount} ${asset} has been processed successfully. Reference ${reference}.`;
+  }
+  if (status === "rejected" || status === "failed" || status === "cancelled") {
+    return `Your withdrawal of ${amount} ${asset} could not be approved. Please review the withdrawal details or contact support. Reference ${reference}.`;
+  }
+  return `Your withdrawal of ${amount} ${asset} is now ${status}. Reference ${reference}.`;
 }
 
 export async function listLedger(query: Record<string, unknown>) {

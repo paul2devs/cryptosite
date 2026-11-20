@@ -31,6 +31,7 @@ import { UserInvestmentLevel } from "../models/UserInvestmentLevel";
 import { UserInvestmentLevelBenefit } from "../models/UserInvestmentLevelBenefit";
 import { trackUserActivity } from "./activityService";
 import { getAllMarketPrices } from "./marketDataService";
+import { dispatchNotificationEmail } from "./notificationDispatchService";
 
 interface LevelSeed {
   number: number;
@@ -281,18 +282,44 @@ async function notifyInvestmentLevelChange(
   fromName: string | null,
   toName: string,
   amount: string,
-  benefitCount: number
+  benefitCount: number,
+  levelId: string
 ): Promise<void> {
   const transition = fromName ? `You advanced from ${fromName} to ${toName}` : `You reached ${toName}`;
+  const message = clip(
+    `${transition}. Your qualifying invested principal is $${amount}. ${benefitCount} investment level benefit${benefitCount === 1 ? "" : "s"} ${
+      benefitCount === 1 ? "is" : "are"
+    } now available on your account. Investment levels do not guarantee investment performance.`
+  );
   await Notification.create({
     type: "investment_level_upgrade",
-    message: clip(
-      `${transition}. Your qualifying invested principal is $${amount}. ${benefitCount} investment level benefit${benefitCount === 1 ? "" : "s"} ${
-        benefitCount === 1 ? "is" : "are"
-      } now available on your account. Investment levels do not guarantee investment performance.`
-    ),
+    message,
     user_id: userId
   });
+  const user = await User.findByPk(userId);
+  if (user) {
+    await dispatchNotificationEmail({
+      user,
+      type: "investment_level_upgrade",
+      message,
+      email: {
+        sourceId: `${userId}:${levelId}`,
+        subject: `Investment level upgraded: ${toName}`,
+        heading: `Investment level ${toName} unlocked`,
+        preheader: "Your investment level has been upgraded.",
+        details: [
+          { label: "New level", value: toName },
+          { label: "Qualifying principal", value: `$${amount}` },
+          { label: "Benefits available", value: String(benefitCount) },
+          { label: "Date", value: new Date().toISOString() }
+        ],
+        statusLabel: "Upgraded",
+        statusTone: "gold",
+        ctaLabel: "View investment levels",
+        ctaPath: "/investment-levels"
+      }
+    });
+  }
 }
 
 async function notifyApproachingNextLevel(userId: string, next: InvestmentLevel, remaining: string): Promise<void> {
@@ -410,7 +437,7 @@ export async function syncUserInvestmentLevel(
     if (createdLevel) {
       const benefitCount = await countBenefitsForLevel(createdLevel, levels);
       await provisionLevelBenefits(userId, createdLevel, await InvestmentLevelBenefit.findAll({ where: { active: true } }), numberById);
-      await notifyInvestmentLevelChange(userId, null, createdLevel.name, amount, benefitCount);
+      await notifyInvestmentLevelChange(userId, null, createdLevel.name, amount, benefitCount, createdLevel.level_config_id);
     }
     await trackUserActivity(userId, "configuration_change", {
       scope: "investment_level",
@@ -456,7 +483,7 @@ export async function syncUserInvestmentLevel(
   if (upgradedLevel) {
     const benefitCount = await countBenefitsForLevel(upgradedLevel, levels);
     await provisionLevelBenefits(userId, upgradedLevel, await InvestmentLevelBenefit.findAll({ where: { active: true } }), numberById);
-    await notifyInvestmentLevelChange(userId, currentLevel?.name ?? null, upgradedLevel.name, amount, benefitCount);
+    await notifyInvestmentLevelChange(userId, currentLevel?.name ?? null, upgradedLevel.name, amount, benefitCount, upgradedLevel.level_config_id);
   }
   await trackUserActivity(userId, "configuration_change", {
     scope: "investment_level",

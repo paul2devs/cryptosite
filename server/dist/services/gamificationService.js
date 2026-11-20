@@ -11,7 +11,7 @@ const Notification_1 = require("../models/Notification");
 const bonusService_1 = require("./bonusService");
 const socket_1 = require("../realtime/socket");
 const multiplierService_1 = require("./multiplierService");
-const emailService_1 = require("./email/emailService");
+const notificationDispatchService_1 = require("./notificationDispatchService");
 const STREAK_BONUS_PER_DAY = 0.02;
 const STREAK_BONUS_MAX = 0.5;
 const TIME_BONUS_MULTIPLIER = 0.1;
@@ -126,17 +126,32 @@ async function applyDepositGamification(user, deposit, options) {
     await user.save();
     await deposit.save();
     if (user.level > previousLevel) {
+        const levelMessage = `You reached level ${user.level}`;
         await Notification_1.Notification.create({
             type: "level_up",
-            message: `You reached level ${user.level}`,
+            message: levelMessage,
             user_id: user.user_id
         });
         (0, socket_1.emitLevelUpEvent)(user, user.level);
-        (0, emailService_1.sendLevelUpEmail)({
-            to: user.email,
-            name: user.name,
-            newLevel: user.level,
-            multiplierPreview: combinedMultiplier
+        await (0, notificationDispatchService_1.dispatchNotificationEmail)({
+            user,
+            type: "level_up",
+            message: levelMessage,
+            email: {
+                sourceId: `${user.user_id}:${user.level}`,
+                subject: `Level up unlocked: Level ${user.level}`,
+                heading: `Level ${user.level} unlocked`,
+                preheader: "Your progression just increased. Multipliers and rewards have improved.",
+                details: [
+                    { label: "New level", value: String(user.level) },
+                    { label: "Multiplier preview", value: `x${combinedMultiplier.toFixed(2)}` },
+                    { label: "Date", value: new Date().toISOString() }
+                ],
+                statusLabel: "Upgraded",
+                statusTone: "positive",
+                ctaLabel: "View rewards",
+                ctaPath: "/rewards"
+            }
         });
     }
     if (user.streak > 1) {

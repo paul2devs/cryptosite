@@ -32,6 +32,7 @@ const UserMembership_1 = require("../models/UserMembership");
 const UserReward_1 = require("../models/UserReward");
 const activityService_1 = require("./activityService");
 const financialNotificationService_1 = require("./financialNotificationService");
+const notificationDispatchService_1 = require("./notificationDispatchService");
 const financialOperationsService_1 = require("./financialOperationsService");
 const membershipService_1 = require("./membershipService");
 const DEFAULT_REWARDS = [
@@ -381,7 +382,24 @@ async function issueReward(input) {
         type: "reward_granted",
         templateKey: "rewardGranted",
         variables: { reward: input.name, amount, asset: input.asset, reference },
-        fallbackMessage: `Reward ${input.name} of ${amount} ${input.asset} granted to your account. Reference ${reference}.`
+        fallbackMessage: `Reward ${input.name} of ${amount} ${input.asset} granted to your account. Reference ${reference}.`,
+        email: {
+            sourceId: userRewardId,
+            subject: `Reward granted: ${input.name}`,
+            heading: "Reward granted",
+            preheader: "A new reward has been added to your account.",
+            details: [
+                { label: "Reward", value: input.name },
+                { label: "Amount", value: `${amount} ${input.asset}` },
+                { label: "Asset", value: input.asset },
+                { label: "Reference", value: reference },
+                { label: "Date", value: new Date().toISOString() }
+            ],
+            statusLabel: "Granted",
+            statusTone: "positive",
+            ctaLabel: "View rewards",
+            ctaPath: "/rewards"
+        }
     });
     await (0, activityService_1.trackUserActivity)(input.user.user_id, "reward_granted", {
         rewardId: input.rewardId,
@@ -600,7 +618,24 @@ async function redeemReward(userId, userRewardId) {
         type: "reward_redeemed",
         templateKey: "rewardRedeemed",
         variables: { reward: result.name, amount: result.amount, asset: result.asset, reference: result.reference },
-        fallbackMessage: `Reward ${result.name} of ${result.amount} ${result.asset} redeemed into your available balance. Reference ${result.reference}.`
+        fallbackMessage: `Reward ${result.name} of ${result.amount} ${result.asset} redeemed into your available balance. Reference ${result.reference}.`,
+        email: {
+            sourceId: result.userRewardId,
+            subject: `Reward redeemed: ${result.name}`,
+            heading: "Reward redeemed",
+            preheader: "Your reward has been redeemed into your available balance.",
+            details: [
+                { label: "Reward", value: result.name },
+                { label: "Amount", value: `${result.amount} ${result.asset}` },
+                { label: "Asset", value: result.asset },
+                { label: "Reference", value: result.reference },
+                { label: "Date", value: new Date().toISOString() }
+            ],
+            statusLabel: "Redeemed",
+            statusTone: "positive",
+            ctaLabel: "View balance",
+            ctaPath: "/portfolio"
+        }
     });
     await (0, activityService_1.trackUserActivity)(userId, "reward_redeemed", {
         userRewardId: result.userRewardId,
@@ -886,6 +921,30 @@ async function revokeUserReward(adminId, userRewardId, reason) {
         type: "reward_revoked",
         message: `Reward ${row.reward_name} was revoked. Reason: ${reason.trim()}`
     });
+    const revokedOwner = await User_1.User.findByPk(row.user_id);
+    if (revokedOwner) {
+        await (0, notificationDispatchService_1.dispatchNotificationEmail)({
+            user: revokedOwner,
+            type: "reward_revoked",
+            message: `Reward ${row.reward_name} was revoked. Reason: ${reason.trim()}`,
+            email: {
+                sourceId: userRewardId,
+                subject: `Reward update: ${row.reward_name}`,
+                heading: "Reward update",
+                preheader: "A reward on your account has been updated.",
+                details: [
+                    { label: "Reward", value: row.reward_name },
+                    { label: "Amount", value: `${(0, rewardRules_1.normalizeRewardAmount)(row.amount)} ${row.asset}` },
+                    { label: "Asset", value: String(row.asset) },
+                    { label: "Date", value: new Date().toISOString() }
+                ],
+                statusLabel: "Revoked",
+                statusTone: "negative",
+                ctaLabel: "View rewards",
+                ctaPath: "/rewards"
+            }
+        });
+    }
     await (0, activityService_1.trackUserActivity)(row.user_id, "reward_revoked", {
         userRewardId,
         name: row.reward_name,

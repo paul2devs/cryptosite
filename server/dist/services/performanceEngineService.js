@@ -199,7 +199,23 @@ async function recordProfitDistribution(adminId, input) {
         type: "profit_realised",
         templateKey: "profitRealised",
         variables: { amount, asset: input.asset, reference },
-        fallbackMessage: `Realised earnings of ${amount} ${input.asset} credited to your withdrawable balance. Reference ${reference}.`
+        fallbackMessage: `Realised earnings of ${amount} ${input.asset} credited to your withdrawable balance. Reference ${reference}.`,
+        email: {
+            sourceId: reference,
+            subject: `Earnings credited: ${amount} ${input.asset}`,
+            heading: "Investment earnings credited",
+            preheader: "Your realised investment earnings have been credited to your account.",
+            details: [
+                { label: "Reference", value: reference },
+                { label: "Amount", value: `${amount} ${input.asset}` },
+                { label: "Asset", value: input.asset },
+                { label: "Date", value: new Date().toISOString() }
+            ],
+            statusLabel: "Credited",
+            statusTone: "positive",
+            ctaLabel: "View balance",
+            ctaPath: "/portfolio"
+        }
     });
     return { userId: user.user_id, amount, asset: input.asset, reference };
 }

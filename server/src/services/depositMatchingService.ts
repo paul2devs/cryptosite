@@ -645,7 +645,7 @@ export async function rescanDeposit(depositId: string): Promise<RescanOutcome> {
         matched: true,
         advanced: true,
         reason:
-          "We've verified your transaction on the blockchain. It is now awaiting administrator approval.",
+          "We've verified your transaction on the blockchain. It is now awaiting platform verification.",
         txHash: deposit.tx_hash
       };
     }
@@ -712,7 +712,7 @@ export async function rescanDeposit(depositId: string): Promise<RescanOutcome> {
         matched: true,
         advanced: true,
         reason:
-          "We've verified your transaction on the blockchain. It is now awaiting administrator approval.",
+          "We've verified your transaction on the blockchain. It is now awaiting platform verification.",
         txHash: incoming.txHash
       };
     }

@@ -54,7 +54,7 @@ test("describes each status with a stable user-facing label and message", () => 
 
   // The awaiting-approval copy must tell the user the wallet is not credited yet.
   assert.ok(
-    depositStatusMessage("AWAITING_ADMIN_APPROVAL").includes("administrator approval")
+    depositStatusMessage("AWAITING_ADMIN_APPROVAL").includes("platform verification")
   );
 });
 

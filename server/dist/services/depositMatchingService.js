@@ -503,7 +503,7 @@ async function rescanDeposit(depositId) {
             return {
                 matched: true,
                 advanced: true,
-                reason: "We've verified your transaction on the blockchain. It is now awaiting administrator approval.",
+                reason: "We've verified your transaction on the blockchain. It is now awaiting platform verification.",
                 txHash: deposit.tx_hash
             };
         }
@@ -559,7 +559,7 @@ async function rescanDeposit(depositId) {
             return {
                 matched: true,
                 advanced: true,
-                reason: "We've verified your transaction on the blockchain. It is now awaiting administrator approval.",
+                reason: "We've verified your transaction on the blockchain. It is now awaiting platform verification.",
                 txHash: incoming.txHash
             };
         }

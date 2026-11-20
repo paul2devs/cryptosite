@@ -9,6 +9,7 @@ require("./EarningsLog");
 require("./EmailVerificationToken");
 require("./Level");
 require("./Notification");
+require("./NotificationDelivery");
 require("./PasswordResetToken");
 require("./Referral");
 require("./ReferralReward");

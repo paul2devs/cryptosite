@@ -1,73 +1,6 @@
 import { getAppBaseUrl } from "../emailClient";
 import { renderEmailLayout } from "./layout";
 
-export function renderDepositStatusEmail(args: {
-  name: string;
-  status: "Approved" | "Rejected" | "Pending";
-  amount: number;
-  asset: string;
-}): { subject: string; html: string } {
-  const baseUrl = getAppBaseUrl();
-  const subject = `Deposit ${args.status}: ${args.asset} ${formatAmount(args.amount)}`;
-  const accent = args.status === "Approved" ? "#16C784" : args.status === "Rejected" ? "#EA3943" : "#C6A15B";
-  const html = renderEmailLayout({
-    title: `Deposit ${args.status}`,
-    preheader: `Your ${args.asset} deposit was ${args.status.toLowerCase()}.`,
-    bodyHtml: `
-      <p style="margin:0 0 12px 0;">Hi <strong>${escapeInline(args.name)}</strong>,</p>
-      <div style="margin:14px 0;padding:14px;border-radius:16px;background:#17181A;border:1px solid rgba(38,39,43,0.9);">
-        <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">Asset</p>
-        <p style="margin:2px 0 10px 0;color:#F5F5F7;font-size:14px;line-height:20px;"><strong>${escapeInline(
-          args.asset
-        )}</strong></p>
-        <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">Amount</p>
-        <p style="margin:2px 0 10px 0;color:#F5F5F7;font-size:14px;line-height:20px;"><strong>${formatAmount(
-          args.amount
-        )}</strong></p>
-        <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">Status</p>
-        <p style="margin:2px 0 0 0;color:${accent};font-size:14px;line-height:20px;font-weight:800;">${escapeInline(
-          args.status
-        )}</p>
-      </div>
-      <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">Approved deposits increase your progression and can unlock higher multiplier tiers.</p>
-    `,
-    ctaLabel: "View deposits",
-    ctaHref: `${baseUrl}/deposit`
-  });
-  return { subject, html };
-}
-
-export function renderWithdrawalStatusEmail(args: {
-  name: string;
-  status: "Approved" | "Rejected" | "Pending";
-  amount: number;
-}): { subject: string; html: string } {
-  const baseUrl = getAppBaseUrl();
-  const subject = `Withdrawal ${args.status}: ${formatAmount(args.amount)}`;
-  const accent = args.status === "Approved" ? "#16C784" : args.status === "Rejected" ? "#EA3943" : "#C6A15B";
-  const html = renderEmailLayout({
-    title: `Withdrawal ${args.status}`,
-    preheader: `Your withdrawal was ${args.status.toLowerCase()}.`,
-    bodyHtml: `
-      <p style="margin:0 0 12px 0;">Hi <strong>${escapeInline(args.name)}</strong>,</p>
-      <div style="margin:14px 0;padding:14px;border-radius:16px;background:#17181A;border:1px solid rgba(38,39,43,0.9);">
-        <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">Amount</p>
-        <p style="margin:2px 0 10px 0;color:#F5F5F7;font-size:14px;line-height:20px;"><strong>${formatAmount(
-          args.amount
-        )}</strong></p>
-        <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">Status</p>
-        <p style="margin:2px 0 0 0;color:${accent};font-size:14px;line-height:20px;font-weight:800;">${escapeInline(
-          args.status
-        )}</p>
-      </div>
-      <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">Withdrawals are subject to internal review and security checks.</p>
-    `,
-    ctaLabel: "View withdrawals",
-    ctaHref: `${baseUrl}/withdraw`
-  });
-  return { subject, html };
-}
-
 export function renderReferralRewardEmail(args: {
   name: string;
   bonusPercent: number;
@@ -96,42 +29,6 @@ export function renderReferralRewardEmail(args: {
   return { subject, html };
 }
 
-export function renderLevelUpEmail(args: {
-  name: string;
-  newLevel: number;
-  multiplierPreview?: number;
-}): { subject: string; html: string } {
-  const baseUrl = getAppBaseUrl();
-  const subject = `Level up unlocked: Level ${args.newLevel}`;
-  const html = renderEmailLayout({
-    title: `Level ${args.newLevel} unlocked`,
-    preheader: "Your progression just increased. Multipliers and rewards have improved.",
-    bodyHtml: `
-      <p style="margin:0 0 12px 0;">Hi <strong>${escapeInline(args.name)}</strong>,</p>
-      <p style="margin:0 0 12px 0;">You’ve unlocked <strong>Level ${args.newLevel}</strong>. This upgrades your progression tier and improves how deposits translate into rewards.</p>
-      ${
-        typeof args.multiplierPreview === "number"
-          ? `<div style="margin:14px 0;padding:14px;border-radius:16px;background:#17181A;border:1px solid rgba(38,39,43,0.9);">
-        <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">Current multiplier preview</p>
-        <p style="margin:2px 0 0 0;color:#16C784;font-size:18px;line-height:24px;font-weight:800;">x${args.multiplierPreview.toFixed(
-          2
-        )}</p>
-      </div>`
-          : ""
-      }
-    `,
-    ctaLabel: "View dashboard",
-    ctaHref: `${baseUrl}/`
-  });
-  return { subject, html };
-}
-
-function formatAmount(amount: number): string {
-  if (!Number.isFinite(amount)) return "0";
-  const fixed = amount >= 100 ? amount.toFixed(2) : amount >= 1 ? amount.toFixed(4) : amount.toFixed(8);
-  return fixed.replace(/\.?0+$/, "");
-}
-
 function escapeInline(input: string): string {
   return String(input)
     .replace(/&/g, "&amp;")
@@ -140,4 +37,3 @@ function escapeInline(input: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
-

@@ -48,7 +48,7 @@ import {
 } from "./blockchainVerificationService";
 import { buildDepositQuote } from "./depositQuoteService";
 import { recordConfirmedDeposit } from "./financialOperationsService";
-import { sendDepositStatusEmail } from "./email/emailService";
+import { dispatchNotificationEmail } from "./notificationDispatchService";
 import { depositAssetSymbol, valueDepositInUsd } from "../domain/depositValuation";
 import { getAllMarketPrices } from "./marketDataService";
 
@@ -615,21 +615,40 @@ export async function createDepositRequest(
     crypto_type: cryptoType
   });
 
+  const createdMessage = `Deposit request ${created.reference} created. Send exactly ${trimNumberLabel(
+    numericCryptoAmount,
+    capability.decimals
+  )} ${capability.symbol} on the ${capability.networkLabel} network. Your transaction is awaiting platform verification before your wallet can be credited.`;
   await Notification.create({
     type: "deposit_created",
-    message: `Deposit request ${created.reference} created. Send exactly ${trimNumberLabel(
-      numericCryptoAmount,
-      capability.decimals
-    )} ${capability.symbol} on the ${capability.networkLabel} network. Admin approval is required before your wallet is credited.`,
+    message: createdMessage,
     user_id: request.userId
   });
 
-  sendDepositStatusEmail({
-    to: user.email,
-    name: user.name,
-    status: "Pending",
-    amount: numericCryptoAmount,
-    asset: cryptoType
+  await dispatchNotificationEmail({
+    user,
+    type: "deposit_created",
+    message: createdMessage,
+    email: {
+      sourceId: created.deposit_id,
+      subject: `Deposit submitted: ${capability.symbol}`,
+      heading: "Deposit request received",
+      preheader: "Your deposit request has been submitted and is awaiting payment.",
+      details: [
+        { label: "Reference", value: created.reference ?? created.deposit_id },
+        {
+          label: "Amount",
+          value: `${trimNumberLabel(numericCryptoAmount, capability.decimals)} ${capability.symbol}`
+        },
+        { label: "Network", value: capability.networkLabel },
+        { label: "Status", value: "Awaiting payment / platform verification" },
+        { label: "Date", value: new Date().toISOString() }
+      ],
+      statusLabel: "Submitted",
+      statusTone: "gold",
+      ctaLabel: "View deposit",
+      ctaPath: "/deposit"
+    }
   });
 
   return {
@@ -704,11 +723,42 @@ export async function applyVerificationResult(
     current.status = coarseStatusForDepositDetailed("AWAITING_ADMIN_APPROVAL");
     await current.save();
 
+    const awaitingRef = current.reference ?? current.deposit_id;
+    const awaitingMessage = `Deposit ${awaitingRef} was verified on-chain and is now awaiting platform verification.`;
     await Notification.create({
       type: "deposit_awaiting_approval",
-      message: `Deposit ${current.reference ?? current.deposit_id} was verified on-chain and is awaiting administrator approval.`,
+      message: awaitingMessage,
       user_id: current.user_id
     });
+
+    const awaitingUser = await User.findByPk(current.user_id);
+    if (awaitingUser) {
+      await dispatchNotificationEmail({
+        user: awaitingUser,
+        type: "deposit_awaiting_approval",
+        message: awaitingMessage,
+        email: {
+          sourceId: current.deposit_id,
+          subject: `Deposit verified: ${current.crypto_type}`,
+          heading: "Deposit verified on-chain",
+          preheader: "Your deposit has been verified and is now awaiting platform verification.",
+          details: [
+            { label: "Reference", value: awaitingRef },
+            {
+              label: "Amount",
+              value: `${current.received_amount ?? current.amount} ${current.crypto_type}`
+            },
+            { label: "Asset", value: current.crypto_type },
+            { label: "Confirmations", value: String(current.confirmation_count ?? 0) },
+            { label: "Date", value: new Date().toISOString() }
+          ],
+          statusLabel: "Awaiting platform verification",
+          statusTone: "gold",
+          ctaLabel: "View deposit",
+          ctaPath: "/deposit"
+        }
+      });
+    }
 
     return current;
   }
@@ -851,7 +901,7 @@ export async function submitDepositTransactionHash(input: {
       instructions: requireInstructions(deposit),
       verification: null,
       message:
-        "We've verified your transaction on the blockchain. It is now awaiting administrator approval."
+        "We've verified your transaction on the blockchain. It is now awaiting platform verification."
     };
   }
 
@@ -920,7 +970,7 @@ export async function submitDepositTransactionHash(input: {
   switch (verification.stage) {
     case "verified":
       message =
-        "We've verified your transaction on the blockchain. It is now awaiting administrator approval.";
+        "We've verified your transaction on the blockchain. It is now awaiting platform verification.";
       break;
     case "insufficient_confirmations":
       message = "We've detected your transaction and are checking its confirmations.";
@@ -947,12 +997,12 @@ export async function submitDepositTransactionHash(input: {
       // A persistent provider misconfiguration. Kept distinct from a bad
       // transaction so it is never mistaken for a failed or invalid transfer.
       message =
-        "We could not complete the blockchain check for this transaction. Your transaction hash has been saved and an administrator will reconcile it.";
+        "We could not complete the blockchain check for this transaction. Your transaction hash has been saved and will be reconciled through our platform review process.";
       break;
     default:
       message =
         verification.failureReason ||
-        "We could not verify this transaction right now. Your deposit stays pending and will be reconciled by an administrator.";
+        "We could not verify this transaction right now. Your deposit stays pending and will be reconciled through our platform review process.";
       break;
   }
 
@@ -1169,15 +1219,6 @@ async function runApprovedDepositSideEffects(deposit: Deposit): Promise<void> {
   });
 
   const user = await User.findByPk(deposit.user_id);
-  if (user) {
-    sendDepositStatusEmail({
-      to: user.email,
-      name: user.name,
-      status: "Approved",
-      amount,
-      asset: deposit.crypto_type
-    });
-  }
 
   await trackUserActivity(deposit.user_id, "deposit_confirmed", {
     deposit_id: deposit.deposit_id,
@@ -1281,18 +1322,35 @@ export async function rejectDeposit(
 
   if (outcome.rejected) {
     const user = await User.findByPk(outcome.deposit.user_id);
+    const rejectedRef = outcome.deposit.reference ?? outcome.deposit.deposit_id;
+    const rejectedAmount = Number(outcome.deposit.amount);
+    const rejectedMessage = `Deposit ${rejectedRef} was rejected. Reason: ${trimmed}`;
     await Notification.create({
       type: "deposit_rejected",
-      message: `Deposit ${outcome.deposit.reference ?? outcome.deposit.deposit_id} was rejected. Reason: ${trimmed}`,
+      message: rejectedMessage,
       user_id: outcome.deposit.user_id
     });
     if (user) {
-      sendDepositStatusEmail({
-        to: user.email,
-        name: user.name,
-        status: "Rejected",
-        amount: Number(outcome.deposit.amount),
-        asset: outcome.deposit.crypto_type
+      await dispatchNotificationEmail({
+        user,
+        type: "deposit_rejected",
+        message: rejectedMessage,
+        email: {
+          sourceId: outcome.deposit.deposit_id,
+          subject: `Deposit not approved: ${outcome.deposit.crypto_type}`,
+          heading: "Deposit could not be approved",
+          preheader: "Your deposit could not be approved.",
+          details: [
+            { label: "Reference", value: rejectedRef },
+            { label: "Amount", value: `${rejectedAmount} ${outcome.deposit.crypto_type}` },
+            { label: "Asset", value: outcome.deposit.crypto_type },
+            { label: "Date", value: new Date().toISOString() }
+          ],
+          statusLabel: "Rejected",
+          statusTone: "negative",
+          ctaLabel: "View deposit",
+          ctaPath: "/deposit"
+        }
       });
     }
     await trackUserActivity(outcome.deposit.user_id, "deposit_rejected", {
@@ -1337,11 +1395,36 @@ export async function expireStaleDeposits(): Promise<number> {
     );
     if (updated > 0) {
       count += 1;
+      const expiredRef = deposit.reference ?? deposit.deposit_id;
+      const expiredMessage = `Deposit request ${expiredRef} expired before a matching transfer was detected.`;
       await Notification.create({
         type: "deposit_expired",
-        message: `Deposit request ${deposit.reference ?? deposit.deposit_id} expired before a matching transfer was detected.`,
+        message: expiredMessage,
         user_id: deposit.user_id
       });
+      const expiredUser = await User.findByPk(deposit.user_id);
+      if (expiredUser) {
+        await dispatchNotificationEmail({
+          user: expiredUser,
+          type: "deposit_expired",
+          message: expiredMessage,
+          email: {
+            sourceId: deposit.deposit_id,
+            subject: `Deposit request expired: ${deposit.crypto_type}`,
+            heading: "Deposit request expired",
+            preheader: "Your deposit request expired before a matching transfer was detected.",
+            details: [
+              { label: "Reference", value: expiredRef },
+              { label: "Asset", value: deposit.crypto_type },
+              { label: "Date", value: new Date().toISOString() }
+            ],
+            statusLabel: "Expired",
+            statusTone: "negative",
+            ctaLabel: "Start a new deposit",
+            ctaPath: "/deposit"
+          }
+        });
+      }
     }
   }
 

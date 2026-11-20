@@ -6,14 +6,13 @@ exports.sendEmailVerificationEmail = sendEmailVerificationEmail;
 exports.sendWelcomeEmail = sendWelcomeEmail;
 exports.sendPasswordResetEmail = sendPasswordResetEmail;
 exports.sendPasswordChangedEmail = sendPasswordChangedEmail;
-exports.sendDepositStatusEmail = sendDepositStatusEmail;
-exports.sendWithdrawalStatusEmail = sendWithdrawalStatusEmail;
 exports.sendReferralRewardEmail = sendReferralRewardEmail;
-exports.sendLevelUpEmail = sendLevelUpEmail;
+exports.sendAccountEventEmail = sendAccountEventEmail;
 const emailClient_1 = require("./emailClient");
 const account_1 = require("./templates/account");
 const activity_1 = require("./templates/activity");
 const verification_1 = require("./templates/verification");
+const events_1 = require("./templates/events");
 const emailClient_2 = require("./emailClient");
 function safeFireAndForget(promise) {
     promise.catch((err) => {
@@ -73,27 +72,29 @@ function sendPasswordChangedEmail(args) {
     const { subject, html } = (0, account_1.renderPasswordChangedEmail)({ name: args.name });
     safeFireAndForget((0, emailClient_1.sendEmail)({ to: args.to, subject, html }));
 }
-function sendDepositStatusEmail(args) {
-    if (!(0, emailClient_2.isEmailEnabled)())
-        return;
-    const { subject, html } = (0, activity_1.renderDepositStatusEmail)(args);
-    safeFireAndForget((0, emailClient_1.sendEmail)({ to: args.to, subject, html }));
-}
-function sendWithdrawalStatusEmail(args) {
-    if (!(0, emailClient_2.isEmailEnabled)())
-        return;
-    const { subject, html } = (0, activity_1.renderWithdrawalStatusEmail)(args);
-    safeFireAndForget((0, emailClient_1.sendEmail)({ to: args.to, subject, html }));
-}
 function sendReferralRewardEmail(args) {
     if (!(0, emailClient_2.isEmailEnabled)())
         return;
     const { subject, html } = (0, activity_1.renderReferralRewardEmail)(args);
     safeFireAndForget((0, emailClient_1.sendEmail)({ to: args.to, subject, html }));
 }
-function sendLevelUpEmail(args) {
-    if (!(0, emailClient_2.isEmailEnabled)())
-        return;
-    const { subject, html } = (0, activity_1.renderLevelUpEmail)(args);
-    safeFireAndForget((0, emailClient_1.sendEmail)({ to: args.to, subject, html }));
+/**
+ * Polymorphic account-event email (deposits, withdrawals, investments,
+ * earnings, rewards, membership and security events). Rendered through the one
+ * shared `renderAccountEventEmail` template so every financial/account email
+ * keeps NexaCrypto branding and a consistent layout.
+ *
+ * Unlike the fire-and-forget helpers above, this resolves/rejects with the real
+ * transport outcome so the caller can record an accurate delivery status and
+ * retry a failure — it is never used to gate a financial transaction.
+ */
+async function sendAccountEventEmail(args) {
+    const { subject, html } = (0, events_1.renderAccountEventEmail)(args);
+    const detailLines = (args.details ?? [])
+        .map((detail) => `${detail.label}: ${detail.value}`)
+        .join("\n");
+    const text = [args.heading, "", args.message, detailLines ? `\n${detailLines}` : ""]
+        .join("\n")
+        .trim();
+    await (0, emailClient_1.sendEmail)({ to: args.to, subject, html, text });
 }

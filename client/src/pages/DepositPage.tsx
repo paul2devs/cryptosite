@@ -289,7 +289,7 @@ export function DepositPage() {
     <div className="page-responsive borderless-ui min-w-0 space-y-8 overflow-x-hidden sm:space-y-10">
       <Seo
         title="Deposit – add funds with verified on-chain payments"
-        description="Add funds to your account using supported crypto assets and networks. Every deposit is verified independently on-chain and approved by an administrator before it is credited."
+        description="Add funds to your account using supported crypto assets and networks. Every deposit is verified independently on-chain and reviewed by the platform before it is credited."
         path="/deposit"
         robots="noindex,nofollow"
       />

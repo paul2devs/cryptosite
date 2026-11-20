@@ -5,6 +5,7 @@ exports.notificationEnabled = notificationEnabled;
 exports.notifyFinancialEvent = notifyFinancialEvent;
 const Notification_1 = require("../models/Notification");
 const User_1 = require("../models/User");
+const notificationDispatchService_1 = require("./notificationDispatchService");
 const platformSettingsService_1 = require("./platformSettingsService");
 const NOTIFICATION_FLAG = {
     deposit_confirmed: "deposit_updates",
@@ -45,10 +46,16 @@ async function notifyFinancialEvent(input) {
     const templates = await (0, platformSettingsService_1.getNotificationTemplates)();
     const template = templates[input.templateKey] || input.fallbackMessage;
     const message = renderTemplate(template, input.variables).slice(0, 500);
-    const existing = await Notification_1.Notification.findOne({
+    let notification = await Notification_1.Notification.findOne({
         where: { user_id: input.userId, type: input.type, message }
     });
-    if (existing)
-        return existing;
-    return Notification_1.Notification.create({ user_id: input.userId, type: input.type, message });
+    if (!notification) {
+        notification = await Notification_1.Notification.create({ user_id: input.userId, type: input.type, message });
+    }
+    if (input.email) {
+        // Best-effort and never throws: the in-app notification above is the source
+        // of truth and is always preserved even if the email cannot be sent.
+        await (0, notificationDispatchService_1.dispatchNotificationEmail)({ user, type: input.type, message, email: input.email });
+    }
+    return notification;
 }

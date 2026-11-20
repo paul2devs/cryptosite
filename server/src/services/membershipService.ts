@@ -21,6 +21,7 @@ import { UserBenefitActivation } from "../models/UserBenefitActivation";
 import { UserMembership } from "../models/UserMembership";
 import { trackUserActivity } from "./activityService";
 import { getAllMarketPrices } from "./marketDataService";
+import { dispatchNotificationEmail } from "./notificationDispatchService";
 
 const DEFAULT_TIERS = [
   { name: "Bronze", min: "100.00", max: "999.99", sort: 1, icon: "bronze", accent: "#B87333", description: "Entry membership, unlocked from $100 in confirmed deposits.", benefits: ["Discounted platform fees", "Welcome promotional credit"] },
@@ -178,13 +179,38 @@ export async function calculateQualifyingAmount(userId: string): Promise<{ amoun
   return { amount: formatDecimal(total, 2), complete: true };
 }
 
-async function notifyMembershipTierChange(userId: string, fromName: string | null, toName: string, amount: string, benefitCount: number): Promise<void> {
+async function notifyMembershipTierChange(userId: string, fromName: string | null, toName: string, amount: string, benefitCount: number, tierId: string): Promise<void> {
   const transition = fromName ? `You moved from ${fromName} to ${toName}` : `You reached ${toName}`;
+  const message = clip(`${transition}. Your confirmed qualifying amount is $${amount}. ${benefitCount} membership benefit${benefitCount === 1 ? "" : "s"} are now available on your account.`);
   await Notification.create({
     type: "membership_upgrade",
-    message: clip(`${transition}. Your confirmed qualifying amount is $${amount}. ${benefitCount} membership benefit${benefitCount === 1 ? "" : "s"} are now available on your account.`),
+    message,
     user_id: userId
   });
+  const user = await User.findByPk(userId);
+  if (user) {
+    await dispatchNotificationEmail({
+      user,
+      type: "membership_upgrade",
+      message,
+      email: {
+        sourceId: `${userId}:${tierId}`,
+        subject: `Membership upgraded: ${toName}`,
+        heading: `Welcome to ${toName}`,
+        preheader: "Your membership tier has been upgraded.",
+        details: [
+          { label: "New tier", value: toName },
+          { label: "Qualifying amount", value: `$${amount}` },
+          { label: "Benefits available", value: String(benefitCount) },
+          { label: "Date", value: new Date().toISOString() }
+        ],
+        statusLabel: "Upgraded",
+        statusTone: "gold",
+        ctaLabel: "View benefits",
+        ctaPath: "/settings"
+      }
+    });
+  }
 }
 
 async function notifyApproachingNextTier(userId: string, next: MembershipTier, remaining: string): Promise<void> {
@@ -286,7 +312,7 @@ export async function syncUserMembership(userId: string, reason = "Qualified fro
     if (createdTier) {
       const benefitCount = await countBenefitsForTier(createdTier, tiers);
       await provisionTierBenefits(userId, createdTier, await MembershipBenefit.findAll({ where: { active: true } }), new Map(tiers.map((tier) => [tier.tier_id, tier.sort_order])));
-      await notifyMembershipTierChange(userId, null, createdTier.name, amount, benefitCount);
+      await notifyMembershipTierChange(userId, null, createdTier.name, amount, benefitCount, createdTier.tier_id);
     }
     await trackUserActivity(userId, "membership_upgrade", {
       fromTierId: null,
@@ -333,7 +359,7 @@ export async function syncUserMembership(userId: string, reason = "Qualified fro
   if (upgradedTier) {
     const benefitCount = await countBenefitsForTier(upgradedTier, tiers);
     await provisionTierBenefits(userId, upgradedTier, await MembershipBenefit.findAll({ where: { active: true } }), new Map(tiers.map((tier) => [tier.tier_id, tier.sort_order])));
-    await notifyMembershipTierChange(userId, currentTier?.name ?? null, upgradedTier.name, amount, benefitCount);
+    await notifyMembershipTierChange(userId, currentTier?.name ?? null, upgradedTier.name, amount, benefitCount, upgradedTier.tier_id);
   }
   await trackUserActivity(userId, "membership_upgrade", {
     fromTierId: currentTier?.tier_id ?? null,
