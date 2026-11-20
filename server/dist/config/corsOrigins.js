@@ -14,10 +14,7 @@ exports.defaultAllowedOrigins = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://nexocrypto.org",
-    "https://www.nexocrypto.org",
-    // Legacy frontend deployment kept allow-listed so Vercel preview deployments
-    // keep reaching the API during the domain migration.
-    "https://cryptosite-seven.vercel.app"
+    "https://www.nexocrypto.org"
 ];
 function configuredOrigins() {
     return (process.env.CORS_ORIGIN || "")

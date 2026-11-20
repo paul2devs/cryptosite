@@ -4,11 +4,11 @@ import {
   renderBrandEmailShell,
   renderBrandFooter,
   renderBrandHeader,
+  renderDetailCard,
   renderEmailButton,
   renderFallbackLink,
   renderHero,
-  renderInfoBlock,
-  renderVerificationEmblem
+  renderNotice
 } from "./brand";
 
 export interface VerificationEmailContent {
@@ -20,15 +20,15 @@ export interface VerificationEmailContent {
 /**
  * The NexaCrypto verification email.
  *
- * The layout is composed from the shared branded email primitives so this
- * message inherits the same premium visual language as every other
- * transactional email. It intentionally contains no images: the hero emblem is
- * drawn with HTML/CSS so the message still reads as a designed product
- * experience when remote images are blocked.
+ * Composed from the shared branded email primitives so this message inherits
+ * the same design language as every other transactional email. The real
+ * NexaCrypto logo is used in the header (served from the official domain) with
+ * the wordmark as fallback alt text when remote images are blocked.
  *
  * `verifyUrl` is the only sensitive value and is always passed through the
  * escaping helpers inside the template primitives, so it can never inject
- * markup into the message.
+ * markup into the message. The CTA button and the plain-text fallback link
+ * always point at the exact same URL/token.
  */
 export function renderVerificationEmail(args: {
   name?: string;
@@ -49,10 +49,10 @@ export function renderVerificationEmail(args: {
 
   const contentHtml = `${renderBrandHeader({ label: "Account Security" })}
 ${renderHero({
-  heading: "One last step. Verify your email.",
+  eyebrow: "Verify your email",
+  heading: "One last step to activate your account",
   support:
-    "Your NexaCrypto account is almost ready. Confirm your email address to securely continue.",
-  visualHtml: renderVerificationEmblem()
+    "Confirm this email address to secure your NexaCrypto account, then start investing with confidence."
 })}
 ${greetingHtml}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -68,12 +68,21 @@ ${renderFallbackLink({
     "Having trouble with the button? Copy and paste the secure link below into your browser.",
   url: args.verifyUrl
 })}
-${renderInfoBlock({
-  title: "Link expiration",
-  body: `This verification link expires in ${expiresMinutes} minutes. If it expires, you can request another verification email from the verification screen.`
+${renderDetailCard({
+  title: "Verification details",
+  rows: [
+    { label: "Link expires in", value: `${expiresMinutes} minutes`, emphasize: true },
+    { label: "Single use", value: "This link can only be used once" }
+  ]
 })}
-${renderInfoBlock({
-  title: "Security notice",
+${renderNotice({
+  title: "Time-sensitive",
+  tone: "warning",
+  body: `This verification link expires in ${expiresMinutes} minutes. If it expires, request another verification email from the verification screen.`
+})}
+${renderNotice({
+  title: "Didn't sign up?",
+  tone: "neutral",
   body: "If you didn't create a NexaCrypto account, you can safely ignore this email. No action is required."
 })}
 ${renderBrandFooter({ websiteUrl })}`;

@@ -1,36 +1,53 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TONE = exports.BRAND = void 0;
+exports.escapeHtml = escapeHtml;
+exports.escapeAttr = escapeAttr;
+exports.emailLogoUrl = emailLogoUrl;
+exports.renderBrandHeader = renderBrandHeader;
+exports.renderEyebrow = renderEyebrow;
+exports.renderHero = renderHero;
+exports.renderEmailButton = renderEmailButton;
+exports.renderFallbackLink = renderFallbackLink;
+exports.renderDetailCard = renderDetailCard;
+exports.renderNotice = renderNotice;
+exports.renderInfoBlock = renderInfoBlock;
+exports.renderDivider = renderDivider;
+exports.renderBrandFooter = renderBrandFooter;
+exports.renderBrandEmailShell = renderBrandEmailShell;
 /**
  * NexaCrypto branded email design system.
  *
  * Email HTML is not website HTML: these primitives deliberately use
  * table-based layout, inline CSS and no JavaScript so the design renders
  * predictably in Gmail, Outlook, Apple Mail and mobile clients. Media queries
- * are used only as progressive enhancement, and the layout keeps its shape even
- * when images are blocked (the design uses no images at all).
+ * are used only as progressive enhancement, and solid hex colours are used
+ * instead of rgba() so the layout keeps its shape in Outlook.
  *
  * Every dynamic value must be passed through `escapeHtml` / `escapeAttr` so a
  * value can never inject markup into a message.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.BRAND = void 0;
-exports.escapeHtml = escapeHtml;
-exports.escapeAttr = escapeAttr;
-exports.renderBrandHeader = renderBrandHeader;
-exports.renderVerificationEmblem = renderVerificationEmblem;
-exports.renderHero = renderHero;
-exports.renderEmailButton = renderEmailButton;
-exports.renderFallbackLink = renderFallbackLink;
-exports.renderInfoBlock = renderInfoBlock;
-exports.renderBrandFooter = renderBrandFooter;
-exports.renderBrandEmailShell = renderBrandEmailShell;
+const emailClient_1 = require("../emailClient");
 exports.BRAND = {
     canvas: "#0B0C0E",
     container: "#111315",
     surface: "#17191C",
+    surfaceRaised: "#1C1E22",
     text: "#F5F5F7",
     textMuted: "#92969D",
+    textFaint: "#6B7280",
     gold: "#C6A15B",
-    border: "rgba(255,255,255,0.09)"
+    goldSoft: "#E7C989",
+    border: "#26272B",
+    borderStrong: "#33353A"
+};
+/** Tone palette: accent (border/marker), tint (card background), text (value). */
+exports.TONE = {
+    info: { accent: exports.BRAND.gold, tint: "#1A1712", text: exports.BRAND.goldSoft },
+    positive: { accent: "#16C784", tint: "#0F1A16", text: "#4FE0A6" },
+    negative: { accent: "#EA3943", tint: "#1A1011", text: "#F08A84" },
+    warning: { accent: "#F0B429", tint: "#1A160D", text: "#F6CE6B" },
+    neutral: { accent: "#6B7280", tint: exports.BRAND.surface, text: "#C7CBD1" }
 };
 const HEADING_FONT = "'Space Grotesk','Segoe UI',Helvetica,Arial,sans-serif";
 const BODY_FONT = "Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -45,26 +62,28 @@ function escapeHtml(input) {
 function escapeAttr(input) {
     return escapeHtml(input).replace(/`/g, "&#96;");
 }
-/** Brand wordmark: a gold monogram tile plus the NexaCrypto wordmark. */
+/** The real NexaCrypto brand icon (lightweight PNG that renders in every client). */
+function emailLogoUrl() {
+    return `${(0, emailClient_1.getAppBaseUrl)()}/icon-192.png`;
+}
+/**
+ * Brand header: the real NexaCrypto logo mark followed by the wordmark and a
+ * context label (for example "Account Security"). No placeholder monogram tile.
+ */
 function renderBrandHeader(args) {
     const label = escapeHtml(args.label.toUpperCase());
+    const logoUrl = escapeAttr(emailLogoUrl());
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
-    <td style="padding:28px 0 34px 0;">
+    <td style="padding:6px 0 30px 0;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td style="vertical-align:middle;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="34" style="width:34px;">
-              <tr>
-                <td align="center" valign="middle" width="34" height="34" style="width:34px;height:34px;background:${exports.BRAND.surface};border:1px solid rgba(198,161,91,0.5);border-radius:10px;font-family:${HEADING_FONT};font-size:13px;font-weight:700;letter-spacing:0.06em;color:${exports.BRAND.gold};">
-                  NX
-                </td>
-              </tr>
-            </table>
+            <img src="${logoUrl}" width="40" height="40" alt="NexaCrypto" style="display:block;width:40px;height:40px;border:0;outline:none;text-decoration:none;border-radius:11px;" />
           </td>
           <td style="padding-left:12px;vertical-align:middle;">
-            <div style="font-family:${HEADING_FONT};font-size:17px;font-weight:700;letter-spacing:0.01em;color:${exports.BRAND.text};line-height:22px;">NexaCrypto</div>
-            <div style="font-family:${BODY_FONT};font-size:10px;font-weight:600;letter-spacing:0.22em;color:${exports.BRAND.gold};line-height:16px;">${label}</div>
+            <div style="font-family:${HEADING_FONT};font-size:18px;font-weight:700;letter-spacing:0.01em;color:${exports.BRAND.text};line-height:22px;">NexaCrypto</div>
+            <div style="font-family:${BODY_FONT};font-size:10px;font-weight:700;letter-spacing:0.22em;color:${exports.BRAND.gold};line-height:16px;">${label}</div>
           </td>
         </tr>
       </table>
@@ -72,58 +91,46 @@ function renderBrandHeader(args) {
   </tr>
 </table>`;
 }
-/**
- * Research hero: the emblem is drawn entirely with HTML/CSS so it renders even
- * with images disabled and never depends on a hosted asset.
- */
-function renderVerificationEmblem() {
-    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin:0 0 22px 0;">
-  <tr>
-    <td align="center" valign="middle" width="72" height="72" style="width:72px;height:72px;border:1px solid rgba(198,161,91,0.45);border-radius:50%;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="52" style="width:52px;">
-        <tr>
-          <td align="center" valign="middle" width="52" height="52" style="width:52px;height:52px;background:${exports.BRAND.surface};border:1px solid ${exports.BRAND.border};border-radius:50%;font-family:${HEADING_FONT};font-size:16px;font-weight:700;letter-spacing:0.12em;color:${exports.BRAND.gold};">
-            NX
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" style="padding-top:12px;font-family:${BODY_FONT};font-size:10px;font-weight:600;letter-spacing:0.2em;color:${exports.BRAND.textMuted};white-space:nowrap;">
-      SECURE LINK
-    </td>
-  </tr>
-</table>`;
+/** Small gold kicker rendered above a heading. */
+function renderEyebrow(text) {
+    return `<div style="font-family:${BODY_FONT};font-size:10px;font-weight:700;letter-spacing:0.22em;color:${exports.BRAND.gold};padding:0 0 10px 0;">${escapeHtml(text.toUpperCase())}</div>`;
 }
+/** Hero heading with optional eyebrow and support copy. */
 function renderHero(args) {
-    const visual = args.visualHtml
-        ? `<div style="margin:0 0 20px 0;">${args.visualHtml}</div>`
+    const eyebrow = args.eyebrow ? renderEyebrow(args.eyebrow) : "";
+    const visual = args.visualHtml ? `<div style="margin:0 0 20px 0;">${args.visualHtml}</div>` : "";
+    const support = args.support
+        ? `<p style="margin:12px 0 0 0;font-family:${BODY_FONT};font-size:15px;line-height:24px;color:${exports.BRAND.textMuted};">${escapeHtml(args.support)}</p>`
         : "";
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
     <td style="padding:0 0 4px 0;">
       ${visual}
-      <h1 class="hero-heading" style="margin:0 0 12px 0;font-family:${HEADING_FONT};font-size:30px;line-height:38px;font-weight:700;letter-spacing:-0.01em;color:${exports.BRAND.text};">
+      ${eyebrow}
+      <h1 class="hero-heading" style="margin:0;font-family:${HEADING_FONT};font-size:29px;line-height:37px;font-weight:700;letter-spacing:-0.01em;color:${exports.BRAND.text};">
         ${escapeHtml(args.heading)}
       </h1>
-      <p style="margin:0;font-family:${BODY_FONT};font-size:15px;line-height:24px;color:${exports.BRAND.textMuted};">
-        ${escapeHtml(args.support)}
-      </p>
+      ${support}
     </td>
   </tr>
 </table>`;
 }
-/** Email-safe gold call-to-action button (table based, no images, no JS). */
+/** Email-safe call-to-action button (table based, no images, no JS). */
 function renderEmailButton(args) {
+    const secondary = args.variant === "secondary";
+    const bg = secondary ? "transparent" : exports.BRAND.gold;
+    const color = secondary ? exports.BRAND.text : exports.BRAND.canvas;
+    const border = secondary ? `1px solid ${exports.BRAND.borderStrong}` : "none";
+    const bgAttr = secondary ? "" : ` bgcolor="${exports.BRAND.gold}"`;
     return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0 0 0;">
   <tr>
-    <td align="center" bgcolor="${exports.BRAND.gold}" style="background:${exports.BRAND.gold};border-radius:10px;">
-      <a class="btn" href="${escapeAttr(args.href)}" style="display:inline-block;padding:15px 30px;font-family:${HEADING_FONT};font-size:14px;font-weight:700;letter-spacing:0.08em;color:${exports.BRAND.canvas};text-decoration:none;border-radius:10px;">${escapeHtml(args.label)}</a>
+    <td align="center"${bgAttr} style="background:${bg};border:${border};border-radius:10px;">
+      <a class="btn" href="${escapeAttr(args.href)}" style="display:inline-block;padding:15px 30px;font-family:${HEADING_FONT};font-size:14px;font-weight:700;letter-spacing:0.08em;color:${color};text-decoration:none;border-radius:10px;">${escapeHtml(args.label)}</a>
     </td>
   </tr>
 </table>`;
 }
+/** Plain-text fallback link block (used by the verification email). */
 function renderFallbackLink(args) {
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0 0 0;">
   <tr>
@@ -138,17 +145,87 @@ function renderFallbackLink(args) {
   </tr>
 </table>`;
 }
-function renderInfoBlock(args) {
-    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+/**
+ * Structured "summary" card: label/value rows plus an optional coloured status.
+ * Replaces the ad-hoc inline cards so every email shows transaction data the
+ * same way.
+ */
+function renderDetailCard(args) {
+    const rows = (args.rows ?? []).filter((row) => String(row.label).trim().length > 0);
+    if (rows.length === 0 && !args.statusLabel)
+        return "";
+    const title = args.title
+        ? `<tr><td style="padding:0 0 12px 0;font-family:${BODY_FONT};font-size:10px;font-weight:700;letter-spacing:0.2em;color:${exports.BRAND.gold};">${escapeHtml(args.title.toUpperCase())}</td></tr>`
+        : "";
+    const rowHtml = rows
+        .map((row, index) => {
+        const divider = index === 0 ? "" : `<tr><td style="border-top:1px solid ${exports.BRAND.border};font-size:0;line-height:0;">&nbsp;</td></tr>`;
+        const valueStyle = row.emphasize
+            ? `font-family:${HEADING_FONT};font-size:18px;line-height:26px;font-weight:700;color:${exports.BRAND.text};`
+            : `font-family:${BODY_FONT};font-size:14px;line-height:21px;color:${exports.BRAND.text};`;
+        return `${divider}
+      <tr>
+        <td style="padding:12px 0;">
+          <div style="font-family:${BODY_FONT};font-size:11px;line-height:16px;letter-spacing:0.04em;color:${exports.BRAND.textFaint};">${escapeHtml(row.label)}</div>
+          <div style="padding-top:3px;${valueStyle}word-break:break-word;">${escapeHtml(row.value)}</div>
+        </td>
+      </tr>`;
+    })
+        .join("");
+    const status = args.statusLabel
+        ? (() => {
+            const tone = exports.TONE[args.statusTone ?? "info"];
+            const firstRow = rows.length === 0;
+            return `<tr><td style="padding:${firstRow ? "0" : "12px 0 0 0"};">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td width="8" height="8" style="width:8px;height:8px;background:${tone.accent};border-radius:999px;font-size:0;line-height:0;">&nbsp;</td>
+              <td style="padding-left:8px;font-family:${BODY_FONT};font-size:13px;line-height:18px;font-weight:700;color:${tone.text};">${escapeHtml(args.statusLabel)}</td>
+            </tr>
+          </table>
+        </td></tr>`;
+        })()
+        : "";
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0 0;">
   <tr>
-    <td style="padding:22px 0 0 0;border-top:1px solid ${exports.BRAND.border};">
-      <div style="font-family:${BODY_FONT};font-size:10px;font-weight:700;letter-spacing:0.2em;color:${exports.BRAND.gold};padding:0 0 8px 0;">
-        ${escapeHtml(args.title.toUpperCase())}
-      </div>
-      <p style="margin:0;font-family:${BODY_FONT};font-size:13px;line-height:21px;color:${exports.BRAND.textMuted};">
-        ${escapeHtml(args.body)}
-      </p>
+    <td style="background:${exports.BRAND.surface};border:1px solid ${exports.BRAND.border};border-radius:14px;padding:18px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${title}
+        ${rowHtml}
+        ${status}
+      </table>
     </td>
+  </tr>
+</table>`;
+}
+/**
+ * Tone-aware callout with a coloured left accent and an optional title. Used
+ * for security notes, expirations, and other supporting information.
+ */
+function renderNotice(args) {
+    const tone = exports.TONE[args.tone ?? "info"];
+    const title = args.title
+        ? `<div style="font-family:${BODY_FONT};font-size:10px;font-weight:700;letter-spacing:0.2em;color:${tone.accent};padding:0 0 6px 0;">${escapeHtml(args.title.toUpperCase())}</div>`
+        : "";
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0 0;">
+  <tr>
+    <td width="3" style="width:3px;background:${tone.accent};border-radius:999px;font-size:0;line-height:0;">&nbsp;</td>
+    <td style="padding:0 0 0 14px;">
+      ${title}
+      <div style="font-family:${BODY_FONT};font-size:13px;line-height:21px;color:${exports.BRAND.textMuted};">${escapeHtml(args.body)}</div>
+    </td>
+  </tr>
+</table>`;
+}
+/** Backwards-compatible alias for a titled notice. */
+function renderInfoBlock(args) {
+    return renderNotice({ title: args.title, body: args.body, tone: "info" });
+}
+/** A hairline divider with breathing room. */
+function renderDivider() {
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0 0 0;">
+  <tr>
+    <td style="border-top:1px solid ${exports.BRAND.border};font-size:0;line-height:0;">&nbsp;</td>
   </tr>
 </table>`;
 }
@@ -164,9 +241,9 @@ function renderBrandFooter(args) {
         Your investments. Your direction.
       </div>
       <div style="font-family:${BODY_FONT};font-size:12px;line-height:19px;">
-        <a href="${escapeAttr(args.websiteUrl)}" style="color:${exports.BRAND.gold};text-decoration:none;">nexacrypto.com</a>
+        <a href="${escapeAttr(args.websiteUrl)}" style="color:${exports.BRAND.gold};text-decoration:none;">nexocrypto.org</a>
       </div>
-      <div style="font-family:${BODY_FONT};font-size:11px;line-height:18px;color:#6B7280;padding:16px 0 0 0;">
+      <div style="font-family:${BODY_FONT};font-size:11px;line-height:18px;color:${exports.BRAND.textFaint};padding:16px 0 0 0;">
         &copy; ${year} NexaCrypto. All rights reserved.
       </div>
     </td>
@@ -175,7 +252,7 @@ function renderBrandFooter(args) {
 }
 /**
  * Shared outer canvas: full-width dark background, centred 600px container with
- * a restrained gold rule at the top. Reused by every transactional email.
+ * a gold accent rule at the top. Reused by every transactional email.
  */
 function renderBrandEmailShell(args) {
     const title = escapeHtml(args.title);
@@ -220,7 +297,7 @@ function renderBrandEmailShell(args) {
                     <td style="padding:0 0 0 32px;">
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                         <tr>
-                          <td width="72" height="2" style="width:72px;height:2px;background:${exports.BRAND.gold};font-size:0;line-height:0;">&nbsp;</td>
+                          <td width="72" height="3" style="width:72px;height:3px;background:${exports.BRAND.gold};font-size:0;line-height:0;">&nbsp;</td>
                         </tr>
                       </table>
                     </td>
@@ -228,7 +305,7 @@ function renderBrandEmailShell(args) {
                 </table>
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
-                    <td class="px" style="padding:0 32px 36px 32px;">
+                    <td class="px" style="padding:0 32px 36px 32px;color:${exports.BRAND.textMuted};font-family:${BODY_FONT};font-size:14px;line-height:22px;">
                       ${args.contentHtml}
                     </td>
                   </tr>

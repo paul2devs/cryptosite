@@ -1,5 +1,14 @@
 import { getAppBaseUrl } from "../emailClient";
-import { renderEmailLayout } from "./layout";
+import {
+  EmailTone,
+  escapeHtml,
+  renderBrandEmailShell,
+  renderBrandFooter,
+  renderBrandHeader,
+  renderDetailCard,
+  renderEmailButton,
+  renderHero
+} from "./brand";
 
 /**
  * Centralised transactional email template for account, financial and security
@@ -20,10 +29,10 @@ export interface AccountEventEmailDetail {
 
 export type AccountEventTone = "positive" | "negative" | "gold";
 
-const TONE_COLOR: Record<AccountEventTone, string> = {
-  positive: "#16C784",
-  negative: "#EA3943",
-  gold: "#C6A15B"
+const TONE_MAP: Record<AccountEventTone, EmailTone> = {
+  positive: "positive",
+  negative: "negative",
+  gold: "info"
 };
 
 export function renderAccountEventEmail(args: {
@@ -41,60 +50,36 @@ export function renderAccountEventEmail(args: {
   ctaPath?: string;
 }): { subject: string; html: string } {
   const baseUrl = getAppBaseUrl();
-  const tone = args.statusTone ?? "gold";
+  const tone = TONE_MAP[args.statusTone ?? "gold"];
 
-  const detailRows = (args.details ?? [])
-    .filter((detail) => String(detail.label).trim().length > 0)
-    .map(
-      (detail) => `
-        <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">${escapeInline(
-          detail.label
-        )}</p>
-        <p style="margin:2px 0 10px 0;color:#F5F5F7;font-size:14px;line-height:20px;word-break:break-word;"><strong>${escapeInline(
-          detail.value
-        )}</strong></p>`
-    )
-    .join("");
+  const details = (args.details ?? []).filter((detail) => String(detail.label).trim().length > 0);
 
-  const statusBlock = args.statusLabel
-    ? `
-        <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">Status</p>
-        <p style="margin:2px 0 0 0;color:${TONE_COLOR[tone]};font-size:14px;line-height:20px;font-weight:800;">${escapeInline(
-          args.statusLabel
-        )}</p>`
-    : "";
+  const contentHtml = `${renderBrandHeader({ label: "Account Activity" })}
+${renderHero({ heading: args.heading, support: args.message })}
+<p style="margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:22px;color:#92969D;">Hi <strong style="color:#F5F5F7;">${escapeHtml(
+    args.name
+  )}</strong>, here is a summary of the recent activity on your NexaCrypto account.</p>
+${renderDetailCard({
+  title: "Transaction summary",
+  rows: details.map((detail) => ({ label: detail.label, value: detail.value })),
+  statusLabel: args.statusLabel,
+  statusTone: tone
+})}
+${
+  args.ctaLabel && args.ctaPath
+    ? renderEmailButton({ href: `${baseUrl}${args.ctaPath}`, label: args.ctaLabel.toUpperCase() })
+    : ""
+}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0 0 0;">
+  <tr>
+    <td style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:19px;color:#6B7280;">
+      For your security, this message never contains your password, private keys or authentication tokens.
+    </td>
+  </tr>
+</table>
+${renderBrandFooter({ websiteUrl: baseUrl })}`;
 
-  const summaryBlock =
-    detailRows || statusBlock
-      ? `<div style="margin:14px 0;padding:14px;border-radius:16px;background:#17181A;border:1px solid rgba(38,39,43,0.9);">
-      ${detailRows}
-      ${statusBlock}
-    </div>`
-      : "";
-
-  const html = renderEmailLayout({
-    title: args.heading,
-    preheader: args.preheader,
-    bodyHtml: `
-      <p style="margin:0 0 12px 0;">Hi <strong>${escapeInline(args.name)}</strong>,</p>
-      <p style="margin:0 0 12px 0;color:#F5F5F7;font-size:14px;line-height:21px;">${escapeInline(
-        args.message
-      )}</p>
-      ${summaryBlock}
-      <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:18px;">For your security, this message never contains your password, private keys or authentication tokens.</p>
-    `,
-    ctaLabel: args.ctaLabel,
-    ctaHref: args.ctaLabel && args.ctaPath ? `${baseUrl}${args.ctaPath}` : undefined
-  });
+  const html = renderBrandEmailShell({ title: args.subject, preheader: args.preheader, contentHtml });
 
   return { subject: args.subject, html };
-}
-
-function escapeInline(input: string): string {
-  return String(input)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

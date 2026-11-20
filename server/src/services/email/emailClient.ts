@@ -83,18 +83,56 @@ export function clearEmailOutbox(): void {
   emailOutbox.length = 0;
 }
 
+/**
+ * The official public application URL. This is the single source of truth for
+ * every link rendered into an email (verification, password reset, CTAs and the
+ * footer), so no message can ever point at a decommissioned host.
+ */
+export const OFFICIAL_APP_BASE_URL = "https://nexocrypto.org";
+
+/**
+ * Hosts that must never appear in a user-facing link (for example the retired
+ * Vercel frontend). A stale value in the environment is ignored rather than
+ * surfaced to users.
+ */
+const LEGACY_APP_HOSTS = [/(^|\.)vercel\.app$/i];
+
+function sanitizeBaseUrl(candidate: string | undefined): string | null {
+  const raw = String(candidate ?? "").trim();
+  if (!raw) return null;
+  const url = raw.replace(/\/+$/, "");
+  try {
+    const { hostname } = new URL(url);
+    if (LEGACY_APP_HOSTS.some((pattern) => pattern.test(hostname))) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves the application base URL used for email links.
+ *
+ * Precedence: `APP_BASE_URL` -> `PUBLIC_APP_URL` -> `FRONTEND_URL` -> the
+ * official domain. Any candidate pointing at a legacy host (e.g. `*.vercel.app`)
+ * is skipped, guaranteeing emails always link to the NexaCrypto domain.
+ */
 export function getAppBaseUrl(): string {
-  const raw =
-    process.env.APP_BASE_URL ||
-    process.env.PUBLIC_APP_URL ||
-    process.env.FRONTEND_URL ||
-    "http://localhost:5173";
-  return String(raw).replace(/\/+$/, "");
+  const configured = [
+    process.env.APP_BASE_URL,
+    process.env.PUBLIC_APP_URL,
+    process.env.FRONTEND_URL
+  ];
+  for (const candidate of configured) {
+    const url = sanitizeBaseUrl(candidate);
+    if (url) return url;
+  }
+  return OFFICIAL_APP_BASE_URL;
 }
 
 export function getMailFrom(): string {
   if (cachedFrom) return cachedFrom;
-  const from = process.env.EMAIL_FROM || "NexaCrypto <no-reply@nexacrypto.com>";
+  const from = process.env.EMAIL_FROM || "NexaCrypto <no-reply@nexocrypto.org>";
   cachedFrom = from;
   return from;
 }
