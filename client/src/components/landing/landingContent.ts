@@ -108,7 +108,7 @@ export const OPPORTUNITY_PILLARS: OpportunityPillar[] = [
     label: "Rewards",
     title: "Promotional and referral credits you can redeem.",
     detail:
-      "Campaign bonuses, activity streaks and referral rewards are earned under their published conditions, credited to a separate rewards balance and redeemed into your account on request. They are promotional credits, never trading profit."
+      "Campaign bonuses, activity streaks and referral rewards are earned under their published conditions, credited to a separate rewards balance and redeemed into your account on request."
   },
   {
     index: "04",
@@ -154,7 +154,7 @@ export const GROWTH_LAYERS: GrowthLayer[] = [
     label: "Promotional rewards",
     value: "What the platform granted",
     detail:
-      "Campaign, streak and referral credits earned under published conditions and redeemable into your balance. Never presented as investment return."
+      "Campaign, streak and referral credits earned under published conditions and redeemable into your balance."
   },
   {
     label: "Membership progression",
@@ -476,19 +476,19 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "rewards",
     question: "How do rewards work?",
     answer:
-      "Promotional and referral rewards are earned under their published conditions. When a reward qualifies it is credited to your rewards balance, and you can redeem it into your account balance. Rewards are promotional credits and are not trading profits."
+      "Promotional and referral rewards are earned under their published conditions. When a reward qualifies it is credited to your rewards balance, and you can redeem it into your account balance."
   },
   {
     id: "multiplier",
     question: "What is the multiplier?",
     answer:
-      "The multiplier is a promotional and progression score, not a market return. It responds to your level, your consecutive active-day streak, deposit timing, qualifying referrals and any active campaign, and it applies to the modelled pending value recorded when a deposit is confirmed. Temporary boosts combine with diminishing effect and are capped, and a multiplier never changes the market price of an asset you hold."
+      "The multiplier is a promotional and progression score. It responds to your level, your consecutive active-day streak, deposit timing, qualifying referrals and any active campaign, and it applies to the modelled pending value recorded when a deposit is confirmed. Temporary boosts combine with diminishing effect and are capped."
   },
   {
     id: "performance",
     question: "How is investment performance calculated?",
     answer:
-      "Where performance is recorded, it is calculated from your account records against the market price of the assets held, and it is displayed separately from your deposited capital. Performance can rise or fall and is not guaranteed."
+      "Where performance is recorded, it is calculated from your account records against the market price of the assets held, and it is displayed separately from your deposited capital."
   },
   {
     id: "withdrawals",
@@ -512,7 +512,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "leaderboards",
     question: "Are my balances or activity public?",
     answer:
-      "No. Leaderboards rank non-identifying account aliases only. Balances, personal details and full account history are never published, and referral activity is visible only inside your own account."
+      "No. Balances, personal details and full account history are never published, and referral activity is visible only inside your own account."
   },
   {
     id: "delayed-transactions",

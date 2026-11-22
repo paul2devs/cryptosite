@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ChevronDown } from "lucide-react";
-import { DISCLOSURES } from "../../constants/copy";
 import {
   DEPOSIT_USD_MAX,
   DEPOSIT_USD_MIN,
@@ -73,14 +72,14 @@ export function InvestmentPlansSection() {
       definition:
         "The change in the value of what you invested, relative to the amount you put in.",
       applies:
-        "Not fixed and never guaranteed. The value of your invested capital follows the market price of the assets you hold and can rise or fall. Projected figures are shown for context and are never credited as earnings."
+        "The change in value of your invested capital, which follows the market price of the assets you hold and can rise or fall."
     },
     {
       term: "Duration & maturity",
       definition:
         "How long capital is committed, and the date it becomes available again.",
       applies:
-        "There is no fixed term and no maturity date. Investment levels are not time-locked products. A level reflects your current invested principal and can adjust if that changes."
+        "An investment level reflects your current invested principal and can adjust as that changes."
     },
     {
       term: "Crediting",
@@ -246,7 +245,7 @@ export function InvestmentPlansSection() {
             <Reveal>
               <p className="mt-5 text-[11px] leading-relaxed text-[#6B7280]">
                 Investment levels are assigned from your invested principal, the USD value of
-                approved deposits verified on-chain. They are not a rate, a return or a lock.
+                approved deposits verified on-chain.
               </p>
             </Reveal>
           </div>
@@ -290,9 +289,6 @@ export function InvestmentPlansSection() {
                 <p className="mt-2 text-xs leading-relaxed text-[#9CA3AF]">
                   Deposit a supported asset and your investment level is assigned automatically
                   from your verified invested principal.
-                </p>
-                <p className="mt-3 text-[11px] leading-relaxed text-[#6B7280]">
-                  {DISCLOSURES.noGuarantee}
                 </p>
               </div>
               <Link

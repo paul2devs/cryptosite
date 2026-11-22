@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { DISCLOSURES } from "../../constants/copy";
 import {
   DEPOSIT_USD_MAX,
   DEPOSIT_USD_MIN,
@@ -140,8 +139,7 @@ export function HowItWorksSection() {
             <p className="text-sm leading-relaxed text-[#9CA3AF]">
               Every investment option is an investment level. Review what each level requires and
               what it unlocks, then decide how much invested principal you want to work toward. A
-              level is only assigned once your own deposits have been approved and verified, and
-              nothing is promised in advance.
+              level is only assigned once your own deposits have been approved and verified.
             </p>
           </StepItem>
 
@@ -173,9 +171,6 @@ export function HowItWorksSection() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-[10px] leading-relaxed text-[#6B7280]">
-                {DISCLOSURES.wrongNetworkRisk}
-              </p>
             </div>
           </StepItem>
 
@@ -219,32 +214,10 @@ export function HowItWorksSection() {
 
           <StepItem index="04" title="Returns and completion" delay={0.18} last>
             <p className="text-sm leading-relaxed text-[#9CA3AF]">
-              Nothing here is a fixed rate or a guaranteed return. The value of your invested
-              capital follows the market price of the assets you hold and can rise or fall, and
-              performance is only recorded from independently verified valuations. Accrued value
-              is not withdrawable cash. There is no automatic payout and no automatic renewal, and
-              investment levels do not carry their own rate, term or payout schedule.
+              Your invested capital tracks the market value of the assets you hold. Performance is
+              recorded from independently verified valuations as they complete, and your account
+              ledger reflects every change.
             </p>
-
-            <ul className="mt-5 grid gap-2.5 border-t border-[#1F2023] pt-4 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-3">
-              {[
-                "No guaranteed or fixed returns.",
-                "No automatic payout or renewal.",
-                "No fixed rate, term or maturity per level.",
-                "No unconditional withdrawal, requests are reviewed."
-              ].map((item) => (
-                <li
-                  key={item}
-                  className="flex items-start gap-2.5 text-[11px] leading-relaxed text-[#9CA3AF]"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="mt-[7px] h-px w-3 shrink-0 bg-[#6B7280]"
-                  />
-                  {item}
-                </li>
-              ))}
-            </ul>
           </StepItem>
         </ol>
 
@@ -256,9 +229,6 @@ export function HowItWorksSection() {
               </p>
               <p className="mt-2 text-xs leading-relaxed text-[#9CA3AF] sm:text-[13px]">
                 Take a closer look at the investment plans available on NexaCrypto.
-              </p>
-              <p className="mt-3 text-[11px] leading-relaxed text-[#6B7280]">
-                {DISCLOSURES.noGuarantee}
               </p>
             </div>
             <button

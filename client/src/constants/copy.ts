@@ -95,6 +95,20 @@ export const DISCLOSURES = {
 } as const;
 
 /**
+ * The standing "what we do not claim" list. Published once on the dedicated
+ * disclosures page rather than repeated inline in every marketing section.
+ */
+export const NOT_CLAIMED = [
+  "No guaranteed returns, and no fixed income.",
+  "Promotional credits are never presented as trading profit.",
+  "Unrealised market value is not withdrawable cash.",
+  "No audit, insurance or regulatory status we cannot evidence.",
+  "No published performance figures unless they are verified.",
+  "No automatic payout or renewal, and no fixed rate, term or maturity per level.",
+  "No unconditional withdrawal: every request is reviewed."
+] as const;
+
+/**
  * Shared empty-state copy. Keeping these together prevents each list from
  * inventing its own tone and length.
  */

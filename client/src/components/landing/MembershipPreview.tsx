@@ -98,8 +98,8 @@ export function MembershipPreview() {
                 balance on request.
               </p>
               <p className="mt-4 rounded-xl bg-[#0F0F10]/60 px-3 py-2.5 text-[11px] leading-relaxed text-[#9CA3AF] ring-1 ring-inset ring-white/[0.05]">
-                {TERMINOLOGY.promotionalBonus}s are promotional credits. They are not trading
-                profit, and they are never presented as investment returns.
+                {TERMINOLOGY.promotionalBonus}s are promotional credits you can redeem into your
+                account balance.
               </p>
               <Link
                 to="/register"

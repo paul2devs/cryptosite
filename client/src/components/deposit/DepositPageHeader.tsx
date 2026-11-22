@@ -9,7 +9,7 @@ import {
 import { BalanceToggle, useBalanceVisibility } from "../BalanceVisibilityProvider";
 import { useAnimatedNumber } from "../../hooks/useAnimatedNumber";
 import { formatUsd } from "../../utils/format";
-import { maskValue } from "../portfolio/utils";
+import { isMaterialAmount, maskValue } from "../portfolio/utils";
 import type { DepositAccountSummary } from "../../hooks/useDepositData";
 
 export function DepositPageHeader({
@@ -29,9 +29,15 @@ export function DepositPageHeader({
   // The single authoritative figure produced on the server: wallet cash that is
   // genuinely eligible to be requested right now, net of any maturity hold. It is
   // the same number the withdrawal page reports, so the two pages never disagree.
-  const animatedAvailable = useAnimatedNumber(account?.availableToWithdraw ?? 0);
+  const available = account?.availableToWithdraw ?? 0;
+  const locked = account?.lockedBalance ?? 0;
+  const animatedAvailable = useAnimatedNumber(available);
 
-  const hasLocked = (account?.lockedBalance ?? 0) > 0;
+  // The locked column is a float and can hold a sub-cent legacy residual that
+  // rounds to $0.00; it must never be presented as real locked funds.
+  const hasLocked = isMaterialAmount(locked);
+  const availableLabel = maskValue(hidden, formatUsd(available));
+  const lockedLabel = maskValue(hidden, formatUsd(locked));
 
   const currentMin = account?.depositCurrentLevelRequiredTotal ?? 0;
   const nextMax = account?.depositNextLevelRequiredTotal ?? currentMin;
@@ -89,9 +95,9 @@ export function DepositPageHeader({
                 </div>
               )}
               <p className="mt-1 text-[11px] text-[#9CA3AF]">
-                {hasLocked && account
-                  ? `${maskValue(hidden, formatUsd(account.lockedBalance))} locked · available to withdraw`
-                  : "Available to withdraw from your ledger balance"}
+                {hasLocked
+                  ? `${lockedLabel} locked · ${availableLabel} available to withdraw`
+                  : `${availableLabel} available to withdraw`}
               </p>
             </div>
 

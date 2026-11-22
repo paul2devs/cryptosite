@@ -17,6 +17,7 @@ import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { CookiesPage } from "./pages/CookiesPage";
+// import { DisclosuresPage } from "./pages/DisclosuresPage";
 import { LandingPage } from "./pages/LandingPage";
 import { Layout } from "./components/Layout";
 import { BalanceVisibilityProvider } from "./components/BalanceVisibilityProvider";
@@ -261,6 +262,7 @@ function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookies" element={<CookiesPage />} />
+          {/* <Route path="/disclosures" element={<DisclosuresPage />} /> */}
           <Route
             path="/"
             element={

@@ -13,7 +13,7 @@ import {
 import { BalanceToggle, useBalanceVisibility } from "../BalanceVisibilityProvider";
 import { useAnimatedNumber } from "../../hooks/useAnimatedNumber";
 import { formatPercent, formatSignedUsd, formatUsd } from "../../utils/format";
-import { maskValue, toneFromValue } from "./utils";
+import { isMaterialAmount, maskValue, toneFromValue } from "./utils";
 import type { PortfolioTotalsView } from "../../hooks/usePortfolioData";
 
 function SummaryMetric({
@@ -56,7 +56,7 @@ export function PortfolioSummary({
   const todayRoi = totals?.todayRoiPercent ?? null;
   const overallReturn = totals?.overallReturnPercent ?? null;
   const periodReturn = totals?.periodReturnPercent ?? null;
-  const hasLocked = (totals?.lockedBalance ?? 0) > 0;
+  const hasLocked = isMaterialAmount(totals?.lockedBalance);
 
   return (
     <Section id="portfolio-summary">

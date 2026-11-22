@@ -306,7 +306,7 @@ export function InvestmentDashboardPreview({ className = "" }: { className?: str
           <BalanceBlock
             label="Accrued earnings"
             value={formatUsd(SAMPLE.accruedEarningsUsd)}
-            hint="Pending, not withdrawable"
+            hint="Pending earnings"
           />
         </dl>
 
@@ -330,9 +330,7 @@ export function InvestmentDashboardPreview({ className = "" }: { className?: str
 
       <footer className="border-t border-white/[0.06] px-5 py-3.5 sm:px-6">
         <p className="text-[10px] leading-relaxed text-[#6B7280]">
-          Sample data shown for layout only, not a real account and not NexaCrypto
-          performance. Deposits are verified on-chain before they are credited, and investment
-          value can rise or fall.
+          Sample data shown for layout only — not a real account and not NexaCrypto performance.
         </p>
       </footer>
     </div>

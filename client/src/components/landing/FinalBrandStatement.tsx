@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
-import { DISCLOSURES } from "../../constants/copy";
 import { Eyebrow, landingContainer, Reveal } from "./landingPrimitives";
 import { Atmosphere, GlowOrb, NetworkGraphic } from "./landingArtwork";
 
@@ -43,9 +42,6 @@ export function FinalBrandStatement() {
               Sign in
             </Link>
           </div>
-          <p className="mt-8 max-w-xl text-[10px] leading-relaxed text-[#6B7280]">
-            {DISCLOSURES.noGuarantee}
-          </p>
         </Reveal>
       </div>
     </section>

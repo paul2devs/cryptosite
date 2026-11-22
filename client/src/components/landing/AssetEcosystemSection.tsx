@@ -1,4 +1,3 @@
-import { DISCLOSURES } from "../../constants/copy";
 import { formatRelativeTime } from "../../utils/format";
 import { SUPPORTED_ASSETS } from "./landingContent";
 import {
@@ -156,10 +155,9 @@ export function AssetEcosystemSection() {
         <Reveal delay={0.1}>
           <p className="mt-6 text-[10px] leading-relaxed text-[#6B7280]">
             {newestUpdate
-              ? `Market prices last updated ${formatRelativeTime(newestUpdate)}. `
-              : "Market prices update automatically when the feed is available. "}
-            {error ? "Live pricing is temporarily unavailable. " : ""}
-            {DISCLOSURES.wrongNetworkRisk}
+              ? `Market prices last updated ${formatRelativeTime(newestUpdate)}.`
+              : "Market prices update automatically when the feed is available."}
+            {error ? " Live pricing is temporarily unavailable." : ""}
           </p>
         </Reveal>
       </div>

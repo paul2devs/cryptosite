@@ -131,7 +131,7 @@ export function LiveMarketPanel({
       <p className="relative mt-4 border-t border-white/[0.06] pt-3 text-[10px] leading-relaxed text-[#6B7280]">
         {error
           ? "Live pricing is unavailable right now. Prices resume automatically when the feed reconnects."
-          : "Prices refresh automatically from the platform's configured market data provider. Market data is informational and is not investment advice."}
+          : "Prices refresh automatically from the platform's configured market data provider."}
       </p>
     </div>
   );

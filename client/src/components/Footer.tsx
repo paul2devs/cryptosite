@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { FaTelegramPlane } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
-import { BRAND, DISCLOSURES } from "../constants/copy";
+import { BRAND } from "../constants/copy";
 
 export function Footer() {
   return (
@@ -23,9 +23,6 @@ export function Footer() {
               Digital asset investment platform for portfolio management, on-chain
               verified deposits and clear progression mechanics.
             </p>
-            <p className="break-words text-[11px] leading-5 text-[#6B7280]">
-              {DISCLOSURES.platformWallets}
-            </p>
           </div>
 
           <div className="min-w-0 space-y-3">
@@ -44,7 +41,7 @@ export function Footer() {
               <Link to="/terms" className="hover:text-[#F5F5F7] transition-colors">Terms</Link>
               <Link to="/privacy" className="hover:text-[#F5F5F7] transition-colors">Privacy</Link>
               <Link to="/cookies" className="hover:text-[#F5F5F7] transition-colors">Cookies</Link>
-              <Link to="/landing#faq" className="hover:text-[#F5F5F7] transition-colors">Documentation</Link>
+              {/* <Link to="/disclosures" className="hover:text-[#F5F5F7] transition-colors">Disclosures</Link> */}
             </nav>
           </div>
 

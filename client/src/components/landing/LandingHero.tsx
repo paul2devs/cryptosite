@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { DISCLOSURES } from "../../constants/copy";
 import { scrollToLandingSection } from "./landingPrimitives";
 import { Atmosphere, GlowOrb } from "./landingArtwork";
 import { InvestmentDashboardPreview } from "./InvestmentDashboardPreview";
@@ -100,7 +99,7 @@ export function LandingHero() {
 
             <HeroReveal delay={0.32}>
               <p className="mt-7 text-[11px] leading-relaxed text-[#6B7280]">
-                Verified deposits, tracked in one place. Investment returns are never guaranteed.
+                Verified deposits, tracked in one place.
               </p>
             </HeroReveal>
           </div>
@@ -116,11 +115,6 @@ export function LandingHero() {
               </div>
             </HeroReveal>
 
-            <HeroReveal delay={0.3}>
-              <p className="mt-8 max-w-md text-[10px] leading-relaxed text-[#6B7280] lg:-mr-16 xl:-mr-24">
-                {DISCLOSURES.platformWallets}
-              </p>
-            </HeroReveal>
           </div>
         </div>
       </div>
