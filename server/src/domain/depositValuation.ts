@@ -81,6 +81,40 @@ export function valueDepositInUsd(input: {
 }
 
 /**
+ * The stored USD-per-asset-unit ratio implied by a confirmed deposit's USD value.
+ *
+ * Uses the USD value recorded when the deposit was approved (never a live price),
+ * so a fixed-principal investment is not re-valued by later market swings. The
+ * ratio is expressed in the same 10^8 scale as `usdRatioUnits`, so an asset-unit
+ * amount can be turned into USD with `applyUsdRatio`.
+ *
+ * Returns `null` when the USD value or quantity is missing or non-positive; the
+ * caller then reports the position as unvalued rather than inventing a number.
+ */
+export function usdPerAssetUnitUnits(
+  quantity: string | number,
+  usdValue: string | number
+): bigint | null {
+  const normalised = normaliseQuantity(quantity);
+  if (normalised === null) return null;
+  const quantityUnits = parseDecimal(normalised, USD_SCALE);
+  if (quantityUnits <= 0n) return null;
+  let usdUnits: bigint;
+  try {
+    usdUnits = parseDecimal(
+      typeof usdValue === "number" ? usdValue.toFixed(USD_SCALE) : String(usdValue),
+      USD_SCALE
+    );
+  } catch {
+    return null;
+  }
+  if (usdUnits <= 0n) return null;
+  const numerator = usdUnits * 10n ** BigInt(USD_SCALE);
+  const half = quantityUnits / 2n;
+  return (numerator + half) / quantityUnits;
+}
+
+/**
  * USD value of one whole asset unit, scaled by 10^8. Stablecoins are exactly
  * 1:1; volatile assets use the supplied market price; when no price is known the
  * ratio is reported as unavailable with a neutral 1:1 fallback so downstream

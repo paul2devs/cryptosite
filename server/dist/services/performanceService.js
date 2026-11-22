@@ -9,11 +9,13 @@ exports.performanceReconciliationHistory = performanceReconciliationHistory;
 exports.performanceAdminOverview = performanceAdminOverview;
 const sequelize_1 = require("sequelize");
 const performanceRules_1 = require("../domain/performanceRules");
+const depositValuation_1 = require("../domain/depositValuation");
 const money_1 = require("../domain/money");
 const portfolioRules_1 = require("../domain/portfolioRules");
 Object.defineProperty(exports, "portfolioValuation", { enumerable: true, get: function () { return portfolioRules_1.portfolioValuation; } });
 const AdminAuditLog_1 = require("../models/AdminAuditLog");
 const DailyPerformanceSnapshot_1 = require("../models/DailyPerformanceSnapshot");
+const Deposit_1 = require("../models/Deposit");
 const InvestmentPosition_1 = require("../models/InvestmentPosition");
 const LedgerAccount_1 = require("../models/LedgerAccount");
 const LedgerEntry_1 = require("../models/LedgerEntry");
@@ -40,11 +42,20 @@ function dateKeyOf(value) {
     const date = value instanceof Date ? value : new Date(value);
     return date.toISOString().slice(0, 10);
 }
-async function ledgerFlowsByDate(userId) {
-    const [accounts, entries] = await Promise.all([
-        LedgerAccount_1.LedgerAccount.findAll({ where: { user_id: userId } }),
-        LedgerEntry_1.LedgerEntry.findAll({ where: { user_id: userId }, order: [["created_at", "ASC"]] })
-    ]);
+const USD_UNIT = 10n ** 8n;
+/**
+ * Resolve the stored USD-per-asset-unit ratio for a ledger asset. USD and
+ * dollar-pegged stablecoins are exactly 1:1; anything else must have a ratio
+ * derived from the user's own deposits, otherwise it cannot be valued in USD
+ * and the caller treats the amount as unpriced.
+ */
+function resolveAssetRatio(asset, byAsset) {
+    const key = String(asset ?? "").toUpperCase();
+    if (key === "USD" || (0, depositValuation_1.isStablecoinDeposit)(key))
+        return USD_UNIT;
+    return byAsset.get(key) ?? null;
+}
+function bucketFlows(accounts, entries, ratioForAsset) {
     const byAccountId = new Map(accounts.map((account) => [account.account_id, account]));
     const buckets = new Map();
     for (const entry of entries) {
@@ -54,13 +65,103 @@ async function ledgerFlowsByDate(userId) {
         const rule = FLOW_ACCOUNT[entry.transaction_type];
         if (!rule || rule.code !== account.code)
             continue;
+        // Ledger entries are denominated in their own asset; convert to USD with the
+        // stored ratio so cash flows can be compared with the USD position values.
+        const ratio = ratioForAsset(entry.asset);
+        if (ratio === null)
+            continue;
         const key = dateKeyOf(entry.created_at);
         const bucket = buckets.get(key) ?? emptyBucket();
-        const amount = (0, money_1.parseDecimal)(String(entry.amount), 8);
-        bucket[rule.kind] += amount;
+        bucket[rule.kind] += (0, depositValuation_1.applyUsdRatio)((0, money_1.parseDecimal)(String(entry.amount), 8), ratio);
         buckets.set(key, bucket);
     }
     return buckets;
+}
+async function ledgerFlowSources(userId) {
+    const [accounts, entries] = await Promise.all([
+        LedgerAccount_1.LedgerAccount.findAll({ where: { user_id: userId } }),
+        LedgerEntry_1.LedgerEntry.findAll({ where: { user_id: userId }, order: [["created_at", "ASC"]] })
+    ]);
+    return { accounts, entries };
+}
+/**
+ * Build the stored USD ratios for a user's positions from the USD value recorded
+ * on each position's originating deposit. Positions that are already denominated
+ * in USD (or a stablecoin) are 1:1. A position with no recorded USD value is left
+ * out of the map so it is reported as unvalued instead of being mislabelled USD.
+ */
+async function usdRatiosForUser(positions) {
+    const depositIds = [
+        ...new Set(positions
+            .map((position) => position.deposit_id)
+            .filter((id) => typeof id === "string" && id.length > 0))
+    ];
+    const deposits = depositIds.length
+        ? await Deposit_1.Deposit.findAll({ where: { deposit_id: { [sequelize_1.Op.in]: depositIds } } })
+        : [];
+    const byId = new Map(deposits.map((deposit) => [String(deposit.deposit_id), deposit]));
+    const byPosition = new Map();
+    const byAsset = new Map();
+    for (const position of positions) {
+        const asset = String(position.asset);
+        const key = asset.toUpperCase();
+        let ratio = null;
+        if (key === "USD" || (0, depositValuation_1.isStablecoinDeposit)(key)) {
+            ratio = USD_UNIT;
+        }
+        else {
+            const deposit = position.deposit_id ? byId.get(String(position.deposit_id)) : undefined;
+            if (deposit) {
+                const quantity = deposit.received_amount ?? deposit.amount;
+                const usd = deposit.usd_amount;
+                if (usd !== null && usd !== undefined) {
+                    ratio = (0, depositValuation_1.usdPerAssetUnitUnits)(quantity, usd);
+                }
+            }
+        }
+        if (ratio === null)
+            continue;
+        byPosition.set(position.position_id, ratio);
+        if (!byAsset.has(key))
+            byAsset.set(key, ratio);
+    }
+    return { byPosition, byAsset };
+}
+function scaleAmountToUsd(value, ratio) {
+    if (value === null)
+        return null;
+    return (0, money_1.formatDecimal)((0, depositValuation_1.applyUsdRatio)((0, money_1.parseDecimal)(String(value), 8), ratio), 8);
+}
+/**
+ * Re-express a position's stored asset-unit snapshot in USD using the position's
+ * stored ratio. A null ratio means the position cannot be valued in USD, so the
+ * snapshot is dropped rather than shown as a tiny unrelated number.
+ */
+function scaleSnapshotToUsd(snapshot, ratios) {
+    const ratio = ratios.byPosition.get(snapshot.position_id);
+    if (ratio === undefined)
+        return null;
+    return {
+        ...snapshot,
+        opening_valuation: scaleAmountToUsd(snapshot.opening_valuation, ratio) ?? "0.00000000",
+        closing_valuation: scaleAmountToUsd(snapshot.closing_valuation, ratio),
+        profit_loss: scaleAmountToUsd(snapshot.profit_loss, ratio)
+    };
+}
+function toValuationSnapshot(row) {
+    return {
+        snapshot_id: row.snapshot_id,
+        position_id: row.position_id,
+        snapshot_date: String(row.snapshot_date),
+        opening_valuation: String(row.opening_valuation),
+        closing_valuation: row.closing_valuation === null ? null : String(row.closing_valuation),
+        profit_loss: row.profit_loss === null ? null : String(row.profit_loss),
+        roi_percent: row.roi_percent === null ? null : String(row.roi_percent),
+        verification_status: row.verification_status,
+        data_source: row.data_source,
+        correction_of: row.correction_of,
+        created_at: row.created_at
+    };
 }
 function latestVerifiedSnapshots(rows) {
     const chosen = new Map();
@@ -124,25 +225,42 @@ function rangeStart(range, end) {
     return start;
 }
 async function getPerformanceOverview(userId, range) {
-    const [positions, snapshotRows, flows] = await Promise.all([
+    const [positions, snapshotRows, sources] = await Promise.all([
         InvestmentPosition_1.InvestmentPosition.findAll({ where: { user_id: userId } }),
         DailyPerformanceSnapshot_1.DailyPerformanceSnapshot.findAll({
             where: { user_id: userId, verification_status: "verified" },
             order: [["snapshot_date", "ASC"], ["created_at", "ASC"]]
         }),
-        ledgerFlowsByDate(userId)
+        ledgerFlowSources(userId)
     ]);
+    // Positions, snapshots and ledger entries are all denominated in the asset
+    // that was deposited (e.g. BTC), so they must be re-expressed in USD before
+    // being summed into a dollar total. The USD-per-asset ratio comes from each
+    // deposit's own recorded USD value, never a live market price.
+    const ratios = await usdRatiosForUser(positions);
+    const flows = bucketFlows(sources.accounts, sources.entries, (asset) => resolveAssetRatio(asset, ratios.byAsset));
     const latest = latestVerifiedSnapshots(snapshotRows);
-    const { history } = buildEntries(latest, flows);
+    const scaled = latest
+        .map((snapshot) => scaleSnapshotToUsd(toValuationSnapshot(snapshot), ratios))
+        .filter((snapshot) => snapshot !== null);
+    const { history } = buildEntries(scaled, flows);
     const activePositions = positions.filter((position) => position.status === "active");
     let investedPrincipal = 0n;
     let currentValue = 0n;
     let valuationComplete = true;
     for (const position of activePositions) {
-        const principal = (0, money_1.parseDecimal)(String(position.principal), 8);
+        const ratio = ratios.byPosition.get(position.position_id) ?? null;
+        if (ratio === null) {
+            // No recorded USD value for this position's originating deposit, so its
+            // asset-unit principal cannot be honestly presented as dollars. Flag the
+            // valuation as incomplete instead of mixing units into the USD total.
+            valuationComplete = false;
+            continue;
+        }
+        const principal = (0, depositValuation_1.applyUsdRatio)((0, money_1.parseDecimal)(String(position.principal), 8), ratio);
         investedPrincipal += principal;
         if (position.current_valuation !== null && position.verification_status === "verified") {
-            currentValue += (0, money_1.parseDecimal)(String(position.current_valuation), 8);
+            currentValue += (0, depositValuation_1.applyUsdRatio)((0, money_1.parseDecimal)(String(position.current_valuation), 8), ratio);
         }
         else {
             currentValue += principal;
@@ -241,10 +359,10 @@ async function getPerformanceOverview(userId, range) {
             points: chartPoints
         },
         history,
-        snapshots: latest.map((snapshot) => ({
+        snapshots: scaled.map((snapshot) => ({
             snapshot_id: snapshot.snapshot_id,
             snapshot_date: String(snapshot.snapshot_date),
-            profit_loss: snapshot.profit_loss === null ? null : String(snapshot.profit_loss),
+            profit_loss: snapshot.profit_loss,
             roi_percent: snapshot.roi_percent === null ? null : String(snapshot.roi_percent),
             verification_status: snapshot.verification_status,
             data_source: snapshot.data_source

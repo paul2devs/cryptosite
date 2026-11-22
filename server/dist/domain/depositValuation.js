@@ -4,6 +4,7 @@ exports.DEPOSIT_STABLECOIN_TYPES = exports.USD_SCALE = void 0;
 exports.depositAssetSymbol = depositAssetSymbol;
 exports.isStablecoinDeposit = isStablecoinDeposit;
 exports.valueDepositInUsd = valueDepositInUsd;
+exports.usdPerAssetUnitUnits = usdPerAssetUnitUnits;
 exports.usdRatioUnits = usdRatioUnits;
 exports.applyUsdRatio = applyUsdRatio;
 const money_1 = require("./money");
@@ -65,6 +66,37 @@ function valueDepositInUsd(input) {
         return { usd: (0, money_1.formatDecimal)(usdUnits, exports.USD_SCALE), basis: "market_price", price: price.toFixed(exports.USD_SCALE) };
     }
     return { usd: null, basis: "unavailable", price: null };
+}
+/**
+ * The stored USD-per-asset-unit ratio implied by a confirmed deposit's USD value.
+ *
+ * Uses the USD value recorded when the deposit was approved (never a live price),
+ * so a fixed-principal investment is not re-valued by later market swings. The
+ * ratio is expressed in the same 10^8 scale as `usdRatioUnits`, so an asset-unit
+ * amount can be turned into USD with `applyUsdRatio`.
+ *
+ * Returns `null` when the USD value or quantity is missing or non-positive; the
+ * caller then reports the position as unvalued rather than inventing a number.
+ */
+function usdPerAssetUnitUnits(quantity, usdValue) {
+    const normalised = normaliseQuantity(quantity);
+    if (normalised === null)
+        return null;
+    const quantityUnits = (0, money_1.parseDecimal)(normalised, exports.USD_SCALE);
+    if (quantityUnits <= 0n)
+        return null;
+    let usdUnits;
+    try {
+        usdUnits = (0, money_1.parseDecimal)(typeof usdValue === "number" ? usdValue.toFixed(exports.USD_SCALE) : String(usdValue), exports.USD_SCALE);
+    }
+    catch {
+        return null;
+    }
+    if (usdUnits <= 0n)
+        return null;
+    const numerator = usdUnits * 10n ** BigInt(exports.USD_SCALE);
+    const half = quantityUnits / 2n;
+    return (numerator + half) / quantityUnits;
 }
 /**
  * USD value of one whole asset unit, scaled by 10^8. Stablecoins are exactly
