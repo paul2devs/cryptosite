@@ -12,6 +12,7 @@ exports.withdrawalFeesFor = withdrawalFeesFor;
 exports.getMaturityPolicy = getMaturityPolicy;
 exports.computeMaturityEligibility = computeMaturityEligibility;
 exports.pendingWithdrawalAmountFor = pendingWithdrawalAmountFor;
+exports.getAccountBalanceSnapshot = getAccountBalanceSnapshot;
 exports.getUserWithdrawalSummary = getUserWithdrawalSummary;
 exports.reserveWithdrawal = reserveWithdrawal;
 const crypto_1 = require("crypto");
@@ -216,17 +217,53 @@ async function pendingWithdrawalAmountFor(userId) {
     });
     return rows.reduce((total, row) => total + (Number.isFinite(Number(row.amount)) ? Number(row.amount) : 0), 0);
 }
+/**
+ * Reads the authoritative balance breakdown from the shared account-balance
+ * rule. The numeric wallet columns are stored as floating point, so they are
+ * normalised to their stored 8-decimal precision before they reach the decimal
+ * parser: `String(float)` can emit scientific notation, which must never be
+ * treated as an invalid amount.
+ */
+async function getAccountBalanceSnapshot(user) {
+    const [pendingWithdrawalAmount, maturity, valuation] = await Promise.all([
+        pendingWithdrawalAmountFor(user.user_id),
+        computeMaturityEligibility(user),
+        (0, performanceService_1.getPortfolioValuation)(user.user_id, "all")
+    ]);
+    const wallet = Number.isFinite(user.withdrawable_balance) ? Number(user.withdrawable_balance) : 0;
+    const locked = Number.isFinite(user.locked_balance) ? Number(user.locked_balance) : 0;
+    const balance = (0, accountBalanceRules_1.computeAccountBalance)({
+        walletBalance: wallet.toFixed(accountBalanceRules_1.ACCOUNT_BALANCE_SCALE),
+        lockedBalance: locked.toFixed(accountBalanceRules_1.ACCOUNT_BALANCE_SCALE),
+        investedPrincipal: valuation.investedPrincipal,
+        accruedEarnings: valuation.accruedEarnings,
+        settledEarnings: valuation.settledEarnings,
+        underMaturity: Number(maturity.maturingAmount).toFixed(accountBalanceRules_1.ACCOUNT_BALANCE_SCALE),
+        pendingWithdrawals: Number(pendingWithdrawalAmount).toFixed(accountBalanceRules_1.ACCOUNT_BALANCE_SCALE)
+    });
+    return {
+        withdrawableBalance: wallet,
+        availableToWithdraw: Number(balance.availableToWithdraw),
+        lockedBalance: locked,
+        investedBalance: Number(balance.invested),
+        pendingWithdrawalAmount,
+        pendingEarningsTotal: Number(balance.pendingEarnings),
+        settledEarningsTotal: Number(balance.settledEarnings),
+        underMaturity: Number(balance.underMaturity),
+        totalAccountBalance: Number(balance.totalAccountBalance),
+        maturity
+    };
+}
 async function getUserWithdrawalSummary(userId) {
     const user = await User_1.User.findByPk(userId);
     if (!user) {
         throw new WithdrawalError(404, "User not found");
     }
-    const [depositStats, pendingWithdrawalAmount, maturity, valuation] = await Promise.all([
+    const [depositStats, balance] = await Promise.all([
         (0, depositLevelService_1.calculateDepositLevelForUser)(userId),
-        pendingWithdrawalAmountFor(userId),
-        computeMaturityEligibility(user),
-        (0, performanceService_1.getPortfolioValuation)(userId, "all")
+        getAccountBalanceSnapshot(user)
     ]);
+    const { maturity } = balance;
     const minLevel = getWithdrawalMinLevel();
     const cooldownHours = getWithdrawalCooldownHours();
     let cooldownRemainingSeconds = 0;
@@ -235,24 +272,7 @@ async function getUserWithdrawalSummary(userId) {
         const cooldownMs = cooldownHours * 60 * 60 * 1000;
         cooldownRemainingSeconds = Math.max(0, Math.floor((cooldownMs - elapsedMs) / 1000));
     }
-    const withdrawable = Number.isFinite(user.withdrawable_balance) ? user.withdrawable_balance : 0;
-    const locked = Number.isFinite(user.locked_balance) ? user.locked_balance : 0;
-    // One authoritative breakdown: wallet cash, invested principal, accrued
-    // earnings and in-flight withdrawals are separated exactly once, so the same
-    // amount can never be reported as pending, settled and withdrawable at once.
-    // The invested principal comes from the verified positions, never from the raw
-    // approved-deposit total, and the pending earnings come from the same accrual
-    // the portfolio and performance sections report.
-    const balance = (0, accountBalanceRules_1.computeAccountBalance)({
-        walletBalance: String(withdrawable),
-        lockedBalance: String(locked),
-        investedPrincipal: valuation.investedPrincipal,
-        accruedEarnings: valuation.accruedEarnings,
-        settledEarnings: valuation.settledEarnings,
-        underMaturity: String(maturity.maturingAmount),
-        pendingWithdrawals: String(pendingWithdrawalAmount)
-    });
-    const availableToWithdraw = Number(balance.availableToWithdraw);
+    const availableToWithdraw = balance.availableToWithdraw;
     const levelMet = depositStats.level >= minLevel;
     const balanceAvailable = availableToWithdraw > 0;
     const cooldownCleared = cooldownRemainingSeconds === 0;
@@ -269,14 +289,14 @@ async function getUserWithdrawalSummary(userId) {
             : "You do not have an available withdrawal balance yet.");
     }
     return {
-        withdrawable_balance: withdrawable,
+        withdrawable_balance: balance.withdrawableBalance,
         available_to_withdraw: availableToWithdraw,
-        locked_balance: locked,
-        invested_balance: Number(balance.invested),
-        pending_withdrawal_amount: pendingWithdrawalAmount,
-        pending_earnings_total: Number(balance.pendingEarnings),
-        settled_earnings_total: Number(balance.settledEarnings),
-        total_account_balance: Number(balance.totalAccountBalance),
+        locked_balance: balance.lockedBalance,
+        invested_balance: balance.investedBalance,
+        pending_withdrawal_amount: balance.pendingWithdrawalAmount,
+        pending_earnings_total: balance.pendingEarningsTotal,
+        settled_earnings_total: balance.settledEarningsTotal,
+        total_account_balance: balance.totalAccountBalance,
         user_level: depositStats.level,
         min_level: minLevel,
         cooldown_seconds_remaining: cooldownRemainingSeconds,

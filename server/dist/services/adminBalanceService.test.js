@@ -424,3 +424,20 @@ function activePosition(overrides = {}) {
     // One entry for the original pending-earnings move, one for the reversal.
     assert_1.default.equal(state.posted.length, 2);
 });
+// --- Regression: float-backed balance columns ---------------------------------
+// The wallet and lock columns are stored as floats, so a stored value such as
+// 0.00004090354417649406 comes back from the driver as a JavaScript number with
+// far more decimal places than the ledger scale. String(number) therefore
+// produced a decimal the strict parser rejected, which failed the whole overview
+// with a 500 for that one account. The stored value must be read at the ledger
+// precision instead of being mistaken for corrupt input.
+(0, node_test_1.test)("a float balance carrying binary artefacts is read at the ledger precision", async () => {
+    installStubs(0.00004090354417649406);
+    const overview = await service.financialOverviewForUser("user-1");
+    assert_1.default.equal(overview.balance.available, "0.00004090");
+});
+(0, node_test_1.test)("a float balance in scientific notation is read at the ledger precision", async () => {
+    installStubs(7.753344861060553e-7);
+    const overview = await service.financialOverviewForUser("user-1");
+    assert_1.default.equal(overview.balance.available, "0.00000078");
+});

@@ -22,7 +22,13 @@ export interface ActiveBonus {
 
 export interface DepositAccountSummary {
   withdrawableBalance: number;
+  availableToWithdraw: number;
   lockedBalance: number;
+  investedBalance: number;
+  pendingWithdrawalAmount: number;
+  settledEarningsTotal: number;
+  underMaturity: number;
+  totalAccountBalance: number;
   depositLevel: number;
   totalDepositedUsd: number;
   depositCurrentLevelRequiredTotal: number;
@@ -125,7 +131,13 @@ export interface DepositRescanResult {
 
 interface XpLevelResponse {
   withdrawableBalance?: number;
+  availableToWithdraw?: number;
   lockedBalance?: number;
+  investedBalance?: number;
+  pendingWithdrawalAmount?: number;
+  settledEarningsTotal?: number;
+  underMaturity?: number;
+  totalAccountBalance?: number;
   depositLevel?: number;
   totalDepositedUsd?: number;
   depositCurrentLevelRequiredTotal?: number;
@@ -170,7 +182,13 @@ function toNullableNumber(value: unknown): number | null {
 function toAccountSummary(raw: XpLevelResponse): DepositAccountSummary {
   return {
     withdrawableBalance: toNumber(raw.withdrawableBalance),
+    availableToWithdraw: toNumber(raw.availableToWithdraw),
     lockedBalance: toNumber(raw.lockedBalance),
+    investedBalance: toNumber(raw.investedBalance),
+    pendingWithdrawalAmount: toNumber(raw.pendingWithdrawalAmount),
+    settledEarningsTotal: toNumber(raw.settledEarningsTotal),
+    underMaturity: toNumber(raw.underMaturity),
+    totalAccountBalance: toNumber(raw.totalAccountBalance),
     depositLevel: toNumber(raw.depositLevel),
     totalDepositedUsd: toNumber(raw.totalDepositedUsd),
     depositCurrentLevelRequiredTotal: toNumber(raw.depositCurrentLevelRequiredTotal),

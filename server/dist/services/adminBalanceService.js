@@ -27,7 +27,15 @@ const performanceService_1 = require("./performanceService");
 const AMOUNT_SCALE = 8;
 const SOURCE_TYPE = "balance_adjustment";
 const DEFAULT_ASSET = "USD";
+// Float-backed columns (balances, deposit and withdrawal amounts, earned amounts) arrive
+// from the driver as JavaScript numbers, and String(number) can render them in scientific
+// notation or with more decimal places than the ledger scale. Passing the number straight
+// through lets the money layer normalise it, while a genuinely malformed string is still
+// rejected by the strict parser.
 function decimal(value) {
+    if (typeof value === "number") {
+        return (0, money_1.parseDecimal)(value, AMOUNT_SCALE);
+    }
     return (0, money_1.parseDecimal)(String(value ?? "0"), AMOUNT_SCALE);
 }
 function amount(value) {

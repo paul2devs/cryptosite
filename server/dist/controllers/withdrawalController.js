@@ -132,7 +132,13 @@ async function getWithdrawalSummary(req, res) {
             res.status(error.status).json({ message: error.message });
             return;
         }
-        res.status(500).json({ message: "Failed to load withdrawal summary" });
+        // The financial figures must never be silently replaced with zeros, so the
+        // real failure is recorded here while the client receives a safe message it
+        // can retry against.
+        console.error(`[withdrawal] summary failed for user ${req.user.userId}`, error instanceof Error ? error.stack || error.message : error);
+        res.status(500).json({
+            message: "We couldn't load your withdrawal summary right now. Your funds are unchanged — please try again."
+        });
     }
 }
 const LEGACY_STATUS_MAP = {

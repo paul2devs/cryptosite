@@ -5,7 +5,8 @@ import {
   StatusBadge,
   StatStrip,
   Stat,
-  SkeletonBlock
+  SkeletonBlock,
+  ErrorRow
 } from "../dashboard/primitives";
 import type { Tone } from "../dashboard/primitives";
 import { BalanceToggle, useBalanceVisibility } from "../BalanceVisibilityProvider";
@@ -121,7 +122,13 @@ export function WithdrawPageHeader({
 
       <Panel>
         {error && !summary ? (
-          <SectionHeader title="Withdrawal summary unavailable" description={error} />
+          <div className="space-y-3">
+            <SectionHeader
+              title="Withdrawal summary unavailable"
+              description="We could not load your balance breakdown. Your funds are unchanged — nothing has been deducted or altered."
+            />
+            <ErrorRow message={error} onRetry={onRefresh} />
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="min-w-0">
@@ -164,6 +171,11 @@ export function WithdrawPageHeader({
                 value={maskValue(hidden, formatUsd(summary?.pending_earnings_total ?? 0))}
                 tone="gold"
                 hint="Accrued, awaiting settlement"
+              />
+              <Stat
+                label="Settled earnings"
+                value={maskValue(hidden, formatUsd(summary?.settled_earnings_total ?? 0))}
+                hint="Distributed to your wallet"
               />
               <Stat
                 label="Pending withdrawals"

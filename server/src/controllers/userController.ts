@@ -7,6 +7,7 @@ import { AuthenticatedRequest } from "../middleware/auth";
 import { getUserProgression } from "../services/gamificationService";
 import { User } from "../models/User";
 import { calculateDepositLevelForUser } from "../services/depositLevelService";
+import { getAccountBalanceSnapshot } from "../services/withdrawalService";
 import { Notification } from "../models/Notification";
 import { Deposit } from "../models/Deposit";
 import { Withdrawal } from "../models/Withdrawal";
@@ -157,8 +158,11 @@ export async function getCurrentXpLevel(
       return;
     }
 
-    const progression = await getUserProgression(user);
-    const depositStats = await calculateDepositLevelForUser(user.user_id);
+    const [progression, depositStats, balance] = await Promise.all([
+      getUserProgression(user),
+      calculateDepositLevelForUser(user.user_id),
+      getAccountBalanceSnapshot(user)
+    ]);
 
     res.status(200).json({
       level: progression.level,
@@ -181,8 +185,17 @@ export async function getCurrentXpLevel(
       multiplierPreview: progression.multiplierPreview,
       pendingEarningsTotal: progression.pendingEarningsTotal,
       streak: user.streak,
-      withdrawableBalance: progression.withdrawableBalance ?? 0,
-      lockedBalance: progression.lockedBalance ?? 0,
+      // The balance figures come from the same authoritative breakdown the
+      // withdrawal summary reports, so the deposit page can never disagree with
+      // the amount the user is genuinely eligible to withdraw.
+      withdrawableBalance: balance.withdrawableBalance,
+      availableToWithdraw: balance.availableToWithdraw,
+      lockedBalance: balance.lockedBalance,
+      investedBalance: balance.investedBalance,
+      pendingWithdrawalAmount: balance.pendingWithdrawalAmount,
+      settledEarningsTotal: balance.settledEarningsTotal,
+      underMaturity: balance.underMaturity,
+      totalAccountBalance: balance.totalAccountBalance,
       depositLevel: depositStats.level,
       totalDepositedUsd: depositStats.totalDepositedUsd,
       depositCurrentLevelRequiredTotal: depositStats.currentLevelRequiredTotal,

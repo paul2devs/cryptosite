@@ -18,6 +18,7 @@ const database_1 = require("../config/database");
 const gamificationService_1 = require("../services/gamificationService");
 const User_1 = require("../models/User");
 const depositLevelService_1 = require("../services/depositLevelService");
+const withdrawalService_1 = require("../services/withdrawalService");
 const Notification_1 = require("../models/Notification");
 const Deposit_1 = require("../models/Deposit");
 const Withdrawal_1 = require("../models/Withdrawal");
@@ -120,8 +121,11 @@ async function getCurrentXpLevel(req, res) {
             res.status(404).json({ message: "User not found" });
             return;
         }
-        const progression = await (0, gamificationService_1.getUserProgression)(user);
-        const depositStats = await (0, depositLevelService_1.calculateDepositLevelForUser)(user.user_id);
+        const [progression, depositStats, balance] = await Promise.all([
+            (0, gamificationService_1.getUserProgression)(user),
+            (0, depositLevelService_1.calculateDepositLevelForUser)(user.user_id),
+            (0, withdrawalService_1.getAccountBalanceSnapshot)(user)
+        ]);
         res.status(200).json({
             level: progression.level,
             xp: progression.xp,
@@ -143,8 +147,17 @@ async function getCurrentXpLevel(req, res) {
             multiplierPreview: progression.multiplierPreview,
             pendingEarningsTotal: progression.pendingEarningsTotal,
             streak: user.streak,
-            withdrawableBalance: progression.withdrawableBalance ?? 0,
-            lockedBalance: progression.lockedBalance ?? 0,
+            // The balance figures come from the same authoritative breakdown the
+            // withdrawal summary reports, so the deposit page can never disagree with
+            // the amount the user is genuinely eligible to withdraw.
+            withdrawableBalance: balance.withdrawableBalance,
+            availableToWithdraw: balance.availableToWithdraw,
+            lockedBalance: balance.lockedBalance,
+            investedBalance: balance.investedBalance,
+            pendingWithdrawalAmount: balance.pendingWithdrawalAmount,
+            settledEarningsTotal: balance.settledEarningsTotal,
+            underMaturity: balance.underMaturity,
+            totalAccountBalance: balance.totalAccountBalance,
             depositLevel: depositStats.level,
             totalDepositedUsd: depositStats.totalDepositedUsd,
             depositCurrentLevelRequiredTotal: depositStats.currentLevelRequiredTotal,

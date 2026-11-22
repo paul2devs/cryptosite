@@ -26,7 +26,10 @@ export function DepositPageHeader({
   onRefresh: () => void;
 }) {
   const { hidden } = useBalanceVisibility();
-  const animatedAvailable = useAnimatedNumber(account?.withdrawableBalance ?? 0);
+  // The single authoritative figure produced on the server: wallet cash that is
+  // genuinely eligible to be requested right now, net of any maturity hold. It is
+  // the same number the withdrawal page reports, so the two pages never disagree.
+  const animatedAvailable = useAnimatedNumber(account?.availableToWithdraw ?? 0);
 
   const hasLocked = (account?.lockedBalance ?? 0) > 0;
 
@@ -105,6 +108,18 @@ export function DepositPageHeader({
               </div>
               <ProgressBar value={progressPercent} tone="gold" />
               <div className="grid grid-cols-2 gap-4">
+                <Metric
+                  label="Invested principal"
+                  value={formatUsd(account?.investedBalance ?? 0)}
+                  hint="Allocated to active positions, not available cash"
+                  valueClassName="text-sm"
+                />
+                <Metric
+                  label="Total account balance"
+                  value={formatUsd(account?.totalAccountBalance ?? 0)}
+                  hint="Wallet, investments and unsettled earnings"
+                  valueClassName="text-sm"
+                />
                 <Metric
                   label="Total deposited"
                   value={formatUsd(account?.totalDepositedUsd ?? 0)}

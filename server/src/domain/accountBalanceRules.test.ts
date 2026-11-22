@@ -159,3 +159,30 @@ test("pending earnings never fall below zero when a distribution exceeds the cur
   assert.equal(result.availableToWithdraw, "20.00000000");
   assert.equal(result.totalAccountBalance, "120.00000000");
 });
+
+// --- Regression: floating-point columns serialised in scientific notation ----
+// The wallet lock column is stored as a float. `String(0.0000007753344861)`
+// yields "7.753344861060553e-7", which the strict decimal parser used to reject,
+// failing the whole withdrawal summary with a 500 for that user only.
+test("a lock value below 1e-6 in scientific notation no longer breaks the breakdown", () => {
+  const result = balance({
+    walletBalance: "0.00000000",
+    lockedBalance: "7.753344861060553e-7",
+    investedPrincipal: "100.00000000"
+  });
+  assert.equal(result.locked, "0.00000078");
+  assert.equal(result.invested, "100.00000000");
+  assert.equal(result.availableToWithdraw, "0.00000000");
+  assert.equal(result.totalAccountBalance, "100.00000078");
+});
+
+test("a scientific-notation float normalises to the stored 8-decimal precision", () => {
+  const fromString = balance({ lockedBalance: "7.753344861060553e-7" });
+  const fromNumber = balance({ lockedBalance: "0.00000078" });
+  assert.equal(fromString.locked, "0.00000078");
+  assert.equal(fromString.locked, fromNumber.locked);
+});
+
+test("a genuinely malformed decimal is still rejected", () => {
+  assert.throws(() => balance({ walletBalance: "not-a-number" }), /Invalid decimal amount/);
+});

@@ -1,5 +1,29 @@
+/**
+ * Normalises a decimal input into plain `-?\d+(\.\d+)?` form.
+ *
+ * `String(number)` renders any magnitude below 1e-6 (and at or above 1e21) in
+ * scientific notation, e.g. the float column value `7.753344861060553e-7` becomes
+ * the string `"7.753344861060553e-7"`. That is a perfectly valid decimal amount,
+ * but the strict parser below would reject it. Because such a string can only
+ * originate from a JavaScript number, it is normalised the same way a numeric
+ * argument is, so a float-derived value can never be mistaken for corrupt input.
+ */
+function normalizeDecimalInput(value: string | number, scale: number): string {
+  if (typeof value === "number") {
+    return value.toFixed(scale);
+  }
+  const trimmed = value.trim();
+  if (/^-?\d+(\.\d+)?[eE][+-]?\d+$/.test(trimmed)) {
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return numeric.toFixed(scale);
+    }
+  }
+  return trimmed;
+}
+
 export function parseDecimal(value: string | number, scale: number): bigint {
-  const raw = typeof value === "number" ? value.toFixed(scale) : String(value).trim();
+  const raw = normalizeDecimalInput(value, scale);
   if (!/^-?\d+(\.\d+)?$/.test(raw)) {
     throw new Error("Invalid decimal amount");
   }
