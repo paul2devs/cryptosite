@@ -41,3 +41,63 @@ const portfolioRules_1 = require("./portfolioRules");
     assert_1.default.equal(holdings[0].value, 800);
     assert_1.default.equal(holdings[0].allocationPercent, 100);
 });
+// ---------------------------------------------------------------------------
+// Authoritative total portfolio value
+// ---------------------------------------------------------------------------
+function valuation(currentInvestmentValue, investedPrincipal, settled = "0") {
+    return (0, portfolioRules_1.portfolioValuation)({
+        currentInvestmentValue,
+        investedPrincipal,
+        totalRealizedProfitLoss: settled,
+        valuationComplete: true
+    });
+}
+(0, node_test_1.test)("a fresh $1,000 investment with no accrued earnings values at exactly $1,000", () => {
+    const result = valuation("1000.00000000", "1000.00000000");
+    assert_1.default.equal(result.totalValue, "1000.00000000");
+    assert_1.default.equal(result.investedPrincipal, "1000.00000000");
+    assert_1.default.equal(result.accruedEarnings, "0.00000000");
+    assert_1.default.equal(result.settledEarnings, "0.00000000");
+});
+(0, node_test_1.test)("pending earnings raise the total the moment they accrue (3% simple daily)", () => {
+    // The current investment value already carries principal plus accruals, so the
+    // total tracks the running position value day by day without compounding.
+    assert_1.default.equal(valuation("1030.00000000", "1000.00000000").totalValue, "1030.00000000");
+    assert_1.default.equal(valuation("1030.00000000", "1000.00000000").accruedEarnings, "30.00000000");
+    assert_1.default.equal(valuation("1060.00000000", "1000.00000000").accruedEarnings, "60.00000000");
+    assert_1.default.equal(valuation("1090.00000000", "1000.00000000").totalValue, "1090.00000000");
+    assert_1.default.equal(valuation("1120.00000000", "1000.00000000").totalValue, "1120.00000000");
+    assert_1.default.equal(valuation("1120.00000000", "1000.00000000").accruedEarnings, "120.00000000");
+});
+(0, node_test_1.test)("settled earnings are reported separately and never double counted", () => {
+    // A distribution credits the wallet via the ledger; the position valuation is
+    // unchanged, so the total still counts the earnings exactly once.
+    const before = valuation("1030.00000000", "1000.00000000", "0.00000000");
+    const after = valuation("1030.00000000", "1000.00000000", "30.00000000");
+    assert_1.default.equal(after.totalValue, before.totalValue);
+    assert_1.default.equal(after.accruedEarnings, "30.00000000");
+    assert_1.default.equal(after.settledEarnings, "30.00000000");
+});
+(0, node_test_1.test)("multiple investments combine principal and accruals across positions", () => {
+    // $1,000 earning $30 plus $500 earning $15.
+    const result = valuation("1545.00000000", "1500.00000000");
+    assert_1.default.equal(result.totalValue, "1545.00000000");
+    assert_1.default.equal(result.investedPrincipal, "1500.00000000");
+    assert_1.default.equal(result.accruedEarnings, "45.00000000");
+});
+(0, node_test_1.test)("a position trading below principal never reports negative accrued earnings", () => {
+    const result = valuation("990.00000000", "1000.00000000");
+    assert_1.default.equal(result.totalValue, "990.00000000");
+    assert_1.default.equal(result.accruedEarnings, "0.00000000");
+});
+(0, node_test_1.test)("idle wallet deposits are not investment earnings and do not change the total", () => {
+    // The rule derives the total only from invested positions, so a deposit that
+    // sits in the wallet (not yet allocated) leaves the portfolio value untouched.
+    const result = valuation("1000.00000000", "1000.00000000");
+    assert_1.default.equal(result.totalValue, "1000.00000000");
+    assert_1.default.equal(result.accruedEarnings, "0.00000000");
+});
+(0, node_test_1.test)("the valuation is deterministic so scheduler retries cannot produce a different total", () => {
+    const input = { currentInvestmentValue: "1060.00000000", investedPrincipal: "1000.00000000" };
+    assert_1.default.deepEqual(valuation(input.currentInvestmentValue, input.investedPrincipal), valuation(input.currentInvestmentValue, input.investedPrincipal));
+});

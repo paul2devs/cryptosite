@@ -96,6 +96,8 @@ export interface BalanceOverview {
     locked: string;
     currentInvestmentValue: string;
     investedPrincipal: string;
+    accruedEarnings: string;
+    settledEarnings: string;
     pendingEarnings: string;
     formula: string;
   };

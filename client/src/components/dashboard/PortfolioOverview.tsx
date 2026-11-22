@@ -86,7 +86,7 @@ export function PortfolioOverview({
   );
 
   const approvedDeposits = progression?.totalDepositedUsd ?? 0;
-  const pendingEarnings = progression?.pendingEarningsTotal ?? portfolio?.pendingEarnings ?? 0;
+  const pendingEarnings = portfolio?.pendingEarnings ?? 0;
   const withdrawable = progression?.withdrawableBalance ?? 0;
   const locked = progression?.lockedBalance ?? 0;
 
@@ -94,8 +94,8 @@ export function PortfolioOverview({
     <Section>
       <SectionHeader
         title="Portfolio"
-        description="Approved deposits valued at live market rates."
-        action={<StatusBadge tone="gold" label="Live valuation" />}
+        description="Investment principal plus accrued earnings."
+        action={<StatusBadge tone="gold" label="Principal + earnings" />}
       />
       <div className="card mt-4 px-4 py-5 sm:px-6 sm:py-6">
         {error && !portfolio ? (

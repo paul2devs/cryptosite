@@ -154,11 +154,13 @@ async function financialOverviewForUser(userId) {
         row.detailed_status === "requested" ||
         row.detailed_status === "under_review");
     const activePositions = positions.filter((position) => position.status === "active");
-    const available = decimal(user.withdrawable_balance);
-    const locked = decimal(user.locked_balance);
-    const currentInvestmentValue = decimal(overview.overview.currentInvestmentValue);
     const pendingEarnings = pendingEarningsOf(user);
-    const totalPortfolioValue = available + locked + currentInvestmentValue;
+    // Total portfolio value is the authoritative investment valuation: invested
+    // principal plus the earnings accrued on active positions. It already carries
+    // accrued (pending) earnings, so they are never added again. Wallet balances
+    // are reported separately and are never folded into the investment valuation.
+    const valuation = (0, performanceService_1.portfolioValuation)(overview.overview);
+    const totalPortfolioValue = decimal(valuation.totalValue);
     return {
         account: {
             userId: user.user_id,
@@ -178,8 +180,10 @@ async function financialOverviewForUser(userId) {
             locked: amount(user.locked_balance),
             currentInvestmentValue: overview.overview.currentInvestmentValue,
             investedPrincipal: overview.overview.investedPrincipal,
+            accruedEarnings: (0, money_1.formatDecimal)(decimal(valuation.accruedEarnings), AMOUNT_SCALE),
+            settledEarnings: (0, money_1.formatDecimal)(decimal(valuation.settledEarnings), AMOUNT_SCALE),
             pendingEarnings: (0, money_1.formatDecimal)(pendingEarnings, AMOUNT_SCALE),
-            formula: "totalPortfolioValue = available balance + locked balance + current investment value. Pending earnings are reported separately and are not included until settled."
+            formula: "totalPortfolioValue = invested principal + accrued earnings from verified positions. Accrued earnings are included as pending the moment they accrue; settled earnings are not added again. Available and locked wallet balances are reported separately."
         },
         totals: {
             totalDeposited: amount(approvedDeposits.reduce((total, row) => total + decimal(row.amount), 0n)),

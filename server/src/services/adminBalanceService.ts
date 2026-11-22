@@ -26,7 +26,7 @@ import { trackUserActivity } from "./activityService";
 import { ledgerBalancesForUser, postBalancedEntry } from "./financialOperationsService";
 import { syncUserInvestmentLevel } from "./investmentLevelService";
 import { syncUserMembership } from "./membershipService";
-import { getPerformanceOverview } from "./performanceService";
+import { getPerformanceOverview, portfolioValuation } from "./performanceService";
 
 const AMOUNT_SCALE = 8;
 const SOURCE_TYPE = "balance_adjustment";
@@ -221,11 +221,13 @@ export async function financialOverviewForUser(userId: string) {
   );
   const activePositions = positions.filter((position) => position.status === "active");
 
-  const available = decimal(user.withdrawable_balance);
-  const locked = decimal(user.locked_balance);
-  const currentInvestmentValue = decimal(overview.overview.currentInvestmentValue);
   const pendingEarnings = pendingEarningsOf(user);
-  const totalPortfolioValue = available + locked + currentInvestmentValue;
+  // Total portfolio value is the authoritative investment valuation: invested
+  // principal plus the earnings accrued on active positions. It already carries
+  // accrued (pending) earnings, so they are never added again. Wallet balances
+  // are reported separately and are never folded into the investment valuation.
+  const valuation = portfolioValuation(overview.overview);
+  const totalPortfolioValue = decimal(valuation.totalValue);
 
   return {
     account: {
@@ -246,9 +248,11 @@ export async function financialOverviewForUser(userId: string) {
       locked: amount(user.locked_balance),
       currentInvestmentValue: overview.overview.currentInvestmentValue,
       investedPrincipal: overview.overview.investedPrincipal,
+      accruedEarnings: formatDecimal(decimal(valuation.accruedEarnings), AMOUNT_SCALE),
+      settledEarnings: formatDecimal(decimal(valuation.settledEarnings), AMOUNT_SCALE),
       pendingEarnings: formatDecimal(pendingEarnings, AMOUNT_SCALE),
       formula:
-        "totalPortfolioValue = available balance + locked balance + current investment value. Pending earnings are reported separately and are not included until settled."
+        "totalPortfolioValue = invested principal + accrued earnings from verified positions. Accrued earnings are included as pending the moment they accrue; settled earnings are not added again. Available and locked wallet balances are reported separately."
     },
     totals: {
       totalDeposited: amount(

@@ -11,6 +11,7 @@ import { Notification } from "../models/Notification";
 import { getAllMarketPrices } from "./marketDataService";
 import { getUserProgression } from "./gamificationService";
 import { userPerformance } from "./financialOperationsService";
+import { portfolioValuation } from "./performanceService";
 
 type PortfolioSymbol = "BTC" | "ETH" | "SOL" | "USDT";
 
@@ -26,7 +27,10 @@ interface GrowthPoint {
   value: number;
 }
 
-export async function getPortfolioSummary(userId: string): Promise<{
+export async function getPortfolioSummary(
+  userId: string,
+  performanceOverride?: Awaited<ReturnType<typeof userPerformance>>
+): Promise<{
   assets: AssetSummary[];
   totalCurrentValue: number;
   pendingEarnings: number;
@@ -42,7 +46,7 @@ export async function getPortfolioSummary(userId: string): Promise<{
     throw new Error("User not found");
   }
 
-  const [prices, userDeposits, allDeposits] = await Promise.all([
+  const [prices, userDeposits, allDeposits, performance] = await Promise.all([
     getAllMarketPrices(),
     Deposit.findAll({
       where: { user_id: userId, status: "Approved" },
@@ -50,7 +54,10 @@ export async function getPortfolioSummary(userId: string): Promise<{
     }),
     Deposit.findAll({
       where: { status: "Approved" }
-    })
+    }),
+    performanceOverride
+      ? Promise.resolve(performanceOverride)
+      : userPerformance(userId, "30d")
   ]);
 
   const assetMap = new Map<PortfolioSymbol, AssetSummary>();
@@ -83,63 +90,34 @@ export async function getPortfolioSummary(userId: string): Promise<{
   }
 
   const assets = Array.from(assetMap.values());
-  const totalCurrentValue = assets.reduce(
-    (sum, a) => sum + a.currentValue,
-    0
-  );
 
-  const pending =
-    (user.pending_earnings as any)?.total !== undefined
-      ? Number((user.pending_earnings as any).total)
-      : 0;
+  // Total portfolio value is the authoritative investment valuation: the
+  // principal allocated to active positions plus the earnings those positions
+  // have accrued. It is never derived from live market prices, and accrued
+  // (pending) earnings are reflected the moment they are written to a position.
+  const valuation = portfolioValuation(performance.metrics);
+  const totalCurrentValue = toNumberOrNull(valuation.totalValue) ?? 0;
+  const pending = toNumberOrNull(valuation.accruedEarnings) ?? 0;
 
   const totalPlatformBalance = allDeposits.reduce(
     (sum, d) => sum + d.amount,
     0
   );
 
+  // Build the growth series from genuine stored valuation snapshots so the
+  // chart reflects what was actually recorded, never a value re-derived from
+  // today's market prices.
   const growthSeries: GrowthPoint[] = [];
-  const byDate = new Map<
-    string,
-    {
-      deposited: number;
-      value: number;
-    }
-  >();
-
-  const now = new Date();
-  const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-  const recentDeposits = userDeposits.filter(
-    (d) => (d.timestamp || d.get("timestamp")) >= startDate
-  );
-
-  for (const d of recentDeposits) {
-    const symbol = mapSymbol(d.crypto_type);
-    if (!symbol) {
-      continue;
-    }
-    const ts = d.timestamp || (d.get("timestamp") as Date);
-    const dateKey = ts.toISOString().slice(0, 10);
-    const pricePoint = prices[symbol];
-    const price = pricePoint ? pricePoint.price : 0;
-    const existing = byDate.get(dateKey) || { deposited: 0, value: 0 };
-    existing.deposited += d.amount;
-    existing.value += d.amount * price;
-    byDate.set(dateKey, existing);
-  }
-
-  const sortedDates = Array.from(byDate.keys()).sort();
   let cumulativeDeposited = 0;
-  let cumulativeValue = 0;
-  for (const date of sortedDates) {
-    const entry = byDate.get(date)!;
-    cumulativeDeposited += entry.deposited;
-    cumulativeValue += entry.value;
+  for (const point of performance.chart.points) {
+    if (point.portfolioValue === null) continue;
+    const value = Number(point.portfolioValue);
+    if (!Number.isFinite(value)) continue;
+    cumulativeDeposited += Number(point.externalFlow ?? 0);
     growthSeries.push({
-      date,
+      date: point.date,
       deposited: cumulativeDeposited,
-      value: cumulativeValue
+      value
     });
   }
 
@@ -228,12 +206,12 @@ export async function getPortfolioOverview(
     throw new Error("User not found");
   }
 
-  const [summary, prices, progression, performance] = await Promise.all([
-    getPortfolioSummary(userId),
+  const [prices, progression, performance] = await Promise.all([
     getAllMarketPrices(),
     getUserProgression(user),
     userPerformance(userId, range)
   ]);
+  const summary = await getPortfolioSummary(userId, performance);
 
   const priceMap: Record<string, number> = {};
   (Object.keys(prices) as Array<keyof typeof prices>).forEach((symbol) => {
@@ -246,24 +224,26 @@ export async function getPortfolioOverview(
   const holdings = buildPortfolioHoldings(summary.assets, priceMap);
   const allocation = computeAllocation(holdings);
 
-  // Portfolio totals are derived from the single authoritative performance
-  // engine so the Portfolio and Performance sections can never disagree.
-  // Principal and current value come from verified investment positions
-  // (deposits sitting in the available wallet are never counted as invested),
-  // and realised/unrealised profit is taken straight from the verified
-  // performance history rather than re-derived from market prices.
+  // Portfolio totals are derived from the single authoritative valuation so the
+  // Dashboard, Portfolio and Performance sections can never disagree. Principal
+  // and current value come from verified investment positions (deposits sitting
+  // in the available wallet are never counted as invested), accrued earnings are
+  // included as pending the moment they accrue, and realised/unrealised profit is
+  // taken straight from the verified performance history rather than re-derived
+  // from market prices.
+  const valuation = portfolioValuation(performance.metrics);
   const metrics = performance.metrics;
 
   return {
     currency: "USD",
     updatedAt: new Date().toISOString(),
     totals: {
-      totalValue: toNumberOrNull(metrics.currentInvestmentValue) ?? 0,
-      investedPrincipal: toNumberOrNull(metrics.investedPrincipal) ?? 0,
+      totalValue: toNumberOrNull(valuation.totalValue) ?? 0,
+      investedPrincipal: toNumberOrNull(valuation.investedPrincipal) ?? 0,
       availableBalance: progression.withdrawableBalance ?? 0,
       lockedBalance: progression.lockedBalance ?? 0,
-      pendingEarnings: progression.pendingEarningsTotal ?? summary.pendingEarnings,
-      realizedEarnings: toNumberOrNull(metrics.totalRealizedProfitLoss) ?? 0,
+      pendingEarnings: toNumberOrNull(valuation.accruedEarnings) ?? summary.pendingEarnings,
+      realizedEarnings: toNumberOrNull(valuation.settledEarnings) ?? 0,
       unrealizedProfitLoss: toNumberOrNull(metrics.totalUnrealizedProfitLoss),
       unrealizedRoiPercent: toNumberOrNull(metrics.overallReturnPercent),
       todayProfitLoss: toNumberOrNull(metrics.todayProfitLoss),

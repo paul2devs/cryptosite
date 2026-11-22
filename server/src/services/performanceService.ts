@@ -7,6 +7,7 @@ import {
   type DailyPerformanceHistoryRow
 } from "../domain/performanceRules";
 import { formatDecimal, parseDecimal } from "../domain/money";
+import { portfolioValuation, type PortfolioValuation } from "../domain/portfolioRules";
 import { AdminAuditLog } from "../models/AdminAuditLog";
 import { DailyPerformanceSnapshot } from "../models/DailyPerformanceSnapshot";
 import { InvestmentPosition } from "../models/InvestmentPosition";
@@ -356,6 +357,28 @@ export async function getPerformanceOverview(userId: string, range: string): Pro
     note:
       "Values are produced only from verified valuations and ledger events. Unverified positions are shown at principal and flagged. Unrealised performance is never withdrawable."
   };
+}
+
+/**
+ * The single authoritative portfolio valuation used by every surface.
+ *
+ * Total portfolio value is derived only from verified investment positions: the
+ * principal allocated to active positions plus the earnings those positions have
+ * actually accrued. It is deliberately decoupled from live market prices, so a
+ * fixed-principal investment is never re-valued by BTC/ETH price swings.
+ *
+ * The rule itself lives in the pure domain layer (`domain/portfolioRules`) and is
+ * re-exported here so every service shares one implementation.
+ */
+export { portfolioValuation };
+export type { PortfolioValuation };
+
+export async function getPortfolioValuation(
+  userId: string,
+  range = "all"
+): Promise<PortfolioValuation> {
+  const overview = await getPerformanceOverview(userId, range);
+  return portfolioValuation(overview.overview);
 }
 
 export interface DailyPerformanceDetail {

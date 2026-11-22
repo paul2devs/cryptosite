@@ -62,7 +62,7 @@ export function PortfolioSummary({
     <Section id="portfolio-summary">
       <SectionHeader
         title="Portfolio value"
-        description="Confirmed holdings, available balance and recorded profit or loss."
+        description="Investment principal, accrued earnings, available balance and recorded profit or loss."
       />
       <Panel className="mt-4">
         {error && !totals ? (
@@ -84,7 +84,7 @@ export function PortfolioSummary({
                 </div>
               )}
               <p className="mt-1 text-[11px] text-[#9CA3AF]">
-                Confirmed holdings valued at live market rates.
+                Investment principal plus accrued earnings.
               </p>
             </div>
 

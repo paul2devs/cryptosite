@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildPortfolioHoldings = buildPortfolioHoldings;
 exports.computeAllocation = computeAllocation;
 exports.sumHoldingsValue = sumHoldingsValue;
+exports.portfolioValuation = portfolioValuation;
+const money_1 = require("./money");
 function safeNumber(value) {
     return Number.isFinite(value) ? value : 0;
 }
@@ -34,4 +36,18 @@ function computeAllocation(holdings) {
 }
 function sumHoldingsValue(holdings) {
     return holdings.reduce((sum, holding) => sum + holding.value, 0);
+}
+const VALUATION_SCALE = 8;
+function portfolioValuation(input) {
+    const total = (0, money_1.parseDecimal)(input.currentInvestmentValue, VALUATION_SCALE);
+    const principal = (0, money_1.parseDecimal)(input.investedPrincipal, VALUATION_SCALE);
+    const accrued = total - principal;
+    return {
+        currency: "USD",
+        totalValue: (0, money_1.formatDecimal)(total, VALUATION_SCALE),
+        investedPrincipal: (0, money_1.formatDecimal)(principal, VALUATION_SCALE),
+        accruedEarnings: (0, money_1.formatDecimal)(accrued > 0n ? accrued : 0n, VALUATION_SCALE),
+        settledEarnings: (0, money_1.formatDecimal)((0, money_1.parseDecimal)(input.totalRealizedProfitLoss, VALUATION_SCALE), VALUATION_SCALE),
+        valuationComplete: input.valuationComplete
+    };
 }

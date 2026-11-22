@@ -106,7 +106,7 @@ export function PortfolioPage() {
           <AssetAllocation
             allocation={overview?.allocation ?? []}
             loading={loading}
-            total={overview?.totals.totalValue ?? 0}
+            total={(overview?.holdings ?? []).reduce((sum, holding) => sum + holding.value, 0)}
           />
 
           <PortfolioHistory

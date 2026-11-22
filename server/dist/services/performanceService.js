@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PERFORMANCE_METHODOLOGY = void 0;
+exports.portfolioValuation = exports.PERFORMANCE_METHODOLOGY = void 0;
 exports.getPerformanceOverview = getPerformanceOverview;
+exports.getPortfolioValuation = getPortfolioValuation;
 exports.getDailyPerformanceDetail = getDailyPerformanceDetail;
 exports.reconcilePerformance = reconcilePerformance;
 exports.performanceReconciliationHistory = performanceReconciliationHistory;
@@ -9,6 +10,8 @@ exports.performanceAdminOverview = performanceAdminOverview;
 const sequelize_1 = require("sequelize");
 const performanceRules_1 = require("../domain/performanceRules");
 const money_1 = require("../domain/money");
+const portfolioRules_1 = require("../domain/portfolioRules");
+Object.defineProperty(exports, "portfolioValuation", { enumerable: true, get: function () { return portfolioRules_1.portfolioValuation; } });
 const AdminAuditLog_1 = require("../models/AdminAuditLog");
 const DailyPerformanceSnapshot_1 = require("../models/DailyPerformanceSnapshot");
 const InvestmentPosition_1 = require("../models/InvestmentPosition");
@@ -262,6 +265,10 @@ async function getPerformanceOverview(userId, range) {
         realizedEarnings: (0, money_1.formatDecimal)(realizedTotal, 8),
         note: "Values are produced only from verified valuations and ledger events. Unverified positions are shown at principal and flagged. Unrealised performance is never withdrawable."
     };
+}
+async function getPortfolioValuation(userId, range = "all") {
+    const overview = await getPerformanceOverview(userId, range);
+    return (0, portfolioRules_1.portfolioValuation)(overview.overview);
 }
 async function getDailyPerformanceDetail(userId, date) {
     const overview = await getPerformanceOverview(userId, "all");
