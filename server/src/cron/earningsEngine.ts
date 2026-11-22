@@ -13,7 +13,7 @@ async function runTick(tickType: "hourly" | "daily"): Promise<void> {
     const summary = await processEarningsTick(tickType);
     // eslint-disable-next-line no-console
     console.log(
-      `[earnings-engine] ${tickType} tick asOf=${summary.asOfDate} rate=${summary.ratePercent}% ` +
+      `[earnings-engine] ${tickType} tick asOf=${summary.asOfDate} band=${summary.rateBand} ` +
         `positions=${summary.positionsEvaluated} accrued=${summary.periodsAccrued} ` +
         `amount=${summary.amountAccrued} alreadyPaid=${summary.skippedAlreadyAccrued} ` +
         `ineligible=${summary.skippedIneligible}`

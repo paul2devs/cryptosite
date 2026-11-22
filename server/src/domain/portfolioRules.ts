@@ -82,6 +82,13 @@ export interface PortfolioValuation {
   investedPrincipal: string;
   accruedEarnings: string;
   settledEarnings: string;
+  /**
+   * Earnings still waiting to be settled: the accrued gain that has not yet been
+   * distributed. A distribution credits the wallet without reducing the position
+   * valuation, so the settled part must be subtracted to avoid counting the same
+   * earnings both as pending and as available cash.
+   */
+  pendingEarnings: string;
   valuationComplete: boolean;
 }
 
@@ -94,12 +101,16 @@ export function portfolioValuation(input: {
   const total = parseDecimal(input.currentInvestmentValue, VALUATION_SCALE);
   const principal = parseDecimal(input.investedPrincipal, VALUATION_SCALE);
   const accrued = total - principal;
+  const accruedEarnings = accrued > 0n ? accrued : 0n;
+  const settled = parseDecimal(input.totalRealizedProfitLoss, VALUATION_SCALE);
+  const pending = accruedEarnings - settled;
   return {
     currency: "USD",
     totalValue: formatDecimal(total, VALUATION_SCALE),
     investedPrincipal: formatDecimal(principal, VALUATION_SCALE),
-    accruedEarnings: formatDecimal(accrued > 0n ? accrued : 0n, VALUATION_SCALE),
-    settledEarnings: formatDecimal(parseDecimal(input.totalRealizedProfitLoss, VALUATION_SCALE), VALUATION_SCALE),
+    accruedEarnings: formatDecimal(accruedEarnings, VALUATION_SCALE),
+    settledEarnings: formatDecimal(settled, VALUATION_SCALE),
+    pendingEarnings: formatDecimal(pending > 0n ? pending : 0n, VALUATION_SCALE),
     valuationComplete: input.valuationComplete
   };
 }

@@ -54,10 +54,12 @@ export interface WithdrawalDepositLevel {
 
 export interface WithdrawalSummary {
   withdrawable_balance: number;
+  available_to_withdraw: number;
   locked_balance: number;
   invested_balance: number;
   pending_withdrawal_amount: number;
   pending_earnings_total: number;
+  settled_earnings_total: number;
   total_account_balance: number;
   user_level: number;
   min_level: number;
@@ -144,10 +146,12 @@ function normalizeSummary(raw: Record<string, unknown>): WithdrawalSummary {
 
   return {
     withdrawable_balance: toNumber(raw.withdrawable_balance),
+    available_to_withdraw: toNumber(raw.available_to_withdraw),
     locked_balance: toNumber(raw.locked_balance),
     invested_balance: toNumber(raw.invested_balance),
     pending_withdrawal_amount: toNumber(raw.pending_withdrawal_amount),
     pending_earnings_total: toNumber(raw.pending_earnings_total),
+    settled_earnings_total: toNumber(raw.settled_earnings_total),
     total_account_balance: toNumber(raw.total_account_balance),
     user_level: toNumber(raw.user_level),
     min_level: toNumber(raw.min_level),

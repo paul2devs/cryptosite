@@ -83,9 +83,7 @@ export function PortfolioSummary({
                   <BalanceToggle />
                 </div>
               )}
-              <p className="mt-1 text-[11px] text-[#9CA3AF]">
-                Investment principal plus accrued earnings.
-              </p>
+              <p className="mt-1 text-[11px] text-[#9CA3AF]">Investment principal</p>
             </div>
 
             <div className="mt-5 border-t border-[#1F2023] pt-5">
@@ -98,7 +96,7 @@ export function PortfolioSummary({
                 <SummaryMetric
                   label="Pending earnings"
                   value={maskValue(hidden, formatUsd(totals?.pendingEarnings ?? 0))}
-                  hint="Accrued, not yet settled"
+                  hint="Accrued, awaiting settlement"
                 />
                 <SummaryMetric
                   label="Available cash"
@@ -119,9 +117,11 @@ export function PortfolioSummary({
                   hint={
                     unrealized === null
                       ? "Awaiting a verified valuation"
-                      : unrealizedRoi === null
-                        ? "Not withdrawable until settled"
-                        : `${formatPercent(unrealizedRoi, { signed: true })} · not withdrawable`
+                      : `${unrealized > 0 ? "Unrealised gain" : unrealized < 0 ? "Unrealised loss" : "Unrealised"} · not yet settled${
+                          unrealizedRoi === null
+                            ? ""
+                            : ` · ${formatPercent(unrealizedRoi, { signed: true })}`
+                        }`
                   }
                   tone={toneFromValue(unrealized)}
                 />

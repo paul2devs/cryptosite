@@ -91,6 +91,18 @@ export function PerformanceOverview({
   const todayRoi = percentCell(metrics?.todayRoiPercent);
   const realized = signedCell(metrics?.totalRealizedProfitLoss);
   const unrealized = signedCell(metrics?.totalUnrealizedProfitLoss);
+  const unrealizedValue = parseDecimalString(metrics?.totalUnrealizedProfitLoss ?? null);
+  // An unrealised result is a valuation movement, not settled cash. The status
+  // says exactly that instead of implying the balance is simply "not
+  // withdrawable" (which wrongly suggested it was already settled).
+  const unrealizedStatus =
+    unrealizedValue === null
+      ? "Awaiting a verified valuation"
+      : unrealizedValue > 0
+        ? "Unrealised gain · not yet settled"
+        : unrealizedValue < 0
+          ? "Unrealised loss · not yet settled"
+          : "Unrealised · no movement";
   const overall = percentCell(metrics?.overallReturnPercent);
   const periodRoi = percentCell(metrics?.periodReturnPercent);
   const periodPl = signedCell(metrics?.periodProfitLoss);
@@ -157,7 +169,7 @@ export function PerformanceOverview({
                 label="Total unrealised P/L"
                 value={unrealized.text}
                 valueClassName={unrealized.className}
-                hint="Not withdrawable"
+                hint={unrealizedStatus}
               />
               <MetricCell
                 label="Overall return"

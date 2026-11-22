@@ -73,12 +73,12 @@ export function WithdrawPageHeader({
 }) {
   const { hidden } = useBalanceVisibility();
 
-  const maturedAvailable = summary
-    ? summary.maturity.policyInEffect
-      ? summary.maturity.maturedAmount
-      : summary.withdrawable_balance
-    : 0;
-  const animatedAvailable = useAnimatedNumber(maturedAvailable);
+  // Credited, settled funds that are eligible right now. This is the single
+  // authoritative figure computed on the server (wallet cash net of any
+  // maturity hold), so it can never disagree with the invested principal,
+  // pending withdrawals or total account balance shown alongside it.
+  const availableToWithdraw = summary?.available_to_withdraw ?? 0;
+  const animatedAvailable = useAnimatedNumber(availableToWithdraw);
   const animatedTotal = useAnimatedNumber(summary?.total_account_balance ?? 0);
 
   const eligibility = summary ? describeEligibility(summary) : null;
@@ -158,6 +158,12 @@ export function WithdrawPageHeader({
                 label="Invested"
                 value={maskValue(hidden, formatUsd(summary?.invested_balance ?? 0))}
                 hint="Allocated principal"
+              />
+              <Stat
+                label="Pending earnings"
+                value={maskValue(hidden, formatUsd(summary?.pending_earnings_total ?? 0))}
+                tone="gold"
+                hint="Accrued, awaiting settlement"
               />
               <Stat
                 label="Pending withdrawals"

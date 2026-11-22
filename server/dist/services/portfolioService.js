@@ -61,7 +61,9 @@ async function getPortfolioSummary(userId, performanceOverride) {
     // (pending) earnings are reflected the moment they are written to a position.
     const valuation = (0, performanceService_1.portfolioValuation)(performance.metrics);
     const totalCurrentValue = toNumberOrNull(valuation.totalValue) ?? 0;
-    const pending = toNumberOrNull(valuation.accruedEarnings) ?? 0;
+    // The accrued-but-unsettled figure, so a distributed (settled) earning is
+    // never also reported here as still pending.
+    const pending = toNumberOrNull(valuation.pendingEarnings) ?? 0;
     const totalPlatformBalance = allDeposits.reduce((sum, d) => sum + d.amount, 0);
     // Build the growth series from genuine stored valuation snapshots so the
     // chart reflects what was actually recorded, never a value re-derived from
@@ -156,7 +158,7 @@ async function getPortfolioOverview(userId, range) {
             investedPrincipal: toNumberOrNull(valuation.investedPrincipal) ?? 0,
             availableBalance: progression.withdrawableBalance ?? 0,
             lockedBalance: progression.lockedBalance ?? 0,
-            pendingEarnings: toNumberOrNull(valuation.accruedEarnings) ?? summary.pendingEarnings,
+            pendingEarnings: toNumberOrNull(valuation.pendingEarnings) ?? summary.pendingEarnings,
             realizedEarnings: toNumberOrNull(valuation.settledEarnings) ?? 0,
             unrealizedProfitLoss: toNumberOrNull(metrics.totalUnrealizedProfitLoss),
             unrealizedRoiPercent: toNumberOrNull(metrics.overallReturnPercent),

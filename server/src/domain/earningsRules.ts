@@ -206,3 +206,61 @@ export function buildDailyEarningsAccrual(input: {
 export function earningsAccrualKey(positionId: string, snapshotDate: string): string {
   return `${positionId}:${snapshotDate}`;
 }
+
+// ---------------------------------------------------------------------------
+// Daily performance band
+//
+// The scheduled plan models a modest, mostly-positive daily return: most days
+// land inside the 3%–6% band, and a genuine loss day (-2%) is rare. The rate for
+// a given position on a given day is derived deterministically from the position
+// id and the snapshot date, so a re-run, a backfill or a concurrent tick can
+// never change a day that has already been recorded. The rate is simple interest
+// on principal (see `buildDailyEarningsAccrual`), never compounding.
+// ---------------------------------------------------------------------------
+
+/** Lower bound of the positive daily band. */
+export const EARNINGS_DAILY_MIN_RATE_PERCENT = "3.000000";
+/** Upper bound of the positive daily band (exclusive). */
+export const EARNINGS_DAILY_MAX_RATE_PERCENT = "6.000000";
+/** The rare genuine loss day. */
+export const EARNINGS_DAILY_LOSS_RATE_PERCENT = "-2.000000";
+
+// The band is split into 10,000,000 deterministic buckets: the first
+// LOSS_BUCKETS model a loss day and the remainder spread evenly across the
+// positive band, so ~2.5% of position-days are losses and the rest are gains.
+const RATE_BUCKETS = 10000000n;
+const RATE_LOSS_BUCKETS = 250000n;
+const MIN_RATE_UNITS = 3000000n; // 3.000000 at the 6-decimal percent scale
+const MAX_RATE_UNITS = 6000000n; // 6.000000 at the 6-decimal percent scale
+
+// FNV-1a (32-bit) folded into the bucket range. The result depends only on the
+// seed string, so the same position and date always produce the same bucket.
+function rateBucket(seed: string): bigint {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return (BigInt(hash) * RATE_BUCKETS) / 4294967296n;
+}
+
+/**
+ * The deterministic daily rate for one position on one day: usually inside the
+ * 3%–6% positive band, occasionally a rare -2% loss day. Because the rate is a
+ * pure function of the position id and the snapshot date, re-running or
+ * backfilling a day reproduces exactly the same rate and never rewrites history.
+ */
+export function deterministicDailyRatePercent(positionId: string, snapshotDate: string): string {
+  const bucket = rateBucket(earningsAccrualKey(positionId, snapshotDate));
+  if (bucket < RATE_LOSS_BUCKETS) {
+    return formatDecimal(-2000000n, PERFORMANCE_PERCENT_SCALE);
+  }
+  const positiveBuckets = RATE_BUCKETS - RATE_LOSS_BUCKETS;
+  const offset = ((bucket - RATE_LOSS_BUCKETS) * (MAX_RATE_UNITS - MIN_RATE_UNITS)) / positiveBuckets;
+  return formatDecimal(MIN_RATE_UNITS + offset, PERFORMANCE_PERCENT_SCALE);
+}
+
+/** Human-readable description of the daily performance band, for logs and copy. */
+export function describeDailyRateBand(): string {
+  return `${EARNINGS_DAILY_MIN_RATE_PERCENT}%-${EARNINGS_DAILY_MAX_RATE_PERCENT}% (rare ${EARNINGS_DAILY_LOSS_RATE_PERCENT}%)`;
+}

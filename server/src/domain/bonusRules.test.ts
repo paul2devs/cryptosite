@@ -37,6 +37,27 @@ test("applies a 5% promotional bonus to a 20000 qualifying deposit", () => {
   assert.equal(bonus, "1000.00000000");
 });
 
+test("credits the 5% bonus on every qualifying deposit, not just the first", () => {
+  const rules = fallbackCampaign({
+    percentage: "5.000000",
+    minDeposit: "0.00000000",
+    maxBonus: null,
+    eligibleAssets: null
+  });
+  const firstDeposit = calculatePromotionalBonus({
+    amount: "100.00000000",
+    percentage: rules.percentage,
+    maxBonus: rules.maxBonus
+  });
+  const secondDeposit = calculatePromotionalBonus({
+    amount: "200.00000000",
+    percentage: rules.percentage,
+    maxBonus: rules.maxBonus
+  });
+  assert.equal(firstDeposit, "5.00000000");
+  assert.equal(secondDeposit, "10.00000000");
+});
+
 test("rounds the promotional bonus half-up at eight decimal places", () => {
   const bonus = calculatePromotionalBonus({
     amount: "19.99000000",

@@ -118,7 +118,7 @@ export function PerformanceBreakdown({
           </div>
           <p className="mt-3 text-[11px] leading-relaxed text-[#9CA3AF]">
             {unrealizedVerified
-              ? "Unrealised P/L equals current position value minus cost basis. It is not withdrawable until settled."
+              ? "Unrealised P/L equals current position value minus cost basis. It is an unsettled valuation and is not withdrawable until it is realised and settled to your ledger."
               : "A reliable cost basis is not available for your positions yet, so unrealised P/L stays unavailable until a verified valuation is published."}
           </p>
         </Panel>

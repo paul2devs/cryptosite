@@ -104,7 +104,15 @@ export function PerformanceMetricsGrid({
           label="Total unrealised P/L"
           value={unrealized === null ? "Unavailable" : formatSignedUsd(unrealized)}
           tone={unrealized === null ? "neutral" : toneFromValue(unrealized)}
-          hint="Not withdrawable"
+          hint={
+            unrealized === null
+              ? "Awaiting a verified valuation"
+              : unrealized > 0
+                ? "Unrealised gain · not yet settled"
+                : unrealized < 0
+                  ? "Unrealised loss · not yet settled"
+                  : "Unrealised · no movement"
+          }
         />
         <Stat
           label="Overall return"

@@ -94,8 +94,8 @@ export function PortfolioOverview({
     <Section>
       <SectionHeader
         title="Portfolio"
-        description="Investment principal plus accrued earnings."
-        action={<StatusBadge tone="gold" label="Principal + earnings" />}
+        description="Investment principal"
+        action={<StatusBadge tone="gold" label="Principal" />}
       />
       <div className="card mt-4 px-4 py-5 sm:px-6 sm:py-6">
         {error && !portfolio ? (
@@ -136,7 +136,7 @@ export function PortfolioOverview({
                 <StatBlock
                   label="Pending earnings"
                   value={mask(formatNumber(pendingEarnings, 4))}
-                  hint="Accrued, not yet withdrawable"
+                  hint="Accrued, awaiting settlement"
                 />
                 <StatBlock
                   label="Withdrawable"

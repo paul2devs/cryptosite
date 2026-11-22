@@ -17,6 +17,7 @@ exports.reserveWithdrawal = reserveWithdrawal;
 const crypto_1 = require("crypto");
 const sequelize_1 = require("sequelize");
 const database_1 = require("../config/database");
+const accountBalanceRules_1 = require("../domain/accountBalanceRules");
 const withdrawalRules_1 = require("../domain/withdrawalRules");
 const Deposit_1 = require("../models/Deposit");
 const User_1 = require("../models/User");
@@ -24,6 +25,7 @@ const Withdrawal_1 = require("../models/Withdrawal");
 const depositLevelService_1 = require("./depositLevelService");
 const financialOperationsService_1 = require("./financialOperationsService");
 const marketDataService_1 = require("./marketDataService");
+const performanceService_1 = require("./performanceService");
 class WithdrawalError extends Error {
     constructor(status, message) {
         super(message);
@@ -219,10 +221,11 @@ async function getUserWithdrawalSummary(userId) {
     if (!user) {
         throw new WithdrawalError(404, "User not found");
     }
-    const [depositStats, pendingWithdrawalAmount, maturity] = await Promise.all([
+    const [depositStats, pendingWithdrawalAmount, maturity, valuation] = await Promise.all([
         (0, depositLevelService_1.calculateDepositLevelForUser)(userId),
         pendingWithdrawalAmountFor(userId),
-        computeMaturityEligibility(user)
+        computeMaturityEligibility(user),
+        (0, performanceService_1.getPortfolioValuation)(userId, "all")
     ]);
     const minLevel = getWithdrawalMinLevel();
     const cooldownHours = getWithdrawalCooldownHours();
@@ -234,9 +237,24 @@ async function getUserWithdrawalSummary(userId) {
     }
     const withdrawable = Number.isFinite(user.withdrawable_balance) ? user.withdrawable_balance : 0;
     const locked = Number.isFinite(user.locked_balance) ? user.locked_balance : 0;
-    const availableMatured = Math.max(0, withdrawable - maturity.maturingAmount);
+    // One authoritative breakdown: wallet cash, invested principal, accrued
+    // earnings and in-flight withdrawals are separated exactly once, so the same
+    // amount can never be reported as pending, settled and withdrawable at once.
+    // The invested principal comes from the verified positions, never from the raw
+    // approved-deposit total, and the pending earnings come from the same accrual
+    // the portfolio and performance sections report.
+    const balance = (0, accountBalanceRules_1.computeAccountBalance)({
+        walletBalance: String(withdrawable),
+        lockedBalance: String(locked),
+        investedPrincipal: valuation.investedPrincipal,
+        accruedEarnings: valuation.accruedEarnings,
+        settledEarnings: valuation.settledEarnings,
+        underMaturity: String(maturity.maturingAmount),
+        pendingWithdrawals: String(pendingWithdrawalAmount)
+    });
+    const availableToWithdraw = Number(balance.availableToWithdraw);
     const levelMet = depositStats.level >= minLevel;
-    const balanceAvailable = availableMatured > 0;
+    const balanceAvailable = availableToWithdraw > 0;
     const cooldownCleared = cooldownRemainingSeconds === 0;
     const reasons = [];
     if (!levelMet) {
@@ -250,16 +268,15 @@ async function getUserWithdrawalSummary(userId) {
             ? "Your available funds are still within the disclosed maturity period."
             : "You do not have an available withdrawal balance yet.");
     }
-    const pendingEarnings = user.pending_earnings?.total !== undefined
-        ? Number(user.pending_earnings.total)
-        : 0;
     return {
         withdrawable_balance: withdrawable,
+        available_to_withdraw: availableToWithdraw,
         locked_balance: locked,
-        invested_balance: depositStats.totalDepositedUsd,
+        invested_balance: Number(balance.invested),
         pending_withdrawal_amount: pendingWithdrawalAmount,
-        pending_earnings_total: Number.isFinite(pendingEarnings) ? pendingEarnings : 0,
-        total_account_balance: withdrawable + locked + depositStats.totalDepositedUsd,
+        pending_earnings_total: Number(balance.pendingEarnings),
+        settled_earnings_total: Number(balance.settledEarnings),
+        total_account_balance: Number(balance.totalAccountBalance),
         user_level: depositStats.level,
         min_level: minLevel,
         cooldown_seconds_remaining: cooldownRemainingSeconds,

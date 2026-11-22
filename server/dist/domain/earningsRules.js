@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EARNINGS_ACCRUAL_SOURCE = exports.DEFAULT_EARNINGS_PERIOD_DAYS = exports.DEFAULT_DAILY_EARNINGS_RATE_PERCENT = exports.PERFORMANCE_PERCENT_SCALE = exports.PERFORMANCE_AMOUNT_SCALE = exports.PROJECTED_RETURN_DISCLAIMER = void 0;
+exports.EARNINGS_DAILY_LOSS_RATE_PERCENT = exports.EARNINGS_DAILY_MAX_RATE_PERCENT = exports.EARNINGS_DAILY_MIN_RATE_PERCENT = exports.EARNINGS_ACCRUAL_SOURCE = exports.DEFAULT_EARNINGS_PERIOD_DAYS = exports.DEFAULT_DAILY_EARNINGS_RATE_PERCENT = exports.PERFORMANCE_PERCENT_SCALE = exports.PERFORMANCE_AMOUNT_SCALE = exports.PROJECTED_RETURN_DISCLAIMER = void 0;
 exports.dayKey = dayKey;
 exports.isPerformanceDayEligible = isPerformanceDayEligible;
 exports.isFutureSnapshot = isFutureSnapshot;
@@ -15,6 +15,8 @@ exports.periodRoiPercent = periodRoiPercent;
 exports.dailyEarningsRatePercent = dailyEarningsRatePercent;
 exports.buildDailyEarningsAccrual = buildDailyEarningsAccrual;
 exports.earningsAccrualKey = earningsAccrualKey;
+exports.deterministicDailyRatePercent = deterministicDailyRatePercent;
+exports.describeDailyRateBand = describeDailyRateBand;
 const money_1 = require("./money");
 exports.PROJECTED_RETURN_DISCLAIMER = "Projected figures apply a modelled daily rate to invested principal. They are not a guarantee and are not credited. Only verified valuations recorded against real positions produce reportable performance.";
 exports.PERFORMANCE_AMOUNT_SCALE = 8;
@@ -163,4 +165,56 @@ function buildDailyEarningsAccrual(input) {
 /** A stable, deterministic per-position/per-day accrual key. */
 function earningsAccrualKey(positionId, snapshotDate) {
     return `${positionId}:${snapshotDate}`;
+}
+// ---------------------------------------------------------------------------
+// Daily performance band
+//
+// The scheduled plan models a modest, mostly-positive daily return: most days
+// land inside the 3%–6% band, and a genuine loss day (-2%) is rare. The rate for
+// a given position on a given day is derived deterministically from the position
+// id and the snapshot date, so a re-run, a backfill or a concurrent tick can
+// never change a day that has already been recorded. The rate is simple interest
+// on principal (see `buildDailyEarningsAccrual`), never compounding.
+// ---------------------------------------------------------------------------
+/** Lower bound of the positive daily band. */
+exports.EARNINGS_DAILY_MIN_RATE_PERCENT = "3.000000";
+/** Upper bound of the positive daily band (exclusive). */
+exports.EARNINGS_DAILY_MAX_RATE_PERCENT = "6.000000";
+/** The rare genuine loss day. */
+exports.EARNINGS_DAILY_LOSS_RATE_PERCENT = "-2.000000";
+// The band is split into 10,000,000 deterministic buckets: the first
+// LOSS_BUCKETS model a loss day and the remainder spread evenly across the
+// positive band, so ~2.5% of position-days are losses and the rest are gains.
+const RATE_BUCKETS = 10000000n;
+const RATE_LOSS_BUCKETS = 250000n;
+const MIN_RATE_UNITS = 3000000n; // 3.000000 at the 6-decimal percent scale
+const MAX_RATE_UNITS = 6000000n; // 6.000000 at the 6-decimal percent scale
+// FNV-1a (32-bit) folded into the bucket range. The result depends only on the
+// seed string, so the same position and date always produce the same bucket.
+function rateBucket(seed) {
+    let hash = 0x811c9dc5;
+    for (let index = 0; index < seed.length; index += 1) {
+        hash ^= seed.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    return (BigInt(hash) * RATE_BUCKETS) / 4294967296n;
+}
+/**
+ * The deterministic daily rate for one position on one day: usually inside the
+ * 3%–6% positive band, occasionally a rare -2% loss day. Because the rate is a
+ * pure function of the position id and the snapshot date, re-running or
+ * backfilling a day reproduces exactly the same rate and never rewrites history.
+ */
+function deterministicDailyRatePercent(positionId, snapshotDate) {
+    const bucket = rateBucket(earningsAccrualKey(positionId, snapshotDate));
+    if (bucket < RATE_LOSS_BUCKETS) {
+        return (0, money_1.formatDecimal)(-2000000n, exports.PERFORMANCE_PERCENT_SCALE);
+    }
+    const positiveBuckets = RATE_BUCKETS - RATE_LOSS_BUCKETS;
+    const offset = ((bucket - RATE_LOSS_BUCKETS) * (MAX_RATE_UNITS - MIN_RATE_UNITS)) / positiveBuckets;
+    return (0, money_1.formatDecimal)(MIN_RATE_UNITS + offset, exports.PERFORMANCE_PERCENT_SCALE);
+}
+/** Human-readable description of the daily performance band, for logs and copy. */
+function describeDailyRateBand() {
+    return `${exports.EARNINGS_DAILY_MIN_RATE_PERCENT}%-${exports.EARNINGS_DAILY_MAX_RATE_PERCENT}% (rare ${exports.EARNINGS_DAILY_LOSS_RATE_PERCENT}%)`;
 }

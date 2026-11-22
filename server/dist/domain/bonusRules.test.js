@@ -30,6 +30,26 @@ function campaign(overrides = {}) {
     });
     assert_1.default.equal(bonus, "1000.00000000");
 });
+(0, node_test_1.test)("credits the 5% bonus on every qualifying deposit, not just the first", () => {
+    const rules = (0, bonusRules_1.fallbackCampaign)({
+        percentage: "5.000000",
+        minDeposit: "0.00000000",
+        maxBonus: null,
+        eligibleAssets: null
+    });
+    const firstDeposit = (0, bonusRules_1.calculatePromotionalBonus)({
+        amount: "100.00000000",
+        percentage: rules.percentage,
+        maxBonus: rules.maxBonus
+    });
+    const secondDeposit = (0, bonusRules_1.calculatePromotionalBonus)({
+        amount: "200.00000000",
+        percentage: rules.percentage,
+        maxBonus: rules.maxBonus
+    });
+    assert_1.default.equal(firstDeposit, "5.00000000");
+    assert_1.default.equal(secondDeposit, "10.00000000");
+});
 (0, node_test_1.test)("rounds the promotional bonus half-up at eight decimal places", () => {
     const bonus = (0, bonusRules_1.calculatePromotionalBonus)({
         amount: "19.99000000",

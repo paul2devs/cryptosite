@@ -16,7 +16,7 @@ async function runTick(tickType) {
     try {
         const summary = await (0, earningsEngineService_1.processEarningsTick)(tickType);
         // eslint-disable-next-line no-console
-        console.log(`[earnings-engine] ${tickType} tick asOf=${summary.asOfDate} rate=${summary.ratePercent}% ` +
+        console.log(`[earnings-engine] ${tickType} tick asOf=${summary.asOfDate} band=${summary.rateBand} ` +
             `positions=${summary.positionsEvaluated} accrued=${summary.periodsAccrued} ` +
             `amount=${summary.amountAccrued} alreadyPaid=${summary.skippedAlreadyAccrued} ` +
             `ineligible=${summary.skippedIneligible}`);

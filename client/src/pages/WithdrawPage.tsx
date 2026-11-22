@@ -108,13 +108,10 @@ export function WithdrawPage() {
   const option = currentNetwork ? getWithdrawNetworkOption(currentNetwork.cryptoType) : null;
   const confirmations = option ? requiredConfirmations(option.cryptoType) : 0;
 
-  const availableBalance = summary
-    ? Math.max(
-        0,
-        summary.withdrawable_balance -
-          (summary.maturity.policyInEffect ? summary.maturity.maturingAmount : 0)
-      )
-    : 0;
+  // Authoritative figure computed on the server (wallet cash net of any maturity
+  // hold), never re-derived on the client so the enforced value and the
+  // displayed value can never drift apart.
+  const availableBalance = summary?.available_to_withdraw ?? 0;
 
   const amountValidation = option ? validateWithdrawAmount(amount, option.decimals) : EMPTY_AMOUNT;
   const addressValidation = option

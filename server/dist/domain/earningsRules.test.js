@@ -105,3 +105,33 @@ const earningsRules_1 = require("./earningsRules");
     assert_1.default.equal((0, earningsRules_1.earningsPeriodDays)(null), 30);
     assert_1.default.equal((0, earningsRules_1.earningsPeriodDays)(undefined), 30);
 });
+(0, node_test_1.test)("derives the same daily rate for a position and day on every run", () => {
+    const first = (0, earningsRules_1.deterministicDailyRatePercent)("pos-1", "2026-03-05");
+    assert_1.default.equal(first, (0, earningsRules_1.deterministicDailyRatePercent)("pos-1", "2026-03-05"));
+    // A different day is allowed to differ, but a re-read never rewrites history.
+    assert_1.default.equal(first, (0, earningsRules_1.deterministicDailyRatePercent)("pos-1", "2026-03-05"));
+});
+(0, node_test_1.test)("keeps daily rates inside the 3%-6% gain band with rare -2% loss days", () => {
+    const min = Number(earningsRules_1.EARNINGS_DAILY_MIN_RATE_PERCENT);
+    const max = Number(earningsRules_1.EARNINGS_DAILY_MAX_RATE_PERCENT);
+    const loss = Number(earningsRules_1.EARNINGS_DAILY_LOSS_RATE_PERCENT);
+    const samples = 5000;
+    let lossDays = 0;
+    for (let index = 0; index < samples; index += 1) {
+        const rate = Number((0, earningsRules_1.deterministicDailyRatePercent)(`pos-${index}`, "2026-03-05"));
+        if (rate === loss) {
+            lossDays += 1;
+            continue;
+        }
+        assert_1.default.ok(rate >= min && rate < max, `rate ${rate} outside the ${min}-${max} band`);
+    }
+    // Losses are a genuine but rare minority, never the norm.
+    assert_1.default.ok(lossDays > 0, "expected at least one loss day across the sample");
+    assert_1.default.ok(lossDays / samples < 0.1, `loss rate ${lossDays / samples} unexpectedly high`);
+});
+(0, node_test_1.test)("describes the daily rate band for logs and copy", () => {
+    const band = (0, earningsRules_1.describeDailyRateBand)();
+    assert_1.default.match(band, /3\.000000%/);
+    assert_1.default.match(band, /6\.000000%/);
+    assert_1.default.match(band, /-2\.000000%/);
+});

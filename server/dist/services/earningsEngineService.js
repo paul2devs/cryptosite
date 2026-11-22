@@ -24,20 +24,6 @@ function nextDayKey(dayKeyValue) {
     date.setUTCDate(date.getUTCDate() + 1);
     return date.toISOString().slice(0, 10);
 }
-// The administrator-configured daily rate (platform settings) is authoritative:
-// editing it in the admin console changes what the earnings engine applies. The
-// EARNINGS_DAILY_RATE_PERCENT environment variable is only used as a fallback
-// when no operator setting has been stored yet.
-function resolveEarningsRate(configured) {
-    if (typeof configured === "string" && configured.trim().length > 0) {
-        return (0, earningsRules_1.dailyEarningsRatePercent)(configured);
-    }
-    const envValue = process.env.EARNINGS_DAILY_RATE_PERCENT;
-    if (typeof envValue === "string" && envValue.trim().length > 0) {
-        return (0, earningsRules_1.dailyEarningsRatePercent)(envValue);
-    }
-    return (0, earningsRules_1.dailyEarningsRatePercent)(null);
-}
 /**
  * Map of deposit id -> the moment the deposit was confirmed. Daily earnings may
  * only begin the day *after* a deposit is confirmed, so the confirmation time
@@ -84,13 +70,18 @@ async function latestVerifiedDate(positionId) {
 /**
  * Credit one day of daily investment earnings onto a single position.
  *
+ * The day's rate is a deterministic function of the position id and the
+ * snapshot date (see `deterministicDailyRatePercent`): usually a gain inside the
+ * 3%–6% band, occasionally a rare -2% loss. The same position/date always yields
+ * the same rate, so neither a re-run nor a backfill can rewrite a recorded day.
+ *
  * The write is idempotent: if a verified snapshot already exists for the
  * position/date pair (including a snapshot written by a previous run of this
  * job), nothing is written and no earnings are credited twice. The partial
  * unique index on `daily_performance_snapshots(position_id, snapshot_date)` is
  * the database-level backstop for concurrent runs.
  */
-async function accruePositionForDate(position, snapshotDate, ratePercent, confirmedAt) {
+async function accruePositionForDate(position, snapshotDate, confirmedAt) {
     if (position.deposit_id && !(0, earningsRules_1.isPerformanceDayEligible)(confirmedAt, snapshotDate)) {
         return { outcome: "ineligible", profitLoss: null };
     }
@@ -100,6 +91,7 @@ async function accruePositionForDate(position, snapshotDate, ratePercent, confir
     if (existing) {
         return { outcome: "already", profitLoss: null };
     }
+    const ratePercent = (0, earningsRules_1.deterministicDailyRatePercent)(position.position_id, snapshotDate);
     const accrued = await accruedForPosition(position.position_id);
     const principal = (0, money_1.formatDecimal)((0, money_1.parseDecimal)(String(position.principal), AMOUNT_SCALE), AMOUNT_SCALE);
     const accrual = (0, earningsRules_1.buildDailyEarningsAccrual)({
@@ -153,12 +145,11 @@ async function accruePositionForDate(position, snapshotDate, ratePercent, confir
  */
 async function processEarningsTick(tickType, asOf = new Date()) {
     const settings = await (0, platformSettingsService_1.getPerformanceSettings)();
-    const ratePercent = resolveEarningsRate(settings.illustrativeDailyRatePercent);
     const asOfDate = (0, earningsRules_1.dayKey)(asOf);
     const summary = {
         tickType,
         asOfDate,
-        ratePercent,
+        rateBand: (0, earningsRules_1.describeDailyRateBand)(),
         positionsEvaluated: 0,
         periodsAccrued: 0,
         amountAccrued: "0.00000000",
@@ -186,7 +177,7 @@ async function processEarningsTick(tickType, asOf = new Date()) {
         let cursor = firstCandidate;
         let steps = 0;
         while (cursor.localeCompare(asOfDate) <= 0 && steps < maxDays) {
-            const result = await accruePositionForDate(position, cursor, ratePercent, confirmedAt);
+            const result = await accruePositionForDate(position, cursor, confirmedAt);
             if (result.outcome === "accrued") {
                 summary.periodsAccrued += 1;
                 if (result.profitLoss) {

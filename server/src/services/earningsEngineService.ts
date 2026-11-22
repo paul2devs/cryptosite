@@ -2,8 +2,9 @@ import { Op } from "sequelize";
 import {
   EARNINGS_ACCRUAL_SOURCE,
   buildDailyEarningsAccrual,
-  dailyEarningsRatePercent,
   dayKey,
+  describeDailyRateBand,
+  deterministicDailyRatePercent,
   isPerformanceDayEligible
 } from "../domain/earningsRules";
 import { formatDecimal, parseDecimal } from "../domain/money";
@@ -30,21 +31,6 @@ function nextDayKey(dayKeyValue: string): string {
   const date = new Date(`${dayKeyValue}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + 1);
   return date.toISOString().slice(0, 10);
-}
-
-// The administrator-configured daily rate (platform settings) is authoritative:
-// editing it in the admin console changes what the earnings engine applies. The
-// EARNINGS_DAILY_RATE_PERCENT environment variable is only used as a fallback
-// when no operator setting has been stored yet.
-function resolveEarningsRate(configured: string | null): string {
-  if (typeof configured === "string" && configured.trim().length > 0) {
-    return dailyEarningsRatePercent(configured);
-  }
-  const envValue = process.env.EARNINGS_DAILY_RATE_PERCENT;
-  if (typeof envValue === "string" && envValue.trim().length > 0) {
-    return dailyEarningsRatePercent(envValue);
-  }
-  return dailyEarningsRatePercent(null);
 }
 
 /**
@@ -96,7 +82,7 @@ async function latestVerifiedDate(positionId: string): Promise<string | null> {
 export interface EarningsTickSummary {
   tickType: EarningsTickType;
   asOfDate: string;
-  ratePercent: string;
+  rateBand: string;
   positionsEvaluated: number;
   periodsAccrued: number;
   amountAccrued: string;
@@ -107,6 +93,11 @@ export interface EarningsTickSummary {
 /**
  * Credit one day of daily investment earnings onto a single position.
  *
+ * The day's rate is a deterministic function of the position id and the
+ * snapshot date (see `deterministicDailyRatePercent`): usually a gain inside the
+ * 3%–6% band, occasionally a rare -2% loss. The same position/date always yields
+ * the same rate, so neither a re-run nor a backfill can rewrite a recorded day.
+ *
  * The write is idempotent: if a verified snapshot already exists for the
  * position/date pair (including a snapshot written by a previous run of this
  * job), nothing is written and no earnings are credited twice. The partial
@@ -116,7 +107,6 @@ export interface EarningsTickSummary {
 async function accruePositionForDate(
   position: InvestmentPosition,
   snapshotDate: string,
-  ratePercent: string,
   confirmedAt: Date | null
 ): Promise<{ outcome: "accrued" | "already" | "ineligible"; profitLoss: string | null }> {
   if (position.deposit_id && !isPerformanceDayEligible(confirmedAt, snapshotDate)) {
@@ -130,6 +120,7 @@ async function accruePositionForDate(
     return { outcome: "already", profitLoss: null };
   }
 
+  const ratePercent = deterministicDailyRatePercent(position.position_id, snapshotDate);
   const accrued = await accruedForPosition(position.position_id);
   const principal = formatDecimal(parseDecimal(String(position.principal), AMOUNT_SCALE), AMOUNT_SCALE);
   const accrual = buildDailyEarningsAccrual({
@@ -192,13 +183,12 @@ export async function processEarningsTick(
   asOf: Date = new Date()
 ): Promise<EarningsTickSummary> {
   const settings = await getPerformanceSettings();
-  const ratePercent = resolveEarningsRate(settings.illustrativeDailyRatePercent);
   const asOfDate = dayKey(asOf);
 
   const summary: EarningsTickSummary = {
     tickType,
     asOfDate,
-    ratePercent,
+    rateBand: describeDailyRateBand(),
     positionsEvaluated: 0,
     periodsAccrued: 0,
     amountAccrued: "0.00000000",
@@ -232,7 +222,7 @@ export async function processEarningsTick(
     let cursor = firstCandidate;
     let steps = 0;
     while (cursor.localeCompare(asOfDate) <= 0 && steps < maxDays) {
-      const result = await accruePositionForDate(position, cursor, ratePercent, confirmedAt);
+      const result = await accruePositionForDate(position, cursor, confirmedAt);
       if (result.outcome === "accrued") {
         summary.periodsAccrued += 1;
         if (result.profitLoss) {

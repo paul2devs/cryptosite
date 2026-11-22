@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { literal, Op, Transaction } from "sequelize";
 import { sequelize } from "../config/database";
+import { computeAccountBalance } from "../domain/accountBalanceRules";
 import {
   computeWithdrawalFees,
   resolveWithdrawalDefinition,
@@ -18,6 +19,7 @@ import { Withdrawal } from "../models/Withdrawal";
 import { calculateDepositLevelForUser } from "./depositLevelService";
 import { postBalancedEntry } from "./financialOperationsService";
 import { getAllMarketPrices } from "./marketDataService";
+import { getPortfolioValuation } from "./performanceService";
 
 export class WithdrawalError extends Error {
   status: number;
@@ -278,11 +280,15 @@ export interface WithdrawalEligibility {
 }
 
 export interface WithdrawalSummary {
+  /** Wallet cash that has been credited and settled. */
   withdrawable_balance: number;
+  /** Credited and settled funds actually eligible to be requested now. */
+  available_to_withdraw: number;
   locked_balance: number;
   invested_balance: number;
   pending_withdrawal_amount: number;
   pending_earnings_total: number;
+  settled_earnings_total: number;
   total_account_balance: number;
   user_level: number;
   min_level: number;
@@ -323,10 +329,11 @@ export async function getUserWithdrawalSummary(userId: string): Promise<Withdraw
     throw new WithdrawalError(404, "User not found");
   }
 
-  const [depositStats, pendingWithdrawalAmount, maturity] = await Promise.all([
+  const [depositStats, pendingWithdrawalAmount, maturity, valuation] = await Promise.all([
     calculateDepositLevelForUser(userId),
     pendingWithdrawalAmountFor(userId),
-    computeMaturityEligibility(user)
+    computeMaturityEligibility(user),
+    getPortfolioValuation(userId, "all")
   ]);
 
   const minLevel = getWithdrawalMinLevel();
@@ -341,10 +348,26 @@ export async function getUserWithdrawalSummary(userId: string): Promise<Withdraw
 
   const withdrawable = Number.isFinite(user.withdrawable_balance) ? user.withdrawable_balance : 0;
   const locked = Number.isFinite(user.locked_balance) ? user.locked_balance : 0;
-  const availableMatured = Math.max(0, withdrawable - maturity.maturingAmount);
+
+  // One authoritative breakdown: wallet cash, invested principal, accrued
+  // earnings and in-flight withdrawals are separated exactly once, so the same
+  // amount can never be reported as pending, settled and withdrawable at once.
+  // The invested principal comes from the verified positions, never from the raw
+  // approved-deposit total, and the pending earnings come from the same accrual
+  // the portfolio and performance sections report.
+  const balance = computeAccountBalance({
+    walletBalance: String(withdrawable),
+    lockedBalance: String(locked),
+    investedPrincipal: valuation.investedPrincipal,
+    accruedEarnings: valuation.accruedEarnings,
+    settledEarnings: valuation.settledEarnings,
+    underMaturity: String(maturity.maturingAmount),
+    pendingWithdrawals: String(pendingWithdrawalAmount)
+  });
+  const availableToWithdraw = Number(balance.availableToWithdraw);
 
   const levelMet = depositStats.level >= minLevel;
-  const balanceAvailable = availableMatured > 0;
+  const balanceAvailable = availableToWithdraw > 0;
   const cooldownCleared = cooldownRemainingSeconds === 0;
 
   const reasons: string[] = [];
@@ -364,18 +387,15 @@ export async function getUserWithdrawalSummary(userId: string): Promise<Withdraw
     );
   }
 
-  const pendingEarnings =
-    (user.pending_earnings as { total?: unknown } | null)?.total !== undefined
-      ? Number((user.pending_earnings as { total?: unknown }).total)
-      : 0;
-
   return {
     withdrawable_balance: withdrawable,
+    available_to_withdraw: availableToWithdraw,
     locked_balance: locked,
-    invested_balance: depositStats.totalDepositedUsd,
+    invested_balance: Number(balance.invested),
     pending_withdrawal_amount: pendingWithdrawalAmount,
-    pending_earnings_total: Number.isFinite(pendingEarnings) ? pendingEarnings : 0,
-    total_account_balance: withdrawable + locked + depositStats.totalDepositedUsd,
+    pending_earnings_total: Number(balance.pendingEarnings),
+    settled_earnings_total: Number(balance.settledEarnings),
+    total_account_balance: Number(balance.totalAccountBalance),
     user_level: depositStats.level,
     min_level: minLevel,
     cooldown_seconds_remaining: cooldownRemainingSeconds,

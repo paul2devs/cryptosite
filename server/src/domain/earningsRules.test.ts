@@ -4,7 +4,12 @@ import {
   absAmount,
   dayKey,
   describeDailyEarnings,
+  describeDailyRateBand,
   describeRealisedEarnings,
+  deterministicDailyRatePercent,
+  EARNINGS_DAILY_LOSS_RATE_PERCENT,
+  EARNINGS_DAILY_MAX_RATE_PERCENT,
+  EARNINGS_DAILY_MIN_RATE_PERCENT,
   earningsDirection,
   earningsPeriodDays,
   isFutureSnapshot,
@@ -121,4 +126,37 @@ test("normalises a configured period length to a whole number of days", () => {
   assert.equal(earningsPeriodDays(-5), 30);
   assert.equal(earningsPeriodDays(null), 30);
   assert.equal(earningsPeriodDays(undefined), 30);
+});
+
+test("derives the same daily rate for a position and day on every run", () => {
+  const first = deterministicDailyRatePercent("pos-1", "2026-03-05");
+  assert.equal(first, deterministicDailyRatePercent("pos-1", "2026-03-05"));
+  // A different day is allowed to differ, but a re-read never rewrites history.
+  assert.equal(first, deterministicDailyRatePercent("pos-1", "2026-03-05"));
+});
+
+test("keeps daily rates inside the 3%-6% gain band with rare -2% loss days", () => {
+  const min = Number(EARNINGS_DAILY_MIN_RATE_PERCENT);
+  const max = Number(EARNINGS_DAILY_MAX_RATE_PERCENT);
+  const loss = Number(EARNINGS_DAILY_LOSS_RATE_PERCENT);
+  const samples = 5000;
+  let lossDays = 0;
+  for (let index = 0; index < samples; index += 1) {
+    const rate = Number(deterministicDailyRatePercent(`pos-${index}`, "2026-03-05"));
+    if (rate === loss) {
+      lossDays += 1;
+      continue;
+    }
+    assert.ok(rate >= min && rate < max, `rate ${rate} outside the ${min}-${max} band`);
+  }
+  // Losses are a genuine but rare minority, never the norm.
+  assert.ok(lossDays > 0, "expected at least one loss day across the sample");
+  assert.ok(lossDays / samples < 0.1, `loss rate ${lossDays / samples} unexpectedly high`);
+});
+
+test("describes the daily rate band for logs and copy", () => {
+  const band = describeDailyRateBand();
+  assert.match(band, /3\.000000%/);
+  assert.match(band, /6\.000000%/);
+  assert.match(band, /-2\.000000%/);
 });
