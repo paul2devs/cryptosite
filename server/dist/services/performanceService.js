@@ -25,7 +25,7 @@ exports.PERFORMANCE_METHODOLOGY = {
     investment: "time_weighted_return",
     account: "money_weighted_return",
     version: "twr-mwr.1",
-    note: "Period ROI is a time-weighted return that chains cash-flow-adjusted daily returns so external deposits and withdrawals do not distort investment performance. Overall return is capital-weighted (money-weighted) to reflect the investor's actual average capital."
+    note: ""
 };
 const FLOW_ACCOUNT = {
     deposit_confirmed: { code: "invested_principal", kind: "contribution" },
@@ -381,7 +381,6 @@ async function getPerformanceOverview(userId, range) {
             realized: false
         },
         realizedEarnings: (0, money_1.formatDecimal)(realizedTotal, 8),
-        note: "Values are produced only from verified valuations and ledger events. Unverified positions are shown at principal and flagged. Unrealised performance is never withdrawable."
     };
 }
 async function getPortfolioValuation(userId, range = "all") {

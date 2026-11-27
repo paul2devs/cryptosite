@@ -133,8 +133,7 @@ export function PerformanceMetricsGrid({
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <StatusBadge tone="gold" label={`Methodology ${methodology?.version ?? "twr-mwr"}`} />
         <span className="max-w-2xl text-[11px] leading-relaxed text-[#9CA3AF]">
-          Period ROI uses a time-weighted return; overall return is capital-weighted. Deposits and
-          withdrawals are excluded from investment performance.
+          
         </span>
       </div>
     </Panel>

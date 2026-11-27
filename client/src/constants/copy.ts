@@ -83,7 +83,7 @@ export const DISCLOSURES = {
   noGuarantee:
     "Nothing on this platform is a promise of future returns. Projected figures are shown for context and are never credited as earnings.",
   depositsNotCredited:
-    "Submitting a deposit does not credit your balance. Funds appear only after the platform verifies the transaction on-chain.",
+    "Funds appear only after it's verifies the transaction on-chain.",
   onChainVerification:
     "Every deposit is verified on-chain before it is credited. Until that verification completes, the deposit remains pending.",
   illustrativeProjectionOnly:
